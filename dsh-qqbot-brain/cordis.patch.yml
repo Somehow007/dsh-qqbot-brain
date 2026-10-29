@@ -13,6 +13,7 @@
         injectPersona: true
         injectEmotion: true
         injectMemory: true
+        injectSpeaker: true
         http:
           enabled: true
           port: 4099

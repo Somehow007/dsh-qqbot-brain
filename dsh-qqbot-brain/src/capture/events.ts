@@ -41,6 +41,24 @@ function textOf(message: unknown): string {
   return '';
 }
 
+const CURRENT_MSG_MARK = '[Current message]';
+const SENDER_TAG_RE = /^\s*\[([^\[\]\n]{1,64}) \(([0-9A-Fa-f-]{8,64})\)\]\s*/;
+
+/**
+ * 解析宿主打在群聊消息上的发送者标签 `[昵称 (openid)]`。
+ * 群聊整包为 `[Chat history]…[Current message]\n[tag] 正文`（或引用块后直接 tag），
+ * 取最后一个 [Current message] 锚点后的首个 tag；无锚点时只认行首 tag（防误吃历史行）。
+ * 返回剥离 tag 后的正文与 actor（`昵称 (openid)`），单聊无 tag 时 actor 为空。
+ */
+export function parseSenderTag(raw: string): { actor?: string; text: string } {
+  const idx = raw.lastIndexOf(CURRENT_MSG_MARK);
+  const head = idx >= 0 ? raw.slice(0, idx + CURRENT_MSG_MARK.length) : '';
+  const tail = idx >= 0 ? raw.slice(idx + CURRENT_MSG_MARK.length) : raw;
+  const m = tail.match(SENDER_TAG_RE);
+  if (!m) return { text: raw };
+  return { actor: `${m[1]} (${m[2]})`, text: head + tail.slice(m[0].length) };
+}
+
 function sessionIdOf(session: SessionLike | undefined, e: RawEvent): string | undefined {
   const d = e.data ?? {};
   return (
@@ -54,7 +72,7 @@ function sessionIdOf(session: SessionLike | undefined, e: RawEvent): string | un
 }
 
 export class SessionCapture {
-  private pendingUser = new Map<string, { text: string; at: number }>();
+  private pendingUser = new Map<string, { text: string; actor?: string; at: number }>();
   private replyBuf = new Map<string, string[]>();
 
   private brain: Brain;
@@ -90,10 +108,12 @@ export class SessionCapture {
 
     switch (ev.type) {
       case 'user/message': {
-        const text = textOf(ev.data?.message ?? ev.data);
-        if (!text.trim()) return;
-        this.pendingUser.set(sessionId, { text, at: Date.now() });
-        this.injector.noteUserText(sessionId, text);
+        const raw = textOf(ev.data?.message ?? ev.data);
+        if (!raw.trim()) return;
+        const { actor, text: stripped } = parseSenderTag(raw);
+        const text = stripped.trim() ? stripped : raw;
+        this.pendingUser.set(sessionId, { text, actor, at: Date.now() });
+        this.injector.noteUserText(sessionId, text, actor);
         break;
       }
       case 'assistant/message': {
@@ -112,6 +132,7 @@ export class SessionCapture {
         this.brain.ingest(sessionId, {
           userText: user.text,
           assistantText: replies.join('\n'),
+          actor: user.actor,
           at: user.at,
         });
         void this.brain.endOfTurn(sessionId).catch((e: unknown) => {

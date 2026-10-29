@@ -75,6 +75,7 @@ export async function apply(ctx: unknown, config?: Partial<BrainPluginConfig>): 
       consolidateMinAgeDays: cfg.consolidation.minAgeDays,
       consolidateMinNotes: cfg.consolidation.minNotes,
     },
+    log: cfg.debug ? log : undefined,
   });
   if (persona && !store.persona()) store.setPersona(persona);
   // 初次落盘导出：让 persona.md 始终反映当前内核

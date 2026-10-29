@@ -51,6 +51,16 @@ export class EmotionEngine {
     this.states.set(sessionId, s);
   }
 
+  /** 全局视图用：最近更新过的那个会话的情绪（仍按时间衰减）；无记录时 undefined */
+  latest(now: number): { sessionId: string; state: EmotionState } | undefined {
+    let sid: string | undefined;
+    let best = -1;
+    for (const [k, s] of this.states) {
+      if (s.updatedAt > best) { best = s.updatedAt; sid = k; }
+    }
+    return sid ? { sessionId: sid, state: this.get(sid, now) } : undefined;
+  }
+
   describe(sessionId: string, now: number): string {
     const s = this.get(sessionId, now);
     return `当前情绪：${s.label}（v=${s.v.toFixed(1)} a=${s.a.toFixed(1)} d=${s.d.toFixed(1)}）`;

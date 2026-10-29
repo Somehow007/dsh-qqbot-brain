@@ -2,10 +2,11 @@ import type { Brain } from '../brain/index.ts';
 import type { BrainPluginConfig } from '../config.ts';
 
 /**
- * 通过 system-prompt/assemble waterfall 注入三块 section：
- *   brain:persona(order 80) 人格内核 · 最稳定锚点
- *   brain:emotion(order 82)  情绪态一行
- *   brain:memory (order 84)  top-k 记忆摘录
+ * 通过 system-prompt/assemble waterfall 注入四块 section：
+ *   brain:persona (order 80) 人格内核 · 最稳定锚点
+ *   brain:emotion (order 82) 情绪态一行
+ *   brain:memory  (order 84) top-k 记忆摘录
+ *   brain:speaker (order 86) 当前发言人（群聊）
  * 官方 qqbot:scope-prompt 为 order 90，我们的内核更早、更难被稀释。
  *
  * agent→sessionId 解析：优先读 context.agent 的 session 信息；
@@ -33,6 +34,8 @@ export class PromptInjector {
   private agentSession = new Map<string, string>();
   /** sessionId → 最近一条用户消息（检索 query） */
   private lastUserText = new Map<string, string>();
+  /** sessionId → 最近一条消息的发言人（群聊 `[昵称 (openid)]`，单聊无） */
+  private lastActor = new Map<string, string>();
 
   private brain: Brain;
   private config: BrainPluginConfig;
@@ -48,8 +51,9 @@ export class PromptInjector {
     this.agentSession.set(agentId, sessionId);
   }
 
-  noteUserText(sessionId: string, text: string): void {
+  noteUserText(sessionId: string, text: string, actor?: string): void {
     this.lastUserText.set(sessionId, text);
+    if (actor) this.lastActor.set(sessionId, actor);
   }
 
   private resolveSessionId(context: AssembleContext): string | undefined {
@@ -86,6 +90,10 @@ export class PromptInjector {
           order: 84,
           text: `【记忆库摘录】\n${brain.memoryLines.join('\n')}`,
         });
+      }
+      const actor = this.lastActor.get(sessionId);
+      if (this.config.injectSpeaker && actor) {
+        sections.push({ name: 'brain:speaker', order: 86, text: `【当前发言人】${actor}` });
       }
       if (this.config.debug && brain.hits.length) {
         this.log(`brain: 命中 ${brain.hits.length} 条记忆 (session=${sessionId.slice(0, 8)}…)`);

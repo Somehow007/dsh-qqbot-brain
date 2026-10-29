@@ -56,10 +56,12 @@ export interface BrainPluginConfig {
   personaCore: string;
   /** 记忆数据目录 */
   dataDir: string;
-  /** 情绪/记忆/画像注入开关 */
+  /** 情绪/记忆/画像/发言人注入开关 */
   injectPersona: boolean;
   injectEmotion: boolean;
   injectMemory: boolean;
+  /** 注入「当前发言人」section（群聊下标识谁在说） */
+  injectSpeaker: boolean;
   /** 蒸馏用的 LLM 配置 */
   llm: LlmConfig;
   retrieval: RetrievalConfig;
@@ -84,6 +86,7 @@ export const DEFAULT_CONFIG: BrainPluginConfig = {
   injectPersona: true,
   injectEmotion: true,
   injectMemory: true,
+  injectSpeaker: true,
   llm: {
     enabled: true,
     baseUrl: 'https://api.deepseek.com',

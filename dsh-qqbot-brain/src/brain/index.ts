@@ -20,6 +20,8 @@ export interface BrainOptions {
   /** 人格内核默认文本（store 中已存时优先用 store 的） */
   defaultPersona?: string;
   now?: () => number;
+  /** 调试日志（插件层按 debug 开关传入） */
+  log?: (msg: string) => void;
 }
 
 /**
@@ -36,6 +38,7 @@ export class Brain {
   private readonly emotion: EmotionEngine;
   private readonly defaultPersona: string;
   private readonly now: () => number;
+  private readonly log?: (msg: string) => void;
   private turnBuffer = new Map<string, Turn[]>();
   private distilling = new Set<string>();
 
@@ -47,6 +50,11 @@ export class Brain {
     this.emotion = new EmotionEngine(this.cfg);
     this.defaultPersona = opts.defaultPersona ?? '';
     this.now = opts.now ?? Date.now;
+    this.log = opts.log;
+    // 重启后恢复持久化的情绪状态
+    for (const s of this.store.sessions()) {
+      if (s.emotion) this.emotion.load(s.sessionId, s.emotion);
+    }
     if (this.cfg.evictAfterDays > 0) {
       this.store.shouldEvict = (n, now) =>
         n.hits === 0
@@ -73,7 +81,7 @@ export class Brain {
     const memoryLines = hits.map((n) => {
       const d = Math.floor(ageInDays(n, now));
       const when = d <= 0 ? '今天' : `${d}天前`;
-      return `- [${when}记] ${n.content}`;
+      return `- [${when}记] ${n.actor ? `[${n.actor}] ` : ''}${n.content}`;
     });
     const profile = this.store.profileOf(sessionId);
     if (profile) memoryLines.unshift(`- [画像] ${profile}`);
@@ -109,7 +117,13 @@ export class Brain {
       const existing = this.retriever
         .query(this.store.allNotes(), sessionId, queryText, now, this.store.version)
         .slice(0, 8);
-      const result = await this.distiller.distill(turns, this.persona(), existing);
+      const result = await this.distiller.distill(
+        turns, this.persona(), existing, this.emotion.get(sessionId, now),
+      );
+      this.log?.(
+        `蒸馏 ${sessionId.slice(0, 8)}…：记忆 ${result.memories.length} 条 / `
+        + `情绪 ${result.emotion?.label ?? '（未变）'} / 画像 ${result.profile ? '更新' : '（未变）'}`,
+      );
       for (const m of result.memories) {
         const target = m.mergeIndex != null ? existing[m.mergeIndex] : undefined;
         if (target) {
@@ -230,9 +244,14 @@ export class Brain {
       fading: notes.filter((n) => n.fading).length,
       sessions: new Set(notes.map((n) => n.sessionId)).size,
     };
+    const emo = sessionId
+      ? { sessionId, state: this.emotion.get(sessionId, now) }
+      : this.emotion.latest(now);
     return {
       persona: this.persona(),
-      emotion: sessionId ? this.emotion.get(sessionId, now) : NEUTRAL_EMOTION,
+      emotion: emo?.state ?? NEUTRAL_EMOTION,
+      /** emotion 归属的会话（全局视图下标识来源；无记录时为 undefined） */
+      emotionSession: emo?.sessionId,
       notes,
       stats,
       config: { forgetThreshold: this.cfg.forgetThreshold, topK: this.cfg.topK },

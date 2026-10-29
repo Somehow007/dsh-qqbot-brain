@@ -5,8 +5,10 @@
 
 ## 原理
 
-- 每轮 LLM 调用前，经 `system-prompt/assemble` 注入三个 section：
-  `brain:persona`(人格内核, order 80) / `brain:emotion`(情绪态, 82) / `brain:memory`(top-k 记忆, 84)
+- 每轮 LLM 调用前，经 `system-prompt/assemble` 注入四个 section：
+  `brain:persona`(人格内核, order 80) / `brain:emotion`(情绪态, 82) / `brain:memory`(top-k 记忆, 84) / `brain:speaker`(当前发言人, 86)
+- 群聊发言人归因：捕获 `user/message` 时解析宿主打的 `[昵称 (openid)]` 标签写入
+  `Turn.actor`，蒸馏出的记忆带发言人，注入的记忆摘录行显示 `[发言人]` 前缀
 - 经 `session/event` 捕获 user/assistant 轮次，`turn/end` 调 LLM 蒸馏为记忆笔记
 - 记忆按艾宾浩斯曲线 `R=e^(-t/S)` 衰减，被检索命中时 S+1 强化（用进废退）
 
