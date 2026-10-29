@@ -31,6 +31,8 @@ export class BrainStore {
   /** 最近操作流水（环形，供"事件流水"页查看真实落盘历史） */
   private opsLog: OpRecord[] = [];
   private static readonly OPS_LOG_CAP = 500;
+  /** 物理遗忘谓词（由 Brain 按衰减参数注入）：快照时真删除返回 true 的记忆 */
+  shouldEvict?: (n: MemoryNote, now: number) => boolean;
   private readonly file: string;
   private readonly snapshotFile: string;
   private readonly compactEvery: number;
@@ -107,6 +109,12 @@ export class BrainStore {
   }
 
   private compact(): void {
+    if (this.shouldEvict) {
+      const now = Date.now();
+      for (const n of [...this.notes.values()]) {
+        if (this.shouldEvict(n, now)) this.notes.delete(n.id);
+      }
+    }
     const snap = {
       notes: [...this.notes.values()],
       emotions: Object.fromEntries(this.emotions),

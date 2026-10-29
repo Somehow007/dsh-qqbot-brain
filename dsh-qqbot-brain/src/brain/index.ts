@@ -47,6 +47,12 @@ export class Brain {
     this.emotion = new EmotionEngine(this.cfg);
     this.defaultPersona = opts.defaultPersona ?? '';
     this.now = opts.now ?? Date.now;
+    if (this.cfg.evictAfterDays > 0) {
+      this.store.shouldEvict = (n, now) =>
+        n.hits === 0
+        && retention(n, now) < this.cfg.forgetThreshold
+        && ageInDays(n, now) >= this.cfg.evictAfterDays;
+    }
   }
 
   persona(): string {
@@ -111,6 +117,17 @@ export class Brain {
           this.store.reinforceById(target.id, this.cfg.reinforceStep, this.cfg.strengthCap, now);
         } else {
           this.store.addNote(sessionId, m, now);
+        }
+      }
+      // 意图级遗忘：编号指回附带列表 / 子串精确匹配（限本会话，防误删）
+      for (const f of result.forget ?? []) {
+        if (typeof f === 'number') {
+          const t = existing[f];
+          if (t) this.store.deleteNote(t.id);
+        } else {
+          for (const n of this.store.allNotes()) {
+            if (n.sessionId === sessionId && n.content.includes(f)) this.store.deleteNote(n.id);
+          }
         }
       }
       if (result.emotion) {

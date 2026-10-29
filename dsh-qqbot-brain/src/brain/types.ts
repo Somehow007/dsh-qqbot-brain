@@ -58,6 +58,8 @@ export interface DistillResult {
   emotion?: { label: string; v: number; a: number; d: number };
   /** 更新后的用户画像全文（可选，整体覆盖该 session 的画像） */
   profile?: string;
+  /** 遗忘意图：数字=已有记忆编号（distill 附带列表下标），字符串=按内容子串匹配删除 */
+  forget?: (number | string)[];
 }
 
 /** 一轮对话（蒸馏输入） */
@@ -101,6 +103,8 @@ export interface BrainConfig {
   consolidateMinAgeDays: number;
   /** 语义巩固：会话内情景记忆达到该数量才触发 */
   consolidateMinNotes: number;
+  /** 物理遗忘：快照时删除 hits=0 且低于遗忘阈值 且 age>=该天数 的记忆（0=不物理删除） */
+  evictAfterDays: number;
 }
 
 export const DEFAULT_BRAIN_CONFIG: BrainConfig = {
@@ -115,6 +119,7 @@ export const DEFAULT_BRAIN_CONFIG: BrainConfig = {
   candidatePool: 200,
   consolidateMinAgeDays: 1,
   consolidateMinNotes: 4,
+  evictAfterDays: 30,
 };
 
 export const DAY_MS = 86_400_000;

@@ -22,10 +22,12 @@ const PROMPT = `你是陪伴型聊天角色的记忆提炼模块。阅读下面�
 {
   "memories": [{"content": "一句话值得长期记住的事实/事件（含相关实体，忽略寒暄）", "importance": 1-5, "actor": "相关人名可空", "merge": 0}],
   "emotion": {"label": "角色此刻的情绪短语", "v": -1到1效价, "a": 0到1唤醒, "d": -1到1支配},
-  "profile": "如需更新用户画像则给出画像全文，否则省略"
+  "profile": "如需更新用户画像则给出画像全文，否则省略",
+  "forget": []
 }
 要求：memories 最多 %d 条，可为空数组；只输出 JSON。
 若某条新记忆是对「已有记忆」中某一条的更新/补充/修正，给该项加 "merge": 已有记忆编号，并把它写成合并后的完整表述；不要输出与已有记忆语义重复的新条。
+若用户明确说"忘了X/别记这个/别再提X"，在 forget 里输出对应已有记忆的编号（数字）；若没有对应编号，输出该记忆内容中的关键子串（字符串）。无则 forget 为 []。
 角色设定：%s
 
 对话：
@@ -91,7 +93,11 @@ export function parseDistillOutput(raw: string): DistillResult {
       }
     : undefined;
   const profile = typeof o.profile === 'string' && o.profile.trim() ? o.profile.trim() : undefined;
-  return { memories, emotion, profile };
+  const forget = Array.isArray(o.forget)
+    ? (o.forget as unknown[]).filter((x): x is number | string =>
+        (typeof x === 'number' && x >= 0) || (typeof x === 'string' && !!x.trim()))
+    : undefined;
+  return { memories, emotion, profile, forget: forget?.length ? forget : undefined };
 }
 
 export class Distiller {
