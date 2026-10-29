@@ -97,7 +97,7 @@ export class BrainHttpServer {
     // /api/notes 与 /api/notes/<id>[/reinforce]
     if (p === `${prefix}/api/notes` && req.method === 'POST') {
       readBody(req).then((body) => {
-        const o = parseJson<{ content?: string; importance?: number; kind?: 'episodic' | 'semantic'; sessionId?: string; actor?: string }>(body) ?? {};
+        const o = parseJson<{ content?: string; importance?: number; kind?: 'episodic' | 'semantic' | 'attitude'; sessionId?: string; actor?: string }>(body) ?? {};
         if (!o.content?.trim()) { res.writeHead(400).end('content required'); return; }
         const note = this.brain.addNote(o.sessionId ?? 'manual', {
           content: o.content, importance: o.importance, kind: o.kind, actor: o.actor,
@@ -116,7 +116,7 @@ export class BrainHttpServer {
       }
       if (req.method === 'PATCH') {
         readBody(req).then((body) => {
-          const o = parseJson<{ content?: string; importance?: number; kind?: 'episodic' | 'semantic' }>(body) ?? {};
+          const o = parseJson<{ content?: string; importance?: number; kind?: 'episodic' | 'semantic' | 'attitude' }>(body) ?? {};
           return this.brain.updateNote(id, o)
             ? json(res, { ok: true })
             : void res.writeHead(404).end('note not found');

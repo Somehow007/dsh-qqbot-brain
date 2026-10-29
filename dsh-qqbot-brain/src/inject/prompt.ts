@@ -2,9 +2,10 @@ import type { Brain } from '../brain/index.ts';
 import type { BrainPluginConfig } from '../config.ts';
 
 /**
- * 通过 system-prompt/assemble waterfall 注入四块 section：
+ * 通过 system-prompt/assemble waterfall 注入五块 section：
  *   brain:persona (order 80) 人格内核 · 最稳定锚点
  *   brain:emotion (order 82) 情绪态一行
+ *   brain:attitude(order 83) 态度立场（对人/事/话题的当前看法，慢变量）
  *   brain:memory  (order 84) top-k 记忆摘录
  *   brain:speaker (order 86) 当前发言人（群聊）
  * 官方 qqbot:scope-prompt 为 order 90，我们的内核更早、更难被稀释。
@@ -75,7 +76,10 @@ export class PromptInjector {
       if (!sessionId) return assembled;
 
       const query = this.lastUserText.get(sessionId) ?? '';
-      const brain = this.brain.assemble(sessionId, query);
+      const actor = this.lastActor.get(sessionId);
+      // actor 形如「昵称 (openid)」（昵称本身可能含括号），取最后 openid 组前的昵称部分
+      const nick = actor?.replace(/\s*\([0-9A-Fa-f-]{8,64}\)\s*$/, '');
+      const brain = this.brain.assemble(sessionId, query, nick);
 
       const sections = [...(assembled.sections ?? [])];
       if (this.config.injectPersona && brain.persona) {
@@ -84,6 +88,13 @@ export class PromptInjector {
       if (this.config.injectEmotion && brain.emotion) {
         sections.push({ name: 'brain:emotion', order: 82, text: `【情绪态】${brain.emotion}` });
       }
+      if (this.config.injectAttitude && brain.attitudeLines.length) {
+        sections.push({
+          name: 'brain:attitude',
+          order: 83,
+          text: `【当前立场】\n${brain.attitudeLines.join('\n')}`,
+        });
+      }
       if (this.config.injectMemory && brain.memoryLines.length) {
         sections.push({
           name: 'brain:memory',
@@ -91,7 +102,6 @@ export class PromptInjector {
           text: `【记忆库摘录】\n${brain.memoryLines.join('\n')}`,
         });
       }
-      const actor = this.lastActor.get(sessionId);
       if (this.config.injectSpeaker && actor) {
         sections.push({ name: 'brain:speaker', order: 86, text: `【当前发言人】${actor}` });
       }

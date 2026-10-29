@@ -60,6 +60,8 @@ export interface BrainPluginConfig {
   injectPersona: boolean;
   injectEmotion: boolean;
   injectMemory: boolean;
+  /** 注入「当前立场」section（kind=attitude 态度记忆命中） */
+  injectAttitude: boolean;
   /** 注入「当前发言人」section（群聊下标识谁在说） */
   injectSpeaker: boolean;
   /** 蒸馏用的 LLM 配置 */
@@ -86,6 +88,7 @@ export const DEFAULT_CONFIG: BrainPluginConfig = {
   injectPersona: true,
   injectEmotion: true,
   injectMemory: true,
+  injectAttitude: true,
   injectSpeaker: true,
   llm: {
     enabled: true,

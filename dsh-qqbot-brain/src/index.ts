@@ -110,6 +110,7 @@ export async function apply(ctx: unknown, config?: Partial<BrainPluginConfig>): 
   const where = http.start(ctx);
 
   log(`已启动：人格内核(${personaFrom}) ${cfg.injectPersona ? 'on' : 'off'} / `
-    + `情绪 ${cfg.injectEmotion ? 'on' : 'off'} / 记忆 ${cfg.injectMemory ? 'on' : 'off'} / `
+    + `情绪 ${cfg.injectEmotion ? 'on' : 'off'} / 立场 ${cfg.injectAttitude ? 'on' : 'off'} / `
+    + `记忆 ${cfg.injectMemory ? 'on' : 'off'} / `
     + `蒸馏 ${distiller.enabled ? 'on' : 'off(无apiKey)'} / 脑图 ${where}`);
 }

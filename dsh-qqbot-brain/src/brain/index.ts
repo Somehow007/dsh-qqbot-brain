@@ -72,17 +72,37 @@ export class Brain {
     this.store.setPersona(text.trim());
   }
 
-  /** 每轮组装注入上下文；对命中的记忆做唤起强化 */
-  assemble(sessionId: string, queryText: string): BrainContext {
+  /**
+   * 每轮组装注入上下文；对命中的记忆做唤起强化。
+   * speakerNick：当前发言人昵称（群聊）。「对该人」的态度是恒定的上下文，
+   * 因此含昵称的 attitude 条目保底唤起（补足到 3 条上限），不跟 topK 记忆池抢名额。
+   * 命中按 kind 拆分：attitude → attitudeLines（【当前立场】），其余 → memoryLines（【记忆库摘录】）。
+   */
+  assemble(sessionId: string, queryText: string, speakerNick?: string): BrainContext {
     const now = this.now();
     const hits = this.retriever.query(this.store.allNotes(), sessionId, queryText, now, this.store.version);
+    const hitIds = new Set(hits.map((n) => n.id));
+    if (speakerNick) {
+      const extra = this.store.allNotes()
+        .filter((n) => n.sessionId === sessionId && n.kind === 'attitude'
+          && !hitIds.has(n.id) && n.content.includes(speakerNick))
+        .sort((a, b) => retention(b, now) - retention(a, now));
+      const room = Math.max(0, 3 - hits.filter((n) => n.kind === 'attitude').length);
+      hits.push(...extra.slice(0, room));
+    }
     for (const n of hits) this.store.reinforce(n, this.cfg.reinforceStep, this.cfg.strengthCap, now);
 
-    const memoryLines = hits.map((n) => {
+    const attitudeLines: string[] = [];
+    const memoryLines: string[] = [];
+    for (const n of hits) {
+      if (n.kind === 'attitude') {
+        attitudeLines.push(`- ${n.content}`);
+        continue;
+      }
       const d = Math.floor(ageInDays(n, now));
       const when = d <= 0 ? '今天' : `${d}天前`;
-      return `- [${when}记] ${n.actor ? `[${n.actor}] ` : ''}${n.content}`;
-    });
+      memoryLines.push(`- [${when}记] ${n.actor ? `[${n.actor}] ` : ''}${n.content}`);
+    }
     const profile = this.store.profileOf(sessionId);
     if (profile) memoryLines.unshift(`- [画像] ${profile}`);
 
@@ -90,6 +110,7 @@ export class Brain {
       persona: this.persona(),
       emotion: this.emotion.describe(sessionId, now),
       memoryLines,
+      attitudeLines,
       hits,
     };
   }
@@ -127,7 +148,7 @@ export class Brain {
       for (const m of result.memories) {
         const target = m.mergeIndex != null ? existing[m.mergeIndex] : undefined;
         if (target) {
-          this.store.updateNote(target.id, { content: m.content, importance: m.importance });
+          this.store.updateNote(target.id, { content: m.content, importance: m.importance, kind: m.kind });
           this.store.reinforceById(target.id, this.cfg.reinforceStep, this.cfg.strengthCap, now);
         } else {
           this.store.addNote(sessionId, m, now);

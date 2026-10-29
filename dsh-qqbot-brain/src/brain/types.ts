@@ -5,6 +5,8 @@
  * - working   dsh 会话历史（宿主已有，本插件不重复实现）
  * - episodic  蒸馏笔记 MemoryNote（kind='episodic'），按保持率 R=e^(-t/S) 衰减
  * - semantic  用户画像 / 关系摘要（kind='semantic' 或 profiles）
+ * - attitude  角色对人/事/话题的立场看法（kind='attitude'），自我的慢变量，
+ *             随检索按相关性唤起，随时间与其他记忆同样衰减/被 merge 更新
  * 人格内核 persona core 为只读文本，不走可写记忆。
  */
 
@@ -20,8 +22,8 @@ export interface MemoryNote {
   content: string;
   /** 重要度 1-5（5=重大承诺/强偏好/关键事件） */
   importance: number;
-  /** 记忆类型：episodic 情景记忆 | semantic 语义记忆 */
-  kind: 'episodic' | 'semantic';
+  /** 记忆类型：episodic 情景记忆 | semantic 语义记忆 | attitude 态度立场 */
+  kind: 'episodic' | 'semantic' | 'attitude';
   /** 形成时间 ms epoch */
   createdAt: number;
   /** 记忆强度 S（单位：天），被唤起时增强 */
@@ -47,7 +49,7 @@ export interface NoteDraft {
   content: string;
   importance?: number;
   actor?: string;
-  kind?: 'episodic' | 'semantic';
+  kind?: 'episodic' | 'semantic' | 'attitude';
   /** 判重：若为对已有记忆（distill 时附带的编号列表）的更新/合并，为对应下标 */
   mergeIndex?: number;
 }
@@ -78,6 +80,8 @@ export interface BrainContext {
   emotion: string;
   /** 记忆摘录行（已带时间标注），可为空数组 */
   memoryLines: string[];
+  /** 态度立场行（kind=attitude 命中条目），可为空数组 */
+  attitudeLines: string[];
   /** 本次命中的记忆（用于统计/调试/可视化） */
   hits: MemoryNote[];
 }

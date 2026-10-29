@@ -28,7 +28,10 @@ const PROMPT = `你是陪伴型聊天角色的记忆提炼模块。阅读下面�
 要求：memories 最多 %d 条，可为空数组；只输出 JSON。
 对话每行形如「发言人：内容」；单聊发言人显示为「用户」，群聊显示为「昵称 (openid)」，memories.actor 写该发言人昵称。
 profile 字段：单聊写该用户画像全文；多发言人会话可按发言人分行写群内分人画像。
-若某条新记忆是对「已有记忆」中某一条的更新/补充/修正，给该项加 "merge": 已有记忆编号，并把它写成合并后的完整表述；不要输出与已有记忆语义重复的新条。
+若本轮对话让「角色」对某人、某事或某话题形成了新的看法/立场/喜恶，或使既有态度发生更新（被说服、改观、加深、转淡），
+给该项加 "kind": "attitude"，content 写成「对<对象>：<角色当前立场一句话>」的完整表述（如对某人的态度写对象昵称）；
+普通事实/事件条目省略 kind。态度条目应与角色性格一致、由对话证据支撑，不要凭空产生。
+若某条新记忆（含态度）是对「已有记忆」中某一条的更新/补充/修正，给该项加 "merge": 已有记忆编号，并把它写成合并后的完整表述；不要输出与已有记忆语义重复的新条。
 若用户明确说"忘了X/别记这个/别再提X"，在 forget 里输出对应已有记忆的编号（数字）；若没有对应编号，输出该记忆内容中的关键子串（字符串）。无则 forget 为 []。
 角色设定：%s
 
@@ -92,6 +95,7 @@ export function parseDistillOutput(raw: string): DistillResult {
           content: String(x.content),
           importance: typeof x.importance === 'number' ? x.importance : 3,
           actor: typeof x.actor === 'string' && x.actor ? x.actor : undefined,
+          kind: x.kind === 'attitude' ? 'attitude' as const : undefined,
           mergeIndex: typeof x.merge === 'number' && x.merge >= 0 ? Math.floor(x.merge) : undefined,
         }))
     : [];

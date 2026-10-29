@@ -94,6 +94,82 @@ test('parseDistillOutput: 解析 JSON / 容忍噪声', () => {
   assert.deepEqual(parseDistillOutput('not json'), { memories: [] });
 });
 
+test('parseDistillOutput: kind=attitude 被保留，非法 kind 回落情景', () => {
+  const r = parseDistillOutput(JSON.stringify({
+    memories: [
+      { content: '对张三：嘴上嫌弃其实信任', importance: 4, kind: 'attitude' },
+      { content: '用户买了新车', kind: 'bogus' },
+    ],
+  }));
+  assert.equal(r.memories[0]!.kind, 'attitude');
+  assert.equal(r.memories[1]!.kind, undefined);
+});
+
+test('endOfTurn: attitude 条目按 kind=attitude 入库', async () => {
+  const { store } = tmpStore();
+  const brain = new Brain({
+    store, now,
+    distiller: mockDistiller({
+      memories: [{ content: '对内卷：被说服后没那么反感了', importance: 3, kind: 'attitude' }],
+    }),
+  });
+  brain.ingest('s1', { userText: '其实内卷也有道理', assistantText: '咕嘟…有点道理', at: NOW });
+  await brain.endOfTurn('s1');
+  assert.equal(store.allNotes()[0]!.kind, 'attitude');
+});
+
+// ── 态度立场注入 ──
+test('assemble: attitude 命中进 attitudeLines 而非 memoryLines', () => {
+  const { store } = tmpStore();
+  store.addNote('s1', { content: '对张三：嘴上嫌弃其实信任', importance: 4, kind: 'attitude' }, NOW);
+  store.addNote('s1', { content: '张三上周请客吃了烤鱼', importance: 3 }, NOW);
+  const brain = new Brain({ store, distiller: mockDistiller({}), now });
+  const ctx = brain.assemble('s1', '张三 烤鱼');
+  assert.ok(ctx.attitudeLines.some((l) => l.includes('对张三')));
+  assert.ok(!ctx.memoryLines.some((l) => l.includes('嫌弃')));
+});
+
+test('assemble: 发言人昵称保底唤起「对该人」的态度，且被强化', () => {
+  const { store } = tmpStore();
+  // 6 条高分填充记忆把 topK=6 占满：无昵称时态度轮不上检索分
+  for (let i = 0; i < 6; i++) {
+    store.addNote('g1', { content: `今晚吃啥大伙商量着定了第${i}家烧烤`, importance: 5 }, NOW);
+  }
+  store.addNote('g1', { content: '对张三：嘴上嫌弃其实信任', importance: 4, kind: 'attitude' }, NOW);
+  const brain = new Brain({ store, distiller: mockDistiller({}), now });
+  // 别人发言：态度进不了 topK
+  const ctx0 = brain.assemble('g1', '今晚吃啥', '李四');
+  assert.equal(ctx0.attitudeLines.length, 0);
+  // 张三发言：保底唤起且计入强化
+  const ctx = brain.assemble('g1', '今晚吃啥', '张三');
+  assert.ok(ctx.attitudeLines.some((l) => l.includes('对张三')));
+  assert.equal(store.allNotes().find((n) => n.kind === 'attitude')!.hits, 1);
+});
+
+test('endOfTurn: merge 指向已有 attitude 条目时原位更新而非新增', async () => {
+  const { store } = tmpStore();
+  store.addNote('s1', { content: '对内卷：极度反感', importance: 4, kind: 'attitude' }, NOW - 3 * DAY);
+  const brain = new Brain({
+    store, now,
+    distiller: mockDistiller({
+      memories: [{ content: '对内卷：被说服后没那么反感了', importance: 4, kind: 'attitude', merge: 0 }],
+    }),
+  });
+  brain.ingest('s1', { userText: '其实内卷也有道理', assistantText: '咕嘟…有点道理', at: NOW });
+  await brain.endOfTurn('s1');
+  assert.equal(store.allNotes().length, 1);
+  assert.equal(store.allNotes()[0]!.content, '对内卷：被说服后没那么反感了');
+  assert.equal(store.allNotes()[0]!.kind, 'attitude');
+});
+
+test('buildDistillPrompt: 含态度条目写法说明', () => {
+  const p = buildDistillPrompt(
+    [{ userText: '你好', assistantText: '咕嘟', at: NOW }], '大肥鱼', 5,
+  );
+  assert.match(p, /kind": "attitude"/);
+  assert.match(p, /对<对象>/);
+});
+
 test('endOfTurn: 蒸馏结果写入记忆/情绪/画像', async () => {
   const { store } = tmpStore();
   const brain = new Brain({
