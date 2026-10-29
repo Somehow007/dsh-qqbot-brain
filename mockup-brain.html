@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>大肥鱼的大脑 · 脑图概念样机</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#04121f; color:#cfe8ff; font-family:"PingFang SC",sans-serif; overflow:hidden; }
+  #cv { position:fixed; inset:0; }
+  .panel { position:fixed; top:14px; left:14px; width:290px; max-height:calc(100vh - 28px);
+    overflow-y:auto; background:rgba(6,24,40,.82); border:1px solid rgba(110,190,255,.25);
+    border-radius:12px; padding:14px; backdrop-filter:blur(6px); font-size:12px; }
+  .panel h1 { font-size:15px; color:#8fd0ff; margin-bottom:2px; }
+  .panel .sub { color:#5e89a8; font-size:11px; margin-bottom:10px; }
+  .stat { display:flex; justify-content:space-between; padding:3px 0; border-bottom:1px dashed rgba(110,190,255,.12); }
+  .stat b { color:#ffd47e; font-weight:600; }
+  h2 { font-size:12px; color:#7fb8e0; margin:12px 0 6px; letter-spacing:1px; }
+  .mem { padding:5px 7px; border-radius:6px; margin-bottom:4px; background:rgba(20,50,80,.5);
+    border-left:3px solid #2e86c1; cursor:pointer; }
+  .mem:hover { background:rgba(40,90,140,.6); }
+  .mem .c { color:#dff1ff; }
+  .mem .m { color:#6e94b0; font-size:10px; margin-top:2px; }
+  .mem.hi { border-left-color:#ffd47e; background:rgba(90,70,20,.45); }
+  #q { width:100%; padding:6px 8px; border-radius:6px; border:1px solid rgba(110,190,255,.3);
+    background:rgba(10,30,50,.8); color:#dff1ff; font-size:12px; }
+  #q:focus { outline:none; border-color:#ffd47e; }
+  .tag { display:inline-block; padding:1px 7px; border-radius:8px; font-size:10px;
+    background:rgba(46,134,193,.3); color:#9fd4ff; margin:2px 2px 0 0; }
+  #emoCard { margin-top:4px; padding:7px; border-radius:8px; background:rgba(30,60,40,.5); }
+  .legend { color:#5e89a8; font-size:10px; margin-top:8px; line-height:1.7; }
+  .dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:4px; }
+  #coreCard { display:none; }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div class="panel">
+  <h1>大肥鱼的大脑</h1>
+  <div class="sub">类脑架构 · 人格内核 / 分层遗忘记忆 / 情绪插件（概念样机·mock数据）</div>
+  <div class="stat"><span>情景记忆条目</span><b id="sN">-</b></div>
+  <div class="stat"><span>平均保持率 R̄</span><b id="sR">-</b></div>
+  <div class="stat"><span>低于遗忘阈值</span><b id="sF">-</b></div>
+  <div class="stat"><span>运行会话</span><b>1 群 + 1 用户</b></div>
+  <div id="emoCard"><b>情绪插件</b> · <span id="emoTxt"></span></div>
+  <h2>检索模拟器（输入试试）</h2>
+  <input id="q" placeholder="如：我家猫叫什么？ / 五一去哪玩？">
+  <div id="qres"></div>
+  <h2>人格内核</h2>
+  <div id="coreCard" class="mem"><div class="c" id="coreTxt"></div></div>
+  <div id="coreHint" style="color:#5e89a8">点击中央光球查看</div>
+  <h2>记忆星图（按保持率排序）</h2>
+  <div id="mlist"></div>
+  <div class="legend">
+    <span class="dot" style="background:#ffd47e"></span>人格内核（只读·恒定）<br>
+    <span class="dot" style="background:#5bc0eb"></span>记忆星：大小=重要度 · 亮度=保持率R<br>
+    <span class="dot" style="background:#7ed491"></span>情绪星：颜色=效价 · 大小=唤醒度<br>
+    节点暗下去 = 正在遗忘 · 被检索命中 = S+1 强化
+  </div>
+</div>
+<script>
+// ============ MOCK 数据（取自真实蒸馏实验结果） ============
+const TODAY = 24;
+const PERSONA = "大肥鱼：懒散佛系爱摸鱼的胖鱼，爱吐槽、关键时刻仗义；口头禅“咕嘟～”；最爱小鱼干；生日4月1日；住群聊鱼缸；被叫咸鱼会嘴硬。";
+const EMOTION = { v: 0.6, a: 0.4, d: 0.1, label: "慵懒满足（被夸了尾巴还没放下来）" };
+const NOTES = [
+  {content:"用户阿澈是软件工程专业大二学生",importance:4,day:0},
+  {content:"用户阿澈养了一只橘猫，名叫年糕",importance:4,day:0},
+  {content:"大肥鱼自称深海贵族，来群里养老",importance:3,day:0},
+  {content:"大肥鱼宣布年糕为鱼缸荣誉警卫",importance:2,day:0},
+  {content:"大肥鱼口头禅是咕嘟，自称富贵相",importance:2,day:0},
+  {content:"用户下周三有高数期中考试，感到紧张焦虑",importance:4,day:3},
+  {content:"用户讨厌香菜，食堂有香菜时一口都不吃",importance:3,day:3},
+  {content:"大肥鱼的生日是4月1日，用户打算送小鱼干",importance:3,day:3},
+  {content:"用户买了五一去青岛的火车票，计划去看海",importance:4,day:7},
+  {content:"用户最爱告五人乐队",importance:3,day:7},
+  {content:"大肥鱼自称来自海里，不想家，喜欢群聊鱼缸和小鱼干",importance:2,day:7},
+  {content:"用户的笔记本电脑摔坏，维修主板花费3200元",importance:4,day:10},
+  {content:"用户面对破财时倾向于用「破财消灾」自我安慰",importance:2,day:10},
+  {content:"用户喜欢欣赏天上的云",importance:2,day:10},
+  {content:"用户的高数成绩为78分，比预想高",importance:4,day:14},
+  {content:"用户承诺奖励大肥鱼十条赛博小鱼干",importance:3,day:14},
+  {content:"用户阿澈决定戒熬夜，并开始晨跑",importance:4,day:21},
+  {content:"大肥鱼承诺监督阿澈晨跑，每跑一天给一句彩虹屁",importance:3,day:21},
+  {content:"大肥鱼自称懒惰是种族天赋，治不了",importance:2,day:21},
+];
+const THRESH = 0.2, DAY_MS = 86400e3;
+
+// ============ 保持率 & TF-IDF（与真实实现同一算法） ============
+const retention = n => Math.exp(-(TODAY - n.day) / Math.max(n.importance, .5));
+NOTES.forEach(n => n.R = retention(n));
+
+const ngrams = s => { s = s.replace(/\s/g,""); const g=[];
+  for (const n of [2,3]) for (let i=0;i<=s.length-n;i++) g.push(s.slice(i,i+n)); return g; };
+const df={}, tfs=NOTES.map(n=>{const c={}; ngrams(n.content).forEach(g=>c[g]=(c[g]||0)+1);
+  Object.keys(c).forEach(k=>df[k]=(df[k]||0)+1); return c;});
+const idf = k => Math.log((NOTES.length+1)/((df[k]||0)+1))+1;
+const vec = c => {const v={}; for(const k in c) v[k]=c[k]*idf(k); return v;};
+const cos = (a,b)=>{let d=0,na=0,nb=0; for(const k in a){d+=a[k]*(b[k]||0);na+=a[k]*a[k]}
+  for(const k in b)nb+=b[k]*b[k]; return d/(Math.sqrt(na)*Math.sqrt(nb)+1e-9);};
+function queryCounts(s){const c={}; ngrams(s).forEach(g=>c[g]=(c[g]||0)+1); return c;}
+const retrieve = q => { const qv=vec(queryCounts(q));
+  return NOTES.map(n=>({n, s:.6*cos(vec(tfs[NOTES.indexOf(n)]),qv)+.4*n.R}))
+    .sort((a,b)=>b.s-a.s).slice(0,6); };
+
+// ============ 画布 & 力导向布局 ============
+const cv=document.getElementById('cv'), g2=cv.getContext('2d');
+let W,H; const resize=()=>{W=cv.width=innerWidth;H=cv.height=innerHeight;};
+addEventListener('resize',resize); resize();
+const CX=W*.58, CY=H*.5;
+
+const nodes=NOTES.map((n,i)=>({n,
+  x:CX+Math.cos(i/NOTES.length*6.28)*(180+Math.random()*140),
+  y:CY+Math.sin(i/NOTES.length*6.28)*(160+Math.random()*120), vx:0,vy:0}));
+// 边：共享关键词
+const edges=[]; for(let i=0;i<nodes.length;i++)for(let j=i+1;j<nodes.length;j++){
+  const A=new Set(ngrams(nodes[i].n.content)), common=[...ngrams(nodes[j].n.content)].filter(x=>A.has(x));
+  if(common.length>=3) edges.push([i,j,Math.min(1,common.length/8)]);
+}
+const core={x:CX,y:CY,r:52};
+const emo={x:W*.88,y:H*.14,r:30};
+
+let tick=0, hover=null, hits=new Set(), hitSet=new Set();
+function physics(){
+  nodes.forEach(a=>{ // 向心力+节点斥力
+    a.vx+=(CX-a.x)*.0009; a.vy+=(CY-a.y)*.0009;
+    nodes.forEach(b=>{if(a!==b){const dx=a.x-b.x,dy=a.y-b.y,d2=dx*dx+dy*dy;
+      if(d2<9000&&d2>1){const f=90/d2;a.vx+=dx*f/Math.sqrt(d2);a.vy+=dy*f/Math.sqrt(d2);}}});
+    a.vx*=.9;a.vy*=.9;a.x+=a.vx;a.y+=a.vy;});
+}
+function draw(){
+  tick++; g2.clearRect(0,0,W,H);
+  // 水底氛围
+  const bg=g2.createRadialGradient(CX,CY,60,CX,CY,Math.max(W,H)*.7);
+  bg.addColorStop(0,"#0a2a43"); bg.addColorStop(1,"#04121f");
+  g2.fillStyle=bg; g2.fillRect(0,0,W,H);
+  // 上浮气泡
+  for(let i=0;i<14;i++){const bx=(i*173+tick*.12)%W, by=H-((tick*.35+i*97)%(H+60));
+    g2.beginPath();g2.arc(bx,by,1.5+i%3,0,7);g2.strokeStyle="rgba(120,190,255,.12)";g2.stroke();}
+  // 记忆连线
+  edges.forEach(([i,j,w])=>{const a=nodes[i],b=nodes[j];
+    g2.beginPath();g2.moveTo(a.x,a.y);g2.lineTo(b.x,b.y);
+    g2.strokeStyle=`rgba(90,160,220,${.05+w*.14})`;g2.lineWidth=w*1.4;g2.stroke();});
+  // 检索命中连线（虚线→核心）
+  hitSet.forEach(i=>{const a=nodes[i];g2.setLineDash([4,4]);
+    g2.beginPath();g2.moveTo(core.x,core.y);g2.lineTo(a.x,a.y);
+    g2.strokeStyle="rgba(255,212,126,.5)";g2.lineWidth=1.2;g2.stroke();g2.setLineDash([]);});
+  // 记忆星
+  nodes.forEach((nd,i)=>{const {n}=nd,r=4+n.importance*1.7;
+    const glow=n.R*(hitSet.has(i)?1.6:1);
+    g2.shadowBlur=6+glow*22; g2.shadowColor=`rgba(91,192,235,${.35+n.R*.5})`;
+    g2.beginPath();g2.arc(nd.x,nd.y,r,0,7);
+    g2.fillStyle=`rgba(${hitSet.has(i)?'255,212,126':'91,192,235'},${.18+n.R*.75})`;
+    g2.fill(); g2.shadowBlur=0;
+    if(n.R<THRESH){g2.fillStyle="rgba(255,120,120,.85)";g2.font="9px sans-serif";
+      g2.fillText("将遗忘",nd.x-14,nd.y-8);}
+    if(hover===i){g2.fillStyle="#fff";g2.font="10px sans-serif";
+      const t=n.content.length>18?n.content.slice(0,18)+"…":n.content;
+      g2.fillText(t,nd.x+10,nd.y+4);}});
+  // 情绪星
+  const pv=.5+.5*Math.sin(tick*.04);
+  g2.shadowBlur=14+pv*10; g2.shadowColor=`rgba(126,212,145,.8)`;
+  g2.beginPath();g2.arc(emo.x,emo.y,emo.r*(0.8+EMOTION.a*.4),0,7);
+  g2.fillStyle=`rgba(${EMOTION.v>0?'126,212,145':'240,140,140'},.85)`;g2.fill();g2.shadowBlur=0;
+  g2.fillStyle="#dff1ff";g2.font="11px sans-serif";g2.textAlign="center";
+  g2.fillText("情绪星",emo.x,emo.y+3);g2.fillText(EMOTION.label.slice(0,6),emo.x,emo.y+emo.r+14);
+  g2.textAlign="left";
+  // 核心光球
+  const pulse=1+.06*Math.sin(tick*.05);
+  const cg=g2.createRadialGradient(core.x-12,core.y-14,8,core.x,core.y,core.r*pulse*1.6);
+  cg.addColorStop(0,"rgba(255,240,190,.95)");cg.addColorStop(.55,"rgba(255,212,126,.55)");
+  cg.addColorStop(1,"rgba(255,212,126,0)");
+  g2.shadowBlur=30;g2.shadowColor="rgba(255,212,126,.7)";
+  g2.beginPath();g2.arc(core.x,core.y,core.r*pulse*1.4,0,7);g2.fillStyle=cg;g2.fill();g2.shadowBlur=0;
+  g2.fillStyle="#ffe9b0";g2.font="bold 13px sans-serif";g2.textAlign="center";
+  g2.fillText("人格内核",core.x,core.y-2);g2.font="9px sans-serif";g2.fillStyle="#c8a95e";
+  g2.fillText("只读 · 不随对话改写",core.x,core.y+14);g2.textAlign="left";
+  requestAnimationFrame(()=>{physics();draw();});
+}
+draw();
+
+// ============ 侧栏 ============
+document.getElementById('sN').textContent=NOTES.length;
+document.getElementById('sR').textContent=(NOTES.reduce((s,n)=>s+n.R,0)/NOTES.length).toFixed(2);
+document.getElementById('sF').textContent=NOTES.filter(n=>n.R<THRESH).length+" 条";
+document.getElementById('emoTxt').textContent=EMOTION.label+
+  `（v=${EMOTION.v} a=${EMOTION.a} d=${EMOTION.d}）`;
+const mlist=document.getElementById('mlist');
+[...NOTES].sort((a,b)=>b.R-a.R).forEach((n)=>{const i=NOTES.indexOf(n);
+  const d=document.createElement('div');d.className='mem';d.dataset.i=i;
+  d.innerHTML=`<div class="c">${n.content}</div>
+    <div class="m">R=${n.R.toFixed(2)} · 重要度${n.importance} · ${TODAY-n.day}天前${n.R<THRESH?' · ⚠将遗忘':''}</div>`;
+  d.onclick=()=>{hits=new Set([i]);};
+  d.onmouseenter=()=>hover=i; d.onmouseleave=()=>hover=null;
+  mlist.appendChild(d);});
+document.getElementById('q').addEventListener('input',e=>{
+  const q=e.target.value.trim(); hitSet=new Set();
+  document.querySelectorAll('.mem').forEach(x=>x.classList.remove('hi'));
+  const qr=document.getElementById('qres');
+  if(!q){qr.innerHTML='';return;}
+  const top=retrieve(q); top.forEach(t=>{const i=NOTES.indexOf(t.n);hitSet.add(i);
+    document.querySelector(`.mem[data-i="${i}"]`)?.classList.add('hi');});
+  qr.innerHTML='<div style="margin-top:5px;color:#7fb8e0">将注入 top-'+top.length+'：</div>'+
+    top.map(t=>`<div class="tag">R${t.n.R.toFixed(2)} ${t.n.content.slice(0,10)}…</div>`).join('');
+});
+cv.addEventListener('click',e=>{
+  const dx=e.clientX-core.x,dy=e.clientY-core.y;
+  const card=document.getElementById('coreCard'),hint=document.getElementById('coreHint');
+  if(dx*dx+dy*dy<core.r*core.r*2.2){card.style.display='block';hint.style.display='none';
+    document.getElementById('coreTxt').textContent=PERSONA;}
+});
+cv.addEventListener('mousemove',e=>{
+  hover=null; nodes.forEach((nd,i)=>{const dx=e.clientX-nd.x,dy=e.clientY-nd.y;
+    if(dx*dx+dy*dy<120)hover=i;});
+});
+</script>
+</body>
+</html>

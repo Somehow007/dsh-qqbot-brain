@@ -1,0 +1,30 @@
+{
+  "name": "@local/dsh-qqbot-brain",
+  "version": "0.1.0",
+  "description": "类脑架构插件：人格内核 + 分层遗忘记忆 + 情绪插件，适配官方 dsh-qqbot",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node -e \"require('fs').copyFileSync('src/server/page.html','dist/server/page.html')\"",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --test test/brain.test.ts"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.2",
+    "typescript": "^7.0.2"
+  },
+  "license": "UNLICENSED",
+  "private": true,
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "files": [
+    "dist",
+    "cordis.patch.yml"
+  ]
+}

@@ -1,0 +1,549 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>大肥鱼 / 心智图谱</title>
+<style>
+    :root {
+      --paper: #f0eee5;
+      --ink: #183329;
+      --muted: #6e7a6d;
+      --line: #c9d0be;
+      --forest: #102c27;
+      --deep: #09241f;
+      --mint: #b6ddbd;
+      --gold: #f4cd81;
+      --coral: #ed9982;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--paper); color: var(--ink); font-family: "Songti SC", "STSong", Georgia, serif; }
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; }
+    .shell { min-height: 100vh; display: grid; grid-template-columns: 88px minmax(0, 1fr); }
+    .rail { border-right: 1px solid var(--line); display: flex; align-items: center; flex-direction: column; padding: 30px 0 22px; gap: 35px; }
+    .mark { width: 42px; height: 42px; border: 1.5px solid var(--ink); border-radius: 50%; display: grid; place-items: center; font-size: 22px; line-height: 1; }
+    .rail-word { writing-mode: vertical-rl; letter-spacing: .35em; font-size: 11px; font-weight: bold; }
+    .rail-bottom { margin-top: auto; writing-mode: vertical-rl; font: 11px Georgia, serif; color: var(--muted); letter-spacing: .13em; }
+    main { padding: 26px clamp(24px, 3vw, 56px) 22px; max-width: 1800px; width: 100%; margin: 0 auto; }
+    .top { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; border-bottom: 1px solid var(--line); padding-bottom: 18px; }
+    .eyebrow, .mono, .chapter, .metric-label, .tag, .smallcaps { font-family: Georgia, "Songti SC", serif; letter-spacing: .14em; }
+    .eyebrow { font-size: 11px; color: var(--muted); margin-bottom: 8px; }
+    h1 { font-size: clamp(28px, 3vw, 43px); letter-spacing: .08em; margin: 0; font-weight: 600; line-height: 1.15; }
+    .subtitle { font-size: 12px; margin-top: 7px; color: var(--muted); letter-spacing: .1em; }
+    .live { border: 1px solid var(--line); border-radius: 50px; padding: 9px 14px; font: 11px Georgia, "Songti SC", serif; white-space: nowrap; }
+    .live span { display: inline-block; height: 7px; width: 7px; border-radius: 100%; background: #83b68d; margin-right: 8px; box-shadow: 0 0 0 3px #83b68d33; }
+    .intro { display: flex; justify-content: space-between; align-items: end; padding: 17px 0 14px; gap: 18px; }
+    .intro p { font-size: 13px; line-height: 1.7; margin: 0; color: #4f6054; max-width: 580px; }
+    .intro .serial { font: 11px Georgia, "Songti SC", serif; color: var(--muted); white-space: nowrap; }
+    .layout { display: grid; grid-template-columns: minmax(0, 1fr) 322px; gap: 16px; align-items: start; }
+    .map { min-height: 620px; background: var(--forest); color: #e5ebd8; position: relative; isolation: isolate; overflow: hidden; border-radius: 3px; }
+    .map::before { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .2; z-index: -1;
+      background: repeating-linear-gradient(0deg, transparent 0 31px, #b8d6b129 32px), repeating-linear-gradient(90deg, transparent 0 31px, #b8d6b129 32px); }
+    .map::after { content: ""; position: absolute; left: -15%; top: 0; width: 80%; height: 100%; pointer-events: none; z-index: -1;
+      background: radial-gradient(ellipse at center, #39645b40, transparent 68%); }
+    .map-header { position: absolute; left: 27px; top: 24px; right: 25px; z-index: 2; display: flex; justify-content: space-between; align-items: start; }
+    .map-header .label { color: #c3dbc6; font: 11px Georgia, serif; letter-spacing: .16em; }
+    .map-header .caption { font-size: 12px; color: #91ad9f; line-height: 1.6; margin-top: 7px; }
+    .map-header .plate { color: #8aa79b; font: 11px Georgia, serif; white-space: nowrap; }
+    .diagram { position: absolute; width: min(100%, 850px); max-height: calc(100% - 82px); height: auto; left: 50%; top: 48%; transform: translate(-50%, -46%); overflow: visible; }
+    .outline { fill: #294b40; fill-opacity: .28; stroke: #a4c3ae; stroke-width: 1.5; }
+    .fold { fill: none; stroke: #8fb8a080; stroke-width: 1.1; stroke-linecap: round; }
+    .inner { fill: #9ac4a0; fill-opacity: .055; stroke: #9ac4a0; stroke-opacity: .22; stroke-width: 1.2; }
+    .pathway { fill: none; stroke: #8bbb9a; stroke-opacity: .31; stroke-width: 1.5; stroke-dasharray: 4 6; }
+    .pathway.active { stroke: var(--gold); stroke-opacity: .9; stroke-width: 2.2; stroke-dasharray: none; filter: drop-shadow(0 0 5px #efcb7b); }
+    .area-label { fill: #8ba99a; font: 12px Georgia, "Songti SC", serif; letter-spacing: .13em; }
+    .area-sub { fill: #789a8a; font: 10px Georgia, serif; letter-spacing: .12em; }
+    .map-node { cursor: pointer; outline: none; }
+    .map-node:focus-visible .node-ring { stroke: #fff; stroke-width: 2.5; }
+    .node-ring { fill: #23483b; stroke: #a7cfac; stroke-width: 1.4; transition: all .2s; }
+    .node-core .node-ring { fill: #e8c478; stroke: #ffe3a4; stroke-width: 2; filter: drop-shadow(0 0 15px #efc778b0); }
+    .node-core .core-aura { fill: none; stroke: #edcc8b; stroke-opacity: .35; stroke-width: 1; animation: breathe 4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+    @keyframes breathe { 50% { transform: scale(1.12); opacity: .35; } }
+    .node-emotion .node-ring { fill: #b97867; stroke: #f4a990; filter: drop-shadow(0 0 9px #de887b80); }
+    .map-node:hover .node-ring, .map-node.selected .node-ring { stroke: #fff; stroke-width: 2.5; filter: drop-shadow(0 0 9px #e9cc83); }
+    .node-name { fill: #e0ead6; font: 12px "Songti SC", Georgia, serif; pointer-events: none; text-anchor: middle; }
+    .node-core .node-name { fill: #1c3b2c; font-weight: bold; }
+    .node-caption { fill: #a4bca7; font: 10px Georgia, "Songti SC", serif; pointer-events: none; text-anchor: middle; }
+    .node-emotion .node-caption { fill: #dcb2a4; }
+    .node-old .node-ring { stroke: #879c82; fill: #526c5c; }
+    .map-footer { position: absolute; left: 27px; right: 27px; bottom: 22px; z-index: 2; display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; font-size: 11px; color: #a2baab; line-height: 1.65; }
+    .map-footer em { font-style: normal; color: var(--gold); }
+    .zoom { font: 11px Georgia, serif; color: #81a290; white-space: nowrap; }
+    .inspector { border: 1px solid var(--line); background: #f7f6ef; padding: 22px 22px 18px; min-height: 620px; max-height: 620px; display: flex; flex-direction: column; overflow: hidden; }
+    .inspector .chapter { font-size: 10px; color: var(--muted); }
+    .inspector h2 { font-size: 24px; margin: 10px 0 6px; font-weight: 500; }
+    .inspector .hint { font-size: 12px; color: var(--muted); line-height: 1.6; min-height: 42px; }
+    .divider { border: none; border-top: 1px solid var(--line); margin: 18px 0; }
+    .glyph { width: 100%; height: 116px; display: grid; place-items: center; border: 1px solid #dadccf; background: radial-gradient(circle at center, #ece7cf 0, #f4f1e5 35%, #f7f6ef 70%); position: relative; overflow: hidden; }
+    .glyph .orb { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 50%; color: var(--forest); background: #e9c983; box-shadow: 0 0 0 13px #e9c98330, 0 0 0 27px #e9c98314; font-size: 21px; transition: .25s; }
+    .glyph.emotion { background: radial-gradient(circle, #f2ded4, #f7f6ef 70%); }
+    .glyph.emotion .orb { background: var(--coral); box-shadow: 0 0 0 13px #ed998230, 0 0 0 27px #ed998214; }
+    .glyph.memory { background: radial-gradient(circle, #d5ead4, #f7f6ef 70%); }
+    .glyph.memory .orb { background: var(--mint); box-shadow: 0 0 0 13px #aed5ad40, 0 0 0 27px #aed5ad16; }
+    .inspector .row { display: flex; justify-content: space-between; font-size: 12px; padding: 9px 0; border-bottom: 1px solid #e4e6da; gap: 16px; }
+    .inspector .row span:first-child { color: var(--muted); white-space: nowrap; }
+    .inspector .row strong { font-weight: normal; text-align: right; line-height: 1.5; }
+    .detail { margin-top: 17px; font-size: 13px; line-height: 1.9; color: #42564b; overflow-y: auto; min-height: 0; }
+    .detail .quote { border-left: 2px solid #c5a76a; padding-left: 13px; max-height: 180px; overflow-y: auto; white-space: pre-wrap; }
+    .detail .pill { display: inline-block; border: 1px solid #c8cfbc; border-radius: 30px; padding: 3px 10px; margin: 0 5px 6px 0; font-size: 11px; }
+    .inspector .foot { margin-top: auto; border-top: 1px solid var(--line); padding-top: 14px; color: var(--muted); line-height: 1.6; font-size: 11px; }
+    .bottom { display: grid; grid-template-columns: minmax(0, 1fr) 322px; gap: 16px; margin-top: 16px; }
+    .deck, .search-panel { border-top: 1px solid var(--line); padding-top: 16px; }
+    .deck-top { display: flex; justify-content: space-between; gap: 14px; align-items: baseline; }
+    .deck h3, .search-panel h3 { margin: 0; font-size: 17px; font-weight: 500; }
+    .deck-top small { font: 11px Georgia, "Songti SC", serif; color: var(--muted); }
+    .cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; margin-top: 14px; }
+    .card { min-height: 114px; border: 1px solid var(--line); background: #f7f6ef; padding: 12px; text-align: left; color: var(--ink); transition: background .2s, transform .2s; }
+    .card:hover, .card.active { background: #e5eddd; transform: translateY(-2px); }
+    .card .tag { color: var(--muted); font-size: 10px; }
+    .card .title { font-size: 13px; line-height: 1.45; margin: 11px 0; min-height: 36px; }
+    .meter { height: 3px; background: #dfe3d7; }
+    .meter i { display: block; height: 100%; background: #6e9e77; }
+    .card.faded .meter i { background: #c48973; }
+    .search-panel p { margin: 8px 0 13px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+    .search-wrap { display: flex; border-bottom: 1px solid var(--ink); align-items: center; padding: 4px 0; }
+    .search-wrap input { outline: none; border: none; background: transparent; width: 100%; color: var(--ink); font-size: 13px; }
+    .search-wrap span { font-size: 18px; }
+    .results { min-height: 50px; font-size: 11px; color: #526c5b; padding-top: 10px; line-height: 1.6; }
+    .legend { display: flex; gap: 16px; font-size: 10px; color: var(--muted); margin-top: 15px; flex-wrap: wrap; }
+    .legend i { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 5px; }
+    .note { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 10px; font-size: 10px; line-height: 1.5; color: var(--muted); }
+
+    /* ── 数据区（A+B+C）── */
+    .vault { margin-top: 22px; border-top: 1px solid var(--ink); padding-top: 14px; }
+    .tabs { display: flex; gap: 0; border-bottom: 1px solid var(--line); }
+    .tab { border: 1px solid var(--line); border-bottom: none; background: transparent; padding: 9px 18px; font-size: 12px; letter-spacing: .1em; color: var(--muted); margin-right: -1px; }
+    .tab.active { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+    .pane { border: 1px solid var(--line); border-top: none; background: #f7f6ef; padding: 16px; min-height: 240px; }
+    .toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+    .toolbar input[type=text], .toolbar select, .addform input, .addform select {
+      border: 1px solid var(--line); background: #fff; padding: 6px 9px; font-size: 12px; color: var(--ink); }
+    .toolbar input[type=text] { width: 200px; }
+    table.lib { width: 100%; border-collapse: collapse; font-size: 12px; }
+    table.lib th { text-align: left; font-size: 10px; letter-spacing: .12em; color: var(--muted); font-weight: normal; padding: 6px 8px; border-bottom: 1px solid var(--ink); cursor: pointer; user-select: none; white-space: nowrap; }
+    table.lib td { padding: 7px 8px; border-bottom: 1px solid #e4e6da; vertical-align: top; line-height: 1.5; }
+    table.lib tr.data { cursor: pointer; }
+    table.lib tr.data:hover { background: #eef0e4; }
+    table.lib tr.faded td { color: #9aa392; }
+    .badge { display: inline-block; border-radius: 20px; padding: 1px 8px; font-size: 10px; border: 1px solid #c8cfbc; white-space: nowrap; }
+    .badge.episodic { background: #d5ead4; }
+    .badge.semantic { background: #e4dfc4; }
+    .badge.fade { background: #f0d9cd; border-color: #dcbba8; color: #8a5240; }
+    .rbar { display: inline-block; width: 52px; height: 4px; background: #dfe3d7; vertical-align: middle; margin-right: 6px; }
+    .rbar i { display: block; height: 100%; background: #6e9e77; }
+    .act { border: 1px solid var(--line); background: transparent; padding: 2px 8px; font-size: 10px; margin-right: 4px; color: var(--muted); }
+    .act:hover { border-color: var(--ink); color: var(--ink); }
+    .act.danger:hover { border-color: #b06a52; color: #b06a52; }
+    .addform { display: flex; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--line); align-items: center; flex-wrap: wrap; }
+    .addform input[name=content] { flex: 1; min-width: 240px; }
+    .addform button, .pane .savebtn { border: 1px solid var(--ink); background: var(--ink); color: var(--paper); padding: 6px 14px; font-size: 12px; }
+    .sess-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; }
+    .sess { border: 1px solid var(--line); background: #fff; padding: 12px; font-size: 12px; }
+    .sess .sid { font: 10px Georgia, serif; color: var(--muted); letter-spacing: .06em; }
+    .sess .prof { margin-top: 8px; line-height: 1.6; color: #42564b; }
+    .sess .meta { margin-top: 8px; font-size: 10px; color: var(--muted); }
+    .ops { font-size: 11px; line-height: 1.9; max-height: 380px; overflow-y: auto; }
+    .ops .op { display: flex; gap: 10px; border-bottom: 1px dotted #e4e6da; padding: 3px 0; }
+    .ops .ot { color: var(--muted); font: 10px Georgia, serif; white-space: nowrap; width: 74px; }
+    .ops .ok-ind { display: inline-block; width: 64px; text-align: center; border-radius: 20px; font-size: 10px; padding: 0 6px; background: #e8ebdd; color: #4c6a55; white-space: nowrap; }
+    .ops .ok-ind.del { background: #f0d9cd; color: #8a5240; }
+    .ops .ok-ind.persona, .ops .ok-ind.profile { background: #e4dfc4; color: #6b5c2e; }
+    .ops .ok-ind.emotion { background: #f2ded4; color: #8a5240; }
+    textarea.persona-edit { width: 100%; min-height: 320px; border: 1px solid var(--line); background: #fff; padding: 12px; font-size: 12.5px; line-height: 1.8; resize: vertical; }
+    .editbar { display: flex; gap: 10px; align-items: center; margin-top: 10px; }
+    .editbar .stat { font-size: 11px; color: var(--muted); }
+    .note-edit { margin-top: 14px; border-top: 1px dashed var(--line); padding-top: 12px; font-size: 12px; }
+    .note-edit textarea { width: 100%; min-height: 60px; border: 1px solid var(--line); background: #fff; padding: 8px; font-size: 12px; line-height: 1.6; }
+    .note-edit .erow { display: flex; gap: 8px; margin-top: 8px; align-items: center; flex-wrap: wrap; }
+    .note-edit select { border: 1px solid var(--line); background: #fff; padding: 4px 8px; font-size: 11px; }
+    .chart { display: block; width: 100%; margin-top: 10px; }
+    .chart .axis { stroke: #d4d8c8; stroke-width: 1; }
+    .chart .thr { stroke: #b06a52; stroke-width: 1; stroke-dasharray: 3 4; }
+    .chart .curve { fill: none; stroke: #6e9e77; stroke-width: 2; }
+    .chart .emo-v { fill: none; stroke: #b97867; stroke-width: 2; }
+    .chart .emo-a { fill: none; stroke: #9db98a; stroke-width: 1.5; stroke-dasharray: 3 3; }
+    .chart text { font: 8.5px Georgia, serif; fill: var(--muted); }
+    .empty { color: var(--muted); font-size: 12px; padding: 20px 4px; }
+    @media (max-width: 1080px) { .layout, .bottom { grid-template-columns: minmax(0, 1fr) 280px; } .inspector { padding: 18px; } }
+    @media (max-width: 760px) {
+      .shell { display: block; }.rail { display: none; } main { padding: 18px; }
+      .top { align-items: center; }.live { font-size: 10px; padding: 7px 9px; }
+      .intro { display: block; }.intro .serial { display: none; }
+      .layout, .bottom { display: block; }.map { min-height: 490px; }.diagram { top: 55%; width: 120%; max-height: 410px; }
+      .map-header { left: 17px; top: 17px; }.map-header .plate { display: none; }.map-footer { left: 17px; right: 17px; bottom: 13px; }
+      .inspector { min-height: 0; margin-top: 12px; }.bottom { margin-top: 12px; }
+      .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }.search-panel { margin-top: 22px; }
+      .toolbar input[type=text] { width: 100%; }
+    }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+  </style>
+</head>
+<body>
+<div class="shell">
+  <aside class="rail"><div class="mark">鱼</div><div class="rail-word">一个数字生命的内部结构</div><div class="rail-bottom">MIND ATLAS / LIVE</div></aside>
+  <main>
+    <header class="top">
+      <div><div class="eyebrow">DSH-QQBOT-BRAIN / LIVE</div><h1>大肥鱼的心智图谱</h1><div class="subtitle">人格内核 · 分层遗忘记忆 · 情绪插件 — 实时状态</div></div>
+      <div class="live"><span></span>LIVE · 15s 刷新</div>
+    </header>
+    <div class="intro">
+      <p>中央光球是只读人格内核；左侧脑区的记忆星随保持率明暗，暗下去就是被遗忘的；右下是独立情绪回路。点击节点查看，下方可模拟检索。</p>
+      <div class="serial" id="serial">—</div>
+    </div>
+    <div class="layout">
+      <section class="map">
+        <div class="map-header"><div><div class="label">FIG 01 / COGNITIVE ANATOMY</div><div class="caption">情景记忆条目 <b id="sN">-</b> · 平均保持率 <b id="sR">-</b> · 将遗忘 <b id="sF">-</b></div></div><div class="plate">LIVE</div></div>
+        <svg id="brain" class="diagram" viewBox="0 0 850 620" role="img" aria-label="人格内核位于中央，情景记忆分布在脑区左侧，情绪模块位于右下方">
+          <defs>
+            <radialGradient id="brain-fill"><stop stop-color="#416457" stop-opacity=".55"/><stop offset="1" stop-color="#1c3d33" stop-opacity=".6"/></radialGradient>
+            <filter id="soft"><feGaussianBlur stdDeviation="15"/></filter>
+          </defs>
+          <ellipse cx="415" cy="335" rx="290" ry="223" fill="#679f7730" filter="url(#soft)"/>
+          <path class="outline" fill="url(#brain-fill)" d="M134 294 C98 269 106 228 123 200 C119 164 150 132 185 132 C209 100 258 95 292 110 C332 75 394 84 421 101 C466 79 512 100 533 119 C575 116 610 143 620 178 C672 191 688 230 673 262 C707 287 696 331 669 355 C671 386 644 415 610 423 C609 455 586 477 556 479 C531 503 486 510 452 493 C428 512 377 515 348 492 C307 502 279 479 261 459 C211 466 183 441 177 408 C140 402 115 369 128 336 C112 323 116 306 134 294 Z"/>
+          <path class="inner" d="M306 423 C284 384 289 335 315 307 C342 263 393 242 452 252 C502 255 534 290 551 335 C568 389 547 435 505 458 C435 483 356 464 306 423 Z"/>
+          <path class="fold" d="M140 202 C180 182 201 194 211 222 C228 239 263 235 279 210 M164 144 C183 163 218 157 234 135 M253 113 C253 148 294 154 311 136 C339 124 342 151 330 173"/>
+          <path class="fold" d="M364 96 C350 124 369 155 394 161 C418 168 423 193 408 213 M424 102 C443 131 465 140 491 132 C514 130 529 146 528 169 M547 136 C536 168 560 195 589 200 C608 221 588 242 567 244"/>
+          <path class="fold" d="M630 194 C613 212 622 241 646 255 M683 277 C651 269 634 287 629 309 C623 334 648 352 668 351 M607 421 C574 396 580 362 604 342"/>
+          <path class="fold" d="M178 401 C204 377 229 391 242 412 C255 431 277 422 293 408 M119 288 C154 287 175 310 170 337 C170 359 196 369 217 358 M261 462 C272 433 304 439 325 461 M453 490 C439 461 466 448 488 457"/>
+          <path class="fold" d="M312 181 C302 214 328 228 354 215 M421 173 C435 207 468 209 489 191 M522 204 C506 230 525 249 557 250 M235 268 C259 258 277 273 281 296 M164 268 C197 270 206 249 204 230"/>
+          <path class="fold" d="M164 333 C193 321 225 342 227 363 M573 443 C542 420 522 438 512 459 M383 451 C387 430 416 416 444 429"/>
+          <text x="114" y="126" class="area-label">情景记忆</text><text x="114" y="145" class="area-sub">EPISODIC MEMORY</text>
+          <text x="615" y="196" class="area-label">工作记忆</text><text x="615" y="215" class="area-sub">ACTIVE WINDOW</text>
+          <text x="598" y="463" class="area-label">情绪回路</text><text x="598" y="482" class="area-sub">AFFECT STATE</text>
+          <text x="274" y="505" class="area-label">语义记忆</text><text x="274" y="524" class="area-sub">STABLE KNOWLEDGE</text>
+        </svg>
+        <div class="map-footer"><div>点击脑区节点查看详情。<br>记忆颜色渐暗代表遗忘，<em>人格内核始终常亮</em>。</div><div class="zoom">BRAIN-API</div></div>
+      </section>
+      <aside class="inspector">
+        <div class="chapter">SELECTED STRUCTURE</div>
+        <h2 id="info-title">人格内核</h2>
+        <div class="hint" id="info-hint"></div><hr class="divider">
+        <div class="glyph" id="glyph"><span class="orb" id="glyph-icon">鱼</span></div>
+        <div id="info-rows"></div>
+        <div class="detail" id="info-detail"></div>
+        <div class="foot" id="info-foot"></div>
+      </aside>
+    </div>
+    <div class="bottom">
+      <section class="deck"><div class="deck-top"><h3>记忆切片</h3><small>按保持率排序 / 点击定位</small></div><div class="cards" id="cards"></div></section>
+      <section class="search-panel"><h3>检索模拟</h3><p>输入一句话，查看此刻哪些记忆会被注入（真实 API 检索）。</p>
+        <div class="search-wrap"><input id="query" placeholder="试试：我家猫叫什么？" autocomplete="off"><span>↗</span></div>
+        <div class="results" id="results">输入后展示将被唤起的记忆。</div>
+        <div class="legend"><span><i style="background:#e9c983"></i>人格内核</span><span><i style="background:#a7cfac"></i>记忆</span><span><i style="background:#ed9982"></i>情绪</span></div>
+        <div id="emoCard"><b>情绪插件</b> · <span id="emoTxt"></span></div>
+      </section>
+    </div>
+
+    <section class="vault">
+      <div class="tabs">
+        <button class="tab active" data-pane="lib">记忆库</button>
+        <button class="tab" data-pane="sess">会话画像</button>
+        <button class="tab" data-pane="ops">事件流水</button>
+        <button class="tab" data-pane="persona">人格内核</button>
+      </div>
+      <div class="pane" id="pane-lib">
+        <div class="toolbar">
+          <input type="text" id="libQ" placeholder="搜索记忆内容…">
+          <select id="libKind"><option value="">全部类型</option><option value="episodic">情景</option><option value="semantic">语义</option></select>
+          <select id="libSess"><option value="">全部会话</option></select>
+          <select id="libFade"><option value="">全部状态</option><option value="fading">将遗忘</option><option value="fresh">鲜活</option></select>
+          <select id="libSort">
+            <option value="retention">按保持率</option><option value="age">按时间</option>
+            <option value="importance">按重要度</option><option value="hits">按唤起</option>
+          </select>
+          <span class="stat" id="libCount" style="font-size:11px;color:var(--muted)"></span>
+        </div>
+        <div style="max-height:420px;overflow-y:auto">
+          <table class="lib"><thead><tr>
+            <th>内容</th><th>类型</th><th>保持率</th><th>重要度</th><th>唤起</th><th>年龄</th><th>操作</th>
+          </tr></thead><tbody id="libBody"></tbody></table>
+        </div>
+        <form class="addform" id="addForm">
+          <input name="content" placeholder="手动写入一条记忆，如「用户家猫叫年糕」" required maxlength="200">
+          <select name="kind"><option value="episodic">情景</option><option value="semantic">语义</option></select>
+          <select name="importance"><option value="2">重要度2</option><option value="3" selected>重要度3</option><option value="4">重要度4</option><option value="5">重要度5</option></select>
+          <button type="submit">写入记忆</button>
+        </form>
+      </div>
+      <div class="pane" id="pane-sess" hidden><div class="sess-grid" id="sessGrid"></div></div>
+      <div class="pane" id="pane-ops" hidden><div class="ops" id="opsList"></div></div>
+      <div class="pane" id="pane-persona" hidden>
+        <textarea class="persona-edit" id="personaEdit" spellcheck="false"></textarea>
+        <div class="editbar"><button class="savebtn" id="personaSave">保存人格内核</button><span class="stat" id="personaStat"></span></div>
+      </div>
+    </section>
+
+    <footer class="note">DSH-QQBOT-BRAIN · 数据来自 /brain/api（真实蒸馏记忆）· 人格内核与记忆可直接在本页编辑，修改即时生效。</footer>
+  </main>
+</div>
+<script>
+const API = location.pathname.replace(/\/$/, '') + '/api';
+const $ = id => document.getElementById(id);
+let STATE = null, OPS = [], SESS = [], SELECTED = null;
+
+// ── 脑区锚点与防重叠布局 ──
+const REGION = {
+  episodic: {cx:290, cy:300, rx:150, ry:105},
+  semantic: {cx:375, cy:430, rx:90, ry:40},
+  working:  {cx:560, cy:205, rx:70, ry:45},
+};
+function positions(notes){
+  // 黄金角螺旋：同区内按时间排序后均匀散布，天然不重叠
+  const byRegion = {};
+  notes.forEach(n=>{ (byRegion[n.kind]??= []).push(n); });
+  const map = {};
+  for(const kind in byRegion){
+    const r = REGION[kind] ?? REGION.episodic;
+    const arr = byRegion[kind].sort((a,b)=>a.createdAt-b.createdAt);
+    arr.forEach((n,k)=>{
+      const ang = k*2.399963, rad = Math.sqrt((k+.6)/Math.max(arr.length,3))*.92;
+      map[n.id] = {x:r.cx+Math.cos(ang)*r.rx*rad, y:r.cy+Math.sin(ang)*r.ry*rad};
+    });
+  }
+  return n => map[n.id] ?? {x:REGION.episodic.cx, y:REGION.episodic.cy};
+}
+const ngrams=s=>{s=s.replace(/\s/g,'');const o=[];for(const n of[2,3])for(let i=0;i<=s.length-n;i++)o.push(s.slice(i,i+n));return o};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const shortId=s=>s.slice(0,8);
+const fmtT=t=>{const d=new Date(t);return `${String(d.getMonth()+1)}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`};
+
+async function load(){
+  const [st, ops, sess] = await Promise.all([
+    fetch(API+'/state').then(r=>r.json()),
+    fetch(API+'/ops?limit=120').then(r=>r.json()),
+    fetch(API+'/sessions').then(r=>r.json()),
+  ]);
+  STATE=st; OPS=ops.ops; SESS=sess.sessions;
+  render(); renderLibrary(); renderSessions(); renderOps();
+  // 正在详情面板编辑时不要重绘（会清掉未保存的输入）
+  const editing = document.activeElement && document.activeElement.closest('#info-detail');
+  if(editing) return;
+  if(!SELECTED || (SELECTED!=='core'&&SELECTED!=='emotion'&&!STATE.notes.find(n=>n.id===SELECTED))) panel('core');
+  else panel(SELECTED);
+}
+function svgEl(t,attrs,txt){const e=document.createElementNS('http://www.w3.org/2000/svg',t);
+  for(const k in attrs)e.setAttribute(k,attrs[k]);if(txt!=null)e.textContent=txt;return e;}
+
+function render(){
+  const svg=$('brain');
+  svg.querySelectorAll('.dyn').forEach(e=>e.remove());
+  const notes=STATE.notes, pos=positions(notes);
+  const gg=notes.map(n=>new Set(ngrams(n.content)));
+  notes.forEach((a,i)=>notes.slice(i+1).forEach((b,j)=>{j+=i+1;
+    let c=0;for(const x of ngrams(b.content))if(gg[i].has(x))c++;
+    if(c>=3){const pa=pos(a),pb=pos(b);
+      svg.appendChild(svgEl('line',{class:'dyn pathway',x1:pa.x,y1:pa.y,x2:pb.x,y2:pb.y,'data-a':a.id,'data-b':b.id,style:'stroke-opacity:.28'}))}}));
+  notes.forEach(n=>{const p=pos(n);
+    const g=svgEl('g',{class:`dyn map-node${n.fading?' node-old':''}`,'data-key':n.id,tabindex:0,role:'button'});
+    g.appendChild(svgEl('circle',{class:'node-ring',cx:p.x,cy:p.y,r:10+n.importance*2.4,style:`fill-opacity:${.25+n.retention*.6}`}));
+    g.appendChild(svgEl('text',{class:'node-name',x:p.x,y:p.y+3},n.content.slice(0,5)));
+    g.appendChild(svgEl('text',{class:'node-caption',x:p.x,y:p.y+24},'R '+(n.retention*100).toFixed(0)+'%'));
+    g.addEventListener('click',()=>panel(n.id));svg.appendChild(g);});
+  const e=STATE.emotion;
+  const eg=svgEl('g',{class:'dyn map-node node-emotion','data-key':'emotion'});
+  eg.appendChild(svgEl('circle',{class:'node-ring',cx:535,cy:407,r:22+e.a*14}));
+  eg.appendChild(svgEl('text',{class:'node-name',x:535,y:411},'情绪'));
+  eg.appendChild(svgEl('text',{class:'node-caption',x:535,y:455},e.label||'平静'));
+  eg.addEventListener('click',()=>panel('emotion'));svg.appendChild(eg);
+  const cg=svgEl('g',{class:'dyn map-node node-core selected','data-key':'core'});
+  cg.appendChild(svgEl('circle',{class:'core-aura',cx:420,cy:333,r:80}));
+  cg.appendChild(svgEl('circle',{class:'node-ring',cx:420,cy:333,r:50}));
+  cg.appendChild(svgEl('text',{class:'node-name',x:420,y:331,style:'font-size:15px'},'大肥鱼'));
+  cg.appendChild(svgEl('text',{class:'node-name',x:420,y:350,style:'font-size:9px;letter-spacing:.1em'},'PERSONA CORE'));
+  cg.addEventListener('click',()=>panel('core'));svg.appendChild(cg);
+  $('sN').textContent=STATE.stats.total;
+  $('sR').textContent=(STATE.stats.avgRetention*100).toFixed(0)+'%';
+  $('sF').textContent=STATE.stats.fading+' 条';
+  $('serial').textContent=`SESSIONS ${STATE.stats.sessions} · OPS ${OPS.length}`;
+  $('emoTxt').textContent=`${e.label||'平静'}（v=${e.v.toFixed(1)} a=${e.a.toFixed(1)} d=${e.d.toFixed(1)}）`;
+  const cards=$('cards');cards.replaceChildren();
+  [...notes].sort((a,b)=>b.retention-a.retention).slice(0,8).forEach(n=>{
+    const c=document.createElement('button');c.type='button';
+    c.className='card'+(n.fading?' faded':'')+(n.id===SELECTED?' active':'');c.dataset.key=n.id;
+    c.innerHTML=`<span class="tag">${n.kind==='semantic'?'语义':'情景'} / R ${(n.retention*100).toFixed(0)}%</span><div class="title"></div><div class="meter"><i style="width:${Math.max(3,n.retention*100)}%"></i></div>`;
+    c.querySelector('.title').textContent=n.content.slice(0,24);
+    c.addEventListener('click',()=>panel(n.id));cards.append(c);});
+}
+
+// ── 衰减曲线（R=e^(-t/S) 未来 3S 天预测，红线=遗忘阈值）──
+function decayChart(n){
+  const S=Math.max(.5,n.strength), days=Math.min(60,S*3), W=264,H=76;
+  const svg=svgEl('svg',{class:'chart',viewBox:`0 0 ${W} ${H}`});
+  const x=d=>10+(d/days)*(W-20), y=r=>4+(1-r)*(H-16);
+  svg.appendChild(svgEl('line',{class:'axis',x1:10,y1:H-12,x2:W-10,y2:H-12}));
+  const thr=STATE.config.forgetThreshold;
+  svg.appendChild(svgEl('line',{class:'thr',x1:10,y1:y(thr),x2:W-10,y2:y(thr)}));
+  const tl=svgEl('text',{x:W-12,y:y(thr)-3,'text-anchor':'end'},'遗忘阈值');svg.appendChild(tl);
+  let d='M';const R0=n.retention;
+  for(let i=0;i<=40;i++){const t=i/40*days;const r=R0*Math.exp(-t/S);d+=`${x(t).toFixed(1)},${y(r).toFixed(1)} `;}
+  svg.appendChild(svgEl('path',{class:'curve',d}));
+  // 越过阈值的天数
+  const cross=-S*Math.log(thr/R0);
+  const cl=svgEl('text',{x:10,y:H-2},isFinite(cross)&&cross>0?`约 ${cross.toFixed(1)} 天后低于阈值（S=${S}天）`:`已在阈值下（S=${S}天）`);
+  svg.appendChild(cl);
+  return svg;
+}
+// ── 情绪历史（emotion ops → v/a 双折线）──
+function emotionChart(){
+  const pts=OPS.filter(o=>o.op.op==='emotion').map(o=>({v:o.op.state.v,a:o.op.state.a,t:o.t})).reverse();
+  if(pts.length<2)return null;
+  const W=264,H=76,svg=svgEl('svg',{class:'chart',viewBox:`0 0 ${W} ${H}`});
+  const x=i=>10+(i/(pts.length-1))*(W-20), yv=v=>(H/2-4)-(v*(H/2-16)), ya=a=>4+(1-a)*(H-20);
+  svg.appendChild(svgEl('line',{class:'axis',x1:10,y1:H/2-4,x2:W-10,y2:H/2-4}));
+  let dv='M',da='M';
+  pts.forEach((p,i)=>{dv+=`${x(i).toFixed(1)},${yv(p.v).toFixed(1)} `;da+=`${x(i).toFixed(1)},${ya(p.a).toFixed(1)} `;});
+  svg.appendChild(svgEl('path',{class:'emo-a',d:da}));
+  svg.appendChild(svgEl('path',{class:'emo-v',d:dv}));
+  svg.appendChild(svgEl('text',{x:10,y:H-2},`v 效价（实线）· a 唤醒（虚线）· 最近 ${pts.length} 次`));
+  return svg;
+}
+
+function panel(key){
+  SELECTED=key;let d;
+  const detail=$('info-detail'),rows=$('info-rows'),foot=$('info-foot');
+  rows.replaceChildren();
+  if(key==='core')d={t:'人格内核',h:'它是谁，比它记得什么更重要。',icon:'鱼',cls:'',q:STATE.persona||'（未配置）',foot:'可在下方「人格内核」页签中直接编辑'};
+  else if(key==='emotion'){const e=STATE.emotion;d={t:'情绪回路',h:'情绪流动，但不改写人格。',icon:'◒',cls:'emotion',q:e.label||'平静',foot:`v=${e.v.toFixed(2)} a=${e.a.toFixed(2)} d=${e.d.toFixed(2)}`}}
+  else{const n=STATE.notes.find(x=>x.id===key);if(!n)return;
+    d={t:n.kind==='semantic'?'语义记忆':'情景记忆',h:'经历留下的痕迹。',icon:'忆',cls:'memory',q:n.content,
+      foot:`重要度 ${n.importance}/5 · ${n.ageDays}天前 · 保持率 ${(n.retention*100).toFixed(1)}% · 唤起 ${n.hits} 次${n.fading?' · ⚠将遗忘':''}`}}
+  $('info-title').textContent=d.t;$('info-hint').textContent=d.h;
+  $('glyph').className='glyph '+d.cls;$('glyph-icon').textContent=d.icon;
+  detail.innerHTML='<div class="quote"></div>';
+  detail.querySelector('.quote').textContent=d.q;
+  foot.textContent=d.foot;
+  if(key==='emotion'){const c=emotionChart();if(c)detail.appendChild(c);}
+  if(key!=='core'&&key!=='emotion'){
+    const n=STATE.notes.find(x=>x.id===key);
+    detail.appendChild(decayChart(n));
+    // 编辑区
+    const ed=document.createElement('div');ed.className='note-edit';
+    ed.innerHTML=`<textarea id="ne-content">${esc(n.content)}</textarea>
+      <div class="erow">
+        <select id="ne-imp">${[1,2,3,4,5].map(i=>`<option value="${i}"${i===n.importance?' selected':''}>重要度${i}</option>`).join('')}</select>
+        <select id="ne-kind"><option value="episodic"${n.kind==='episodic'?' selected':''}>情景</option><option value="semantic"${n.kind==='semantic'?' selected':''}>语义</option></select>
+        <button class="act" id="ne-save">保存</button>
+        <button class="act" id="ne-reinf">强化</button>
+        <button class="act danger" id="ne-del">删除</button>
+      </div>`;
+    detail.appendChild(ed);
+    $('ne-save').onclick=async()=>{
+      await fetch(`${API}/notes/${n.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({content:$('ne-content').value,importance:+$('ne-imp').value,kind:$('ne-kind').value})});
+      await load();};
+    $('ne-reinf').onclick=async()=>{await fetch(`${API}/notes/${n.id}/reinforce`,{method:'POST'});await load();};
+    $('ne-del').onclick=async()=>{if(confirm('删除这条记忆？（写入 del 墓碑，不可恢复）')){await fetch(`${API}/notes/${n.id}`,{method:'DELETE'});await load();}};
+  }
+  document.querySelectorAll('.map-node').forEach(x=>x.classList.toggle('selected',x.dataset.key===key));
+}
+
+// ── Tab：记忆库 ──
+function libFiltered(){
+  const q=$('libQ').value.trim(),k=$('libKind').value,s=$('libSess').value,f=$('libFade').value,sort=$('libSort').value;
+  let arr=STATE.notes.filter(n=>
+    (!q||n.content.includes(q))&&(!k||n.kind===k)&&(!s||n.sessionId===s)&&
+    (!f||(f==='fading'?n.fading:!n.fading)));
+  arr.sort((a,b)=>sort==='age'?b.createdAt-a.createdAt:sort==='importance'?b.importance-a.importance:sort==='hits'?b.hits-a.hits:b.retention-a.retention);
+  return arr;
+}
+function renderLibrary(){
+  const sel=$('libSess'),cur=sel.value;
+  sel.replaceChildren(new Option('全部会话',''));
+  [...new Set(STATE.notes.map(n=>n.sessionId))].forEach(s=>sel.appendChild(new Option(shortId(s),s,s===cur,s===cur)));
+  const arr=libFiltered();
+  $('libCount').textContent=`${arr.length} / ${STATE.notes.length} 条`;
+  const tb=$('libBody');tb.replaceChildren();
+  if(!arr.length){tb.innerHTML='<tr><td colspan="7" class="empty">无匹配记忆</td></tr>';return;}
+  arr.forEach(n=>{
+    const tr=document.createElement('tr');tr.className='data'+(n.fading?' faded':'');
+    tr.innerHTML=`<td></td>
+      <td><span class="badge ${n.kind}">${n.kind==='semantic'?'语义':'情景'}</span>${n.fading?' <span class="badge fade">将遗忘</span>':''}</td>
+      <td><span class="rbar"><i style="width:${Math.max(2,n.retention*100)}%"></i></span>${(n.retention*100).toFixed(0)}%</td>
+      <td>${n.importance}</td><td>${n.hits}</td><td>${n.ageDays}天</td>
+      <td><button class="act" data-a="reinf">强化</button><button class="act danger" data-a="del">删</button></td>`;
+    tr.cells[0].textContent=n.content;
+    tr.onclick=ev=>{if(ev.target.dataset.a)return;panel(n.id);window.scrollTo({top:0,behavior:'smooth'});};
+    tr.querySelector('[data-a=reinf]').onclick=async()=>{await fetch(`${API}/notes/${n.id}/reinforce`,{method:'POST'});await load();};
+    tr.querySelector('[data-a=del]').onclick=async()=>{if(confirm('删除这条记忆？')){await fetch(`${API}/notes/${n.id}`,{method:'DELETE'});await load();}};
+    tb.appendChild(tr);});
+}
+// ── Tab：会话画像 ──
+function renderSessions(){
+  const g=$('sessGrid');g.replaceChildren();
+  if(!SESS.length){g.innerHTML='<div class="empty">暂无会话数据</div>';return;}
+  SESS.forEach(s=>{
+    const d=document.createElement('div');d.className='sess';
+    const emo=s.emotion?`情绪 ${s.emotion.label||''}（v=${s.emotion.v?.toFixed(1)} a=${s.emotion.a?.toFixed(1)}）`:'情绪 —';
+    d.innerHTML=`<div class="sid">SESSION ${esc(shortId(s.sessionId))}…</div>
+      <div class="prof"></div><div class="meta"></div>`;
+    d.querySelector('.prof').textContent=s.profile||'（画像未生成——多聊几轮后由蒸馏产出）';
+    d.querySelector('.meta').textContent=`${s.noteCount} 条记忆 · ${emo}`;
+    g.appendChild(d);});
+}
+// ── Tab：事件流水 ──
+const OP_CN={add:'新增记忆',reinforce:'唤起强化',update:'修改',del:'删除',emotion:'情绪',profile:'画像',persona:'人格'};
+function opDesc(o){
+  const op=o.op;
+  switch(op.op){
+    case 'add':return (op.note.content||'').slice(0,46);
+    case 'reinforce':return `S→${op.strength} 唤起×${op.hits}（${shortId(op.id)}）`;
+    case 'update':return `${shortId(op.id)} ${JSON.stringify(op.patch).slice(0,40)}`;
+    case 'del':return `删除 ${shortId(op.id)}`;
+    case 'emotion':return `${op.state.label||''} v=${op.state.v.toFixed(1)} a=${op.state.a.toFixed(1)}（${shortId(op.sessionId)}）`;
+    case 'profile':return (op.text||'').slice(0,46);
+    case 'persona':return (op.text||'').slice(0,46);
+    default:return op.op;
+  }
+}
+function renderOps(){
+  const box=$('opsList');box.replaceChildren();
+  if(!OPS.length){box.innerHTML='<div class="empty">暂无事件</div>';return;}
+  OPS.forEach(o=>{
+    const d=document.createElement('div');d.className='op';
+    d.innerHTML=`<span class="ot">${o.t?fmtT(o.t):'—'}</span><span class="ok-ind ${o.op.op}">${OP_CN[o.op.op]||o.op.op}</span><span></span>`;
+    d.lastElementChild.textContent=opDesc(o);
+    box.appendChild(d);});
+}
+// ── Tab：人格编辑 ──
+async function loadPersona(){
+  const r=await fetch(API+'/persona');const d=await r.json();
+  $('personaEdit').value=d.text||'';
+  $('personaStat').textContent=`${(d.text||'').length} 字 · 保存即生效`;
+}
+
+// ── 事件绑定 ──
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===t));
+  document.querySelectorAll('.pane').forEach(p=>p.hidden=p.id!=='pane-'+t.dataset.pane);
+  if(t.dataset.pane==='persona')loadPersona();
+});
+['libQ','libKind','libSess','libFade','libSort'].forEach(id=>$(id).addEventListener('input',renderLibrary));
+$('addForm').onsubmit=async ev=>{
+  ev.preventDefault();
+  const f=ev.target;
+  await fetch(API+'/notes',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({content:f.content.value,kind:f.kind.value,importance:+f.importance.value})});
+  f.content.value='';await load();};
+$('personaSave').onclick=async()=>{
+  const r=await fetch(API+'/persona',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({text:$('personaEdit').value})});
+  const d=await r.json();
+  $('personaStat').textContent=r.ok?`已保存 ${d.length} 字 · 即时生效`:'保存失败';
+  await load();};
+$('query').addEventListener('input',async ev=>{
+  const q=ev.target.value.trim();
+  document.querySelectorAll('.pathway').forEach(p=>p.classList.remove('active'));
+  if(!q){$('results').textContent='输入后展示将被唤起的记忆（真实检索）。';return;}
+  const r=await (await fetch(API+'/query?q='+encodeURIComponent(q))).json();
+  const ids=new Set(r.hits.map(h=>h.id));
+  document.querySelectorAll('.pathway').forEach(p=>{
+    if(ids.has(p.dataset.a)||ids.has(p.dataset.b))p.classList.add('active')});
+  document.querySelectorAll('.map-node').forEach(x=>x.classList.toggle('selected',ids.has(x.dataset.key)));
+  $('results').textContent='唤起 '+r.hits.length+' 条：'+r.hits.map(h=>h.content.slice(0,10)).join('、');
+});
+load().catch(e=>{$('results').textContent='API 未就绪：'+e});
+setInterval(load,15000);
+</script>
+</body>
+</html>

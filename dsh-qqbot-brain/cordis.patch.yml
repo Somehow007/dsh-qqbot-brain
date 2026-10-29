@@ -1,0 +1,22 @@
+# dsh-qqbot-brain bundle patch
+#
+# `dsh plugin --profile <name> add <本包>` 安装后，dsh 启动时自动加载此 patch。
+#
+# 环境变量：
+#   DEEPSEEK_API_KEY / BRAIN_LLM_API_KEY - 蒸馏用（缺省自动关闭蒸馏）
+#   BRAIN_DATA_DIR - 记忆数据目录（可选，默认 ./brain-data）
+
+- insert:
+    - id: qqbot-brain
+      name: '@local/dsh-qqbot-brain'
+      config:
+        injectPersona: true
+        injectEmotion: true
+        injectMemory: true
+        http:
+          enabled: true
+          port: 4099
+          host: 0.0.0.0
+          prefix: /brain
+          token: ''
+        debug: false
