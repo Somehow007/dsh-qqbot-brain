@@ -18,6 +18,19 @@ Questions to answer:
 
 (To be filled by the team)
 
+## Brain page: overview versus detail
+
+The live `/brain` UI is a dependency-free HTML/CSS/JS page at `dsh-qqbot-brain/src/server/page.html`; `npm run build` copies it to `dist/server/page.html`. The backend returns full `content` in `/brain/api/state` and `/brain/api/query`. Only the UI decides how much to show in each overview; never shorten `content` before passing it to the detail panel or writing it back.
+
+Use `textContent` for API-sourced text, and CSS line clamping for a readable overview. If two memories share a long prefix, choose a preview that includes the differing part, while preserving the original `content` for detail and editing:
+
+```js
+card.querySelector('.title').textContent = previewText(note, notes);
+detail.querySelector('.quote').textContent = note.content;
+```
+
+Keep the full memory library as a path to notes omitted from the capped SVG overview. Node and search-hit selection should lead to the same full-text detail. Page tests live at `dsh-qqbot-brain/test/page.test.ts` and run via `npm test`; they cover the inline script syntax and shared-prefix previews. When changing page interaction, also check the 15-second refresh path, long text, empty data and narrow layout.
+
 ---
 
 ## Forbidden Patterns
