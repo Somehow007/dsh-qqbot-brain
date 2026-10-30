@@ -1,5 +1,6 @@
 import { DEFAULT_BRAIN_CONFIG } from './types.ts';
-import type { BrainConfig, BrainContext, EmotionState, MemoryNote, NoteDraft, Turn } from './types.ts';
+import type { BrainConfig, BrainContext, DistillResult, EmotionState, MemoryNote, NoteDraft, Turn } from './types.ts';
+import { splitActor, userProfileKey } from './identity.ts';
 import { ageInDays, retention } from './decay.ts';
 import { Retriever } from './retrieval.ts';
 import { EmotionEngine, NEUTRAL_EMOTION } from './emotion.ts';
@@ -12,6 +13,7 @@ export { EmotionEngine, NEUTRAL_EMOTION } from './emotion.ts';
 export { BrainStore } from './store.ts';
 export { Distiller } from './distill.ts';
 export { retention, ageInDays } from './decay.ts';
+export { splitActor, userProfileKey, sessionProfileKey } from './identity.ts';
 
 export interface BrainOptions {
   config?: Partial<BrainConfig>;
@@ -74,18 +76,20 @@ export class Brain {
 
   /**
    * 每轮组装注入上下文；对命中的记忆做唤起强化。
-   * speakerNick：当前发言人昵称（群聊）。「对该人」的态度是恒定的上下文，
-   * 因此含昵称的 attitude 条目保底唤起（补足到 3 条上限），不跟 topK 记忆池抢名额。
+   * speaker：当前发言人（群聊），可为昵称字符串或 {nick, openid}。「对该人」的态度是恒定的上下文，
+   * 含昵称的 attitude 条目跨会话保底唤起（补足到 3 条上限），不跟 topK 记忆池抢名额。
    * 命中按 kind 拆分：attitude → attitudeLines（【当前立场】），其余 → memoryLines（【记忆库摘录】）。
+   * 画像：发言人带 openid 时优先注入其个人画像（u: 键），会话级画像（sess: 键）次之。
    */
-  assemble(sessionId: string, queryText: string, speakerNick?: string): BrainContext {
+  assemble(sessionId: string, queryText: string, speaker?: string | { nick?: string; openid?: string }): BrainContext {
     const now = this.now();
+    const sp = typeof speaker === 'string' ? { nick: speaker } : speaker;
     const hits = this.retriever.query(this.store.allNotes(), sessionId, queryText, now, this.store.version);
     const hitIds = new Set(hits.map((n) => n.id));
-    if (speakerNick) {
+    if (sp?.nick) {
       const extra = this.store.allNotes()
-        .filter((n) => n.sessionId === sessionId && n.kind === 'attitude'
-          && !hitIds.has(n.id) && n.content.includes(speakerNick))
+        .filter((n) => n.kind === 'attitude'
+          && !hitIds.has(n.id) && n.content.includes(sp.nick!))
         .sort((a, b) => retention(b, now) - retention(a, now));
       const room = Math.max(0, 3 - hits.filter((n) => n.kind === 'attitude').length);
       hits.push(...extra.slice(0, room));
@@ -103,8 +107,11 @@ export class Brain {
       const when = d <= 0 ? '今天' : `${d}天前`;
       memoryLines.push(`- [${when}记] ${n.actor ? `[${n.actor}] ` : ''}${n.content}`);
     }
-    const profile = this.store.profileOf(sessionId);
-    if (profile) memoryLines.unshift(`- [画像] ${profile}`);
+    // 个人画像优先，会话级画像次之；仅会话画像时维持「[画像]」标签（私聊即本人画像）
+    const personProfile = sp?.openid ? this.store.profileOf(userProfileKey(sp.openid)) : '';
+    const sessProfile = this.store.profileOf(sessionId);
+    if (sessProfile) memoryLines.unshift(`- ${personProfile ? '[会话画像]' : '[画像]'} ${sessProfile}`);
+    if (personProfile) memoryLines.unshift(`- [画像] ${personProfile}`);
 
     return {
       persona: this.persona(),
@@ -143,7 +150,7 @@ export class Brain {
       );
       this.log?.(
         `蒸馏 ${sessionId.slice(0, 8)}…：记忆 ${result.memories.length} 条 / `
-        + `情绪 ${result.emotion?.label ?? '（未变）'} / 画像 ${result.profile ? '更新' : '（未变）'}`,
+        + `情绪 ${result.emotion?.label ?? '（未变）'} / 画像 ${result.profile || result.profiles?.length ? '更新' : '（未变）'}`,
       );
       for (const m of result.memories) {
         const target = m.mergeIndex != null ? existing[m.mergeIndex] : undefined;
@@ -169,9 +176,22 @@ export class Brain {
         const s = this.emotion.apply(sessionId, result.emotion, now);
         this.store.setEmotion(sessionId, s);
       }
-      if (result.profile) this.store.setProfile(sessionId, result.profile);
+      this.writeProfiles(sessionId, result);
     } finally {
       this.distilling.delete(sessionId);
+    }
+  }
+
+  /** 画像落盘：actor 带 openid → u: 键按人存；无 actor/无法解析 → sess: 键会话级 */
+  private writeProfiles(sessionId: string, result: DistillResult): void {
+    if (result.profile) this.store.setProfile(sessionId, result.profile);
+    for (const p of result.profiles ?? []) {
+      const id = p.actor ? splitActor(p.actor) : undefined;
+      if (id?.openid) {
+        this.store.setProfileEntry(userProfileKey(id.openid), p.text, { sessionId, name: id.nick });
+      } else {
+        this.store.setProfile(sessionId, p.text);
+      }
     }
   }
 
@@ -188,7 +208,7 @@ export class Brain {
     if (eps.length < this.cfg.consolidateMinNotes) return 0;
     const result = await this.distiller.consolidate(eps, this.store.profileOf(sessionId), this.persona());
     for (const m of result.memories) this.store.addNote(sessionId, { ...m, kind: 'semantic' }, now);
-    if (result.profile) this.store.setProfile(sessionId, result.profile);
+    this.writeProfiles(sessionId, result);
     return result.memories.length;
   }
 
@@ -231,6 +251,21 @@ export class Brain {
 
   sessions(): ReturnType<BrainStore['sessions']> {
     return this.store.sessions();
+  }
+
+  /** 画像卡片：按人（u:）+ 会话级（sess:），脑图页「画像」页签 */
+  people(): ReturnType<BrainStore['people']> {
+    return this.store.people();
+  }
+
+  /** 备份导出：人格 + 全部记忆 + 画像 + 情绪（脑图页「备份迁移」） */
+  exportData(): ReturnType<BrainStore['exportData']> {
+    return this.store.exportData(this.now());
+  }
+
+  /** 备份导入：merge 按 id 去重补入；replace 清库后整包恢复 */
+  importData(data: unknown, mode: 'merge' | 'replace'): ReturnType<BrainStore['importData']> {
+    return this.store.importData(data, mode, this.now());
   }
 
   recentOps(limit = 100): ReturnType<BrainStore['recentOps']> {

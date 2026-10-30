@@ -145,6 +145,7 @@
     .badge { display: inline-block; border-radius: 20px; padding: 1px 8px; font-size: 10px; border: 1px solid #c8cfbc; white-space: nowrap; }
     .badge.episodic { background: #d5ead4; }
     .badge.semantic { background: #e4dfc4; }
+    .badge.attitude { background: #e3d9ec; }
     .badge.fade { background: #f0d9cd; border-color: #dcbba8; color: #8a5240; }
     .rbar { display: inline-block; width: 52px; height: 4px; background: #dfe3d7; vertical-align: middle; margin-right: 6px; }
     .rbar i { display: block; height: 100%; background: #6e9e77; }
@@ -154,6 +155,8 @@
     .addform { display: flex; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--line); align-items: center; flex-wrap: wrap; }
     .addform input[name=content] { flex: 1; min-width: 240px; }
     .addform button, .pane .savebtn { border: 1px solid var(--ink); background: var(--ink); color: var(--paper); padding: 6px 14px; font-size: 12px; }
+    .backup-mode { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+    .backup-mode label { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--ink); }
     .sess-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; }
     .sess { border: 1px solid var(--line); border-radius: 8px; background: #fff; padding: 14px; font-size: 12px; }
     .sess .sid { font: 10px Georgia, serif; color: var(--muted); letter-spacing: .06em; }
@@ -163,7 +166,7 @@
     .ops .op { display: flex; gap: 10px; border-bottom: 1px dotted #e4e6da; padding: 3px 0; }
     .ops .ot { color: var(--muted); font: 10px Georgia, serif; white-space: nowrap; width: 74px; }
     .ops .ok-ind { display: inline-block; width: 64px; text-align: center; border-radius: 20px; font-size: 10px; padding: 0 6px; background: #e8ebdd; color: #4c6a55; white-space: nowrap; }
-    .ops .ok-ind.del { background: #f0d9cd; color: #8a5240; }
+    .ops .ok-ind.del, .ops .ok-ind.reset { background: #f0d9cd; color: #8a5240; }
     .ops .ok-ind.persona, .ops .ok-ind.profile { background: #e4dfc4; color: #6b5c2e; }
     .ops .ok-ind.emotion { background: #f2ded4; color: #8a5240; }
     textarea.persona-edit { width: 100%; min-height: 320px; border: 1px solid var(--line); background: #fff; padding: 12px; font-size: 12.5px; line-height: 1.8; resize: vertical; }
@@ -248,6 +251,7 @@
           <text x="615" y="196" class="area-label">工作记忆</text><text x="615" y="215" class="area-sub">ACTIVE WINDOW</text>
           <text x="598" y="463" class="area-label">情绪回路</text><text x="598" y="482" class="area-sub">AFFECT STATE</text>
           <text x="274" y="505" class="area-label">语义记忆</text><text x="274" y="524" class="area-sub">STABLE KNOWLEDGE</text>
+          <text x="470" y="236" class="area-label">态度立场</text><text x="470" y="255" class="area-sub">STANCES</text>
         </svg>
         <div class="map-spotlight"><span>FOCUS / 当前焦点</span><strong id="map-current">选择节点查看记忆全文</strong></div>
         <div class="map-footer"><div>点击节点看详情；全部记忆在下方。<br>颜色渐暗代表遗忘，<em>人格始终常亮</em>。</div><div class="zoom" id="map-count">BRAIN-API</div></div>
@@ -267,7 +271,7 @@
       <section class="search-panel"><h3>检索模拟</h3><p>输入一句话，查看此刻哪些记忆会被注入（真实 API 检索）。</p>
         <div class="search-wrap"><input id="query" placeholder="试试：我家猫叫什么？" autocomplete="off"><span>↗</span></div>
         <div class="results" id="results">输入后展示将被唤起的记忆。</div>
-        <div class="legend"><span><i style="background:#e9c983"></i>人格内核</span><span><i style="background:#a7cfac"></i>记忆</span><span><i style="background:#ed9982"></i>情绪</span></div>
+        <div class="legend"><span><i style="background:#e9c983"></i>人格内核</span><span><i style="background:#a7cfac"></i>记忆</span><span><i style="background:#b99bd4"></i>态度</span><span><i style="background:#ed9982"></i>情绪</span></div>
         <div id="emoCard"><b>情绪插件</b> · <span id="emoTxt"></span></div>
       </section>
     </div>
@@ -275,14 +279,15 @@
     <section class="vault">
       <div class="tabs">
         <button class="tab active" data-pane="lib">记忆库</button>
-        <button class="tab" data-pane="sess">会话画像</button>
+        <button class="tab" data-pane="sess">画像</button>
         <button class="tab" data-pane="ops">事件流水</button>
         <button class="tab" data-pane="persona">人格内核</button>
+        <button class="tab" data-pane="backup">备份迁移</button>
       </div>
       <div class="pane" id="pane-lib">
         <div class="toolbar">
           <input type="text" id="libQ" placeholder="搜索记忆内容…">
-          <select id="libKind"><option value="">全部类型</option><option value="episodic">情景</option><option value="semantic">语义</option></select>
+          <select id="libKind"><option value="">全部类型</option><option value="episodic">情景</option><option value="semantic">语义</option><option value="attitude">态度</option></select>
           <select id="libSess"><option value="">全部会话</option></select>
           <select id="libFade"><option value="">全部状态</option><option value="fading">将遗忘</option><option value="fresh">鲜活</option></select>
           <select id="libSort">
@@ -298,7 +303,7 @@
         </div>
         <form class="addform" id="addForm">
           <input name="content" placeholder="手动写入一条记忆，如「用户家猫叫年糕」" required maxlength="200">
-          <select name="kind"><option value="episodic">情景</option><option value="semantic">语义</option></select>
+          <select name="kind"><option value="episodic">情景</option><option value="semantic">语义</option><option value="attitude">态度</option></select>
           <select name="importance"><option value="2">重要度2</option><option value="3" selected>重要度3</option><option value="4">重要度4</option><option value="5">重要度5</option></select>
           <button type="submit">写入记忆</button>
         </form>
@@ -309,6 +314,21 @@
         <textarea class="persona-edit" id="personaEdit" spellcheck="false"></textarea>
         <div class="editbar"><button class="savebtn" id="personaSave">保存人格内核</button><span class="stat" id="personaStat"></span></div>
       </div>
+      <div class="pane" id="pane-backup" hidden>
+        <div class="toolbar">
+          <button class="savebtn" id="expBtn">导出全量备份</button>
+          <span class="stat" style="font-size:11px;color:var(--muted)">下载 JSON：人格内核 + 全部记忆 + 会话画像 + 情绪，可迁移到另一个实例</span>
+        </div>
+        <form class="addform" id="impForm">
+          <input type="file" id="impFile" accept=".json,application/json" required>
+          <div class="backup-mode">
+            <label><input type="radio" name="impMode" value="merge" checked> 合并 · 保留现有数据，按 id 去重补入</label>
+            <label><input type="radio" name="impMode" value="replace"> 覆盖 · 清空后整包恢复</label>
+          </div>
+          <button type="submit">导入备份</button>
+          <span class="stat" id="impStat" style="font-size:11px;color:var(--muted)"></span>
+        </form>
+      </div>
     </section>
 
     <footer class="note">DSH-QQBOT-BRAIN · 数据来自 /brain/api（真实蒸馏记忆）· 人格内核与记忆可直接在本页编辑，修改即时生效。</footer>
@@ -317,14 +337,19 @@
 <script>
 const API = location.pathname.replace(/\/$/, '') + '/api';
 const $ = id => document.getElementById(id);
-let STATE = null, OPS = [], SESS = [], SELECTED = null;
+let STATE = null, OPS = [], SESS = [], PEERS = [], SELECTED = null;
 
 // ── 脑区锚点与防重叠布局 ──
 const REGION = {
   episodic: {cx:290, cy:300, rx:150, ry:105},
   semantic: {cx:375, cy:430, rx:90, ry:40},
+  attitude: {cx:505, cy:290, rx:55, ry:36},
   working:  {cx:560, cy:205, rx:70, ry:45},
 };
+const KIND={episodic:'情景',semantic:'语义',attitude:'态度'};
+const KIND_GLYPH={episodic:'忆',semantic:'知',attitude:'态'};
+const kindLabel=k=>KIND[k]??'情景';
+const kindGlyph=k=>KIND_GLYPH[k]??'忆';
 function positions(notes){
   // 黄金角螺旋：同区内按时间排序后均匀散布，天然不重叠
   const byRegion = {};
@@ -379,12 +404,13 @@ function mapSummary(key){
 }
 
 async function load(){
-  const [st, ops, sess] = await Promise.all([
+  const [st, ops, sess, prof] = await Promise.all([
     fetch(API+'/state').then(r=>r.json()),
     fetch(API+'/ops?limit=120').then(r=>r.json()),
     fetch(API+'/sessions').then(r=>r.json()),
+    fetch(API+'/profiles').then(r=>r.json()),
   ]);
-  STATE=st; OPS=ops.ops; SESS=sess.sessions;
+  STATE=st; OPS=ops.ops; SESS=sess.sessions; PEERS=prof.profiles||[];
   render(); renderLibrary(); renderSessions(); renderOps();
   // 正在详情面板编辑时不要重绘（会清掉未保存的输入）
   const editing = document.activeElement && document.activeElement.closest('#info-detail');
@@ -411,10 +437,10 @@ function render(){
       svg.appendChild(svgEl('line',{class:'dyn pathway',x1:pa.x,y1:pa.y,x2:pb.x,y2:pb.y,'data-a':a.id,'data-b':b.id,style:'stroke-opacity:.28'}))}}));
   notes.forEach(n=>{const p=pos(n);
     const radius=10+n.importance*2.4;
-    const g=svgEl('g',{class:`dyn map-node${n.fading?' node-old':''}${SELECTED===n.id?' selected':''}`,'data-key':n.id,tabindex:0,role:'button','aria-label':`${(n.kind==='semantic'?'语义':'情景')}记忆：${n.content}`});
+    const g=svgEl('g',{class:`dyn map-node${n.fading?' node-old':''}${SELECTED===n.id?' selected':''}`,'data-key':n.id,tabindex:0,role:'button','aria-label':`${kindLabel(n.kind)}记忆：${n.content}`});
     g.appendChild(svgEl('title',{},n.content));
     g.appendChild(svgEl('circle',{class:'node-ring',cx:p.x,cy:p.y,r:radius,style:`fill-opacity:${.25+n.retention*.6}`}));
-    g.appendChild(svgEl('text',{class:'node-name',x:p.x,y:p.y+4},(n.kind==='semantic'?'知':'忆')));
+    g.appendChild(svgEl('text',{class:'node-name',x:p.x,y:p.y+4},kindGlyph(n.kind)));
     g.appendChild(svgEl('text',{class:'node-label',x:p.x,y:p.y+radius+17},nodeLabel(n,notes)));
     bindMapNode(g,n.id);svg.appendChild(g);});
   const e=STATE.emotion;
@@ -435,13 +461,13 @@ function render(){
   $('sF').textContent=STATE.stats.fading+' 条';
   $('serial').textContent=`SESSIONS ${STATE.stats.sessions} · OPS ${OPS.length}`;
   $('deck-more').textContent=`查看全部 ${all.length} 条记忆 ↗`;
-  $('emoTxt').textContent=`${e.label||'平静'}（v=${e.v.toFixed(1)} a=${e.a.toFixed(1)} d=${e.d.toFixed(1)}）`;
+  $('emoTxt').textContent=`${e.label||'平静'}（v=${e.v.toFixed(1)} a=${e.a.toFixed(1)} d=${e.d.toFixed(1)}）${STATE.emotionSession?` · ${shortId(STATE.emotionSession)}`:''}`;
   const cards=$('cards');cards.replaceChildren();
   if(!notes.length){cards.innerHTML='<div class="empty cards-empty">还没有记忆。可在下方记忆库写入第一条。</div>';return;}
   [...all].sort((a,b)=>b.retention-a.retention).slice(0,4).forEach(n=>{
     const c=document.createElement('button');c.type='button';
     c.className='card'+(n.fading?' faded':'')+(n.id===SELECTED?' active':'');c.dataset.key=n.id;
-    c.innerHTML=`<span class="tag">${(n.kind==='semantic'?'语义':'情景')} / R ${(n.retention*100).toFixed(0)}%</span><div class="title"></div><div class="meter"><i style="width:${Math.max(3,n.retention*100)}%"></i></div>`;
+    c.innerHTML=`<span class="tag">${kindLabel(n.kind)} / R ${(n.retention*100).toFixed(0)}%</span><div class="title"></div><div class="meter"><i style="width:${Math.max(3,n.retention*100)}%"></i></div>`;
     c.querySelector('.title').textContent=previewText(n,notes);c.title=n.content;
     c.addEventListener('click',()=>{panel(n.id);if(innerWidth<=900)$('info-title').scrollIntoView({behavior:'smooth'});});cards.append(c);});
 }
@@ -484,9 +510,9 @@ function panel(key){
   const detail=$('info-detail'),rows=$('info-rows'),foot=$('info-foot');
   rows.replaceChildren();
   if(key==='core')d={t:'人格内核',h:'它是谁，比它记得什么更重要。',icon:'鱼',cls:'',q:STATE.persona||'（未配置）',foot:'可在下方「人格内核」页签中直接编辑'};
-  else if(key==='emotion'){const e=STATE.emotion;d={t:'情绪回路',h:'情绪流动，但不改写人格。',icon:'◒',cls:'emotion',q:e.label||'平静',foot:`v=${e.v.toFixed(2)} a=${e.a.toFixed(2)} d=${e.d.toFixed(2)}`}}
+  else if(key==='emotion'){const e=STATE.emotion;d={t:'情绪回路',h:'情绪流动，但不改写人格。',icon:'◒',cls:'emotion',q:e.label||'平静',foot:`v=${e.v.toFixed(2)} a=${e.a.toFixed(2)} d=${e.d.toFixed(2)}${STATE.emotionSession?` · 会话 ${shortId(STATE.emotionSession)}`:''}`}}
   else{const n=STATE.notes.find(x=>x.id===key);if(!n)return;
-    d={t:n.kind==='semantic'?'语义记忆':'情景记忆',h:'经历留下的痕迹。',icon:n.kind==='semantic'?'知':'忆',cls:'memory',q:n.content,
+    d={t:n.kind==='attitude'?'态度立场':`${kindLabel(n.kind)}记忆`,h:n.kind==='attitude'?'人格不变，立场会被他人塑造。':'经历留下的痕迹。',icon:kindGlyph(n.kind),cls:'memory',q:n.content,
       foot:`${n.actor?`发言人 ${n.actor} · `:''}会话 ${shortId(n.sessionId)} · 重要度 ${n.importance}/5 · ${n.ageDays}天前 · 保持率 ${(n.retention*100).toFixed(1)}% · 唤起 ${n.hits} 次${n.fading?' · ⚠将遗忘':''}`}}
   $('info-title').textContent=d.t;$('info-hint').textContent=d.h;
   $('glyph').className='glyph '+d.cls;$('glyph-icon').textContent=d.icon;
@@ -503,7 +529,7 @@ function panel(key){
     ed.innerHTML=`<summary>编辑、强化或删除这条记忆</summary><textarea id="ne-content">${esc(n.content)}</textarea>
       <div class="erow">
         <select id="ne-imp">${[1,2,3,4,5].map(i=>`<option value="${i}"${i===n.importance?' selected':''}>重要度${i}</option>`).join('')}</select>
-        <select id="ne-kind"><option value="episodic"${n.kind==='episodic'?' selected':''}>情景</option><option value="semantic"${n.kind==='semantic'?' selected':''}>语义</option></select>
+        <select id="ne-kind"><option value="episodic"${n.kind==='episodic'?' selected':''}>情景</option><option value="semantic"${n.kind==='semantic'?' selected':''}>语义</option><option value="attitude"${n.kind==='attitude'?' selected':''}>态度</option></select>
         <button class="act" id="ne-save">保存</button>
         <button class="act" id="ne-reinf">强化</button>
         <button class="act danger" id="ne-del">删除</button>
@@ -543,7 +569,7 @@ function renderLibrary(){
   arr.forEach(n=>{
     const tr=document.createElement('tr');tr.className='data'+(n.fading?' faded':'')+(n.id===SELECTED?' active':'');tr.dataset.key=n.id;
     tr.innerHTML=`<td><button type="button" class="lib-open"><span class="lib-preview"></span></button></td>
-      <td><span class="badge ${n.kind}">${(n.kind==='semantic'?'语义':'情景')}</span>${n.fading?' <span class="badge fade">将遗忘</span>':''}</td>
+      <td><span class="badge ${n.kind}">${kindLabel(n.kind)}</span>${n.fading?' <span class="badge fade">将遗忘</span>':''}</td>
       <td><span class="rbar"><i style="width:${Math.max(2,n.retention*100)}%"></i></span>${(n.retention*100).toFixed(0)}%</td>
       <td>${n.importance}</td><td>${n.hits}</td><td>${n.ageDays}天</td>
       <td><button class="act" data-a="reinf">强化</button><button class="act danger" data-a="del">删</button></td>`;
@@ -554,10 +580,18 @@ function renderLibrary(){
     tr.querySelector('[data-a=del]').onclick=async()=>{if(confirm('删除这条记忆？')){await fetch(`${API}/notes/${n.id}`,{method:'DELETE'});await load();}};
     tb.appendChild(tr);});
 }
-// ── Tab：会话画像 ──
+// ── Tab：画像（按人 + 会话级）──
 function renderSessions(){
   const g=$('sessGrid');g.replaceChildren();
-  if(!SESS.length){g.innerHTML='<div class="empty">暂无会话数据</div>';return;}
+  const people=PEERS.filter(p=>p.kind==='person');
+  if(!people.length&&!SESS.length){g.innerHTML='<div class="empty">暂无画像数据</div>';return;}
+  people.forEach(p=>{
+    const d=document.createElement('div');d.className='sess';
+    d.innerHTML=`<div class="sid">PERSON ${esc(p.name)}${p.openid?` · ${esc(shortId(p.openid))}…`:''}</div>
+      <div class="prof"></div><div class="meta"></div>`;
+    d.querySelector('.prof').textContent=p.text||'（画像未生成）';
+    d.querySelector('.meta').textContent=`见于 ${p.sessions.length} 个会话${p.updatedAt?` · ${fmtT(p.updatedAt)} 更新`:''}`;
+    g.appendChild(d);});
   SESS.forEach(s=>{
     const d=document.createElement('div');d.className='sess';
     const emo=s.emotion?`情绪 ${s.emotion.label||''}（v=${s.emotion.v?.toFixed(1)} a=${s.emotion.a?.toFixed(1)}）`:'情绪 —';
@@ -568,7 +602,7 @@ function renderSessions(){
     g.appendChild(d);});
 }
 // ── Tab：事件流水 ──
-const OP_CN={add:'新增记忆',reinforce:'唤起强化',update:'修改',del:'删除',emotion:'情绪',profile:'画像',persona:'人格'};
+const OP_CN={add:'新增记忆',reinforce:'唤起强化',update:'修改',del:'删除',emotion:'情绪',profile:'画像',persona:'人格',reset:'整库重置'};
 function opDesc(o){
   const op=o.op;
   switch(op.op){
@@ -577,8 +611,9 @@ function opDesc(o){
     case 'update':return `${shortId(op.id)} ${JSON.stringify(op.patch).slice(0,40)}`;
     case 'del':return `删除 ${shortId(op.id)}`;
     case 'emotion':return `${op.state.label||''} v=${op.state.v.toFixed(1)} a=${op.state.a.toFixed(1)}（${shortId(op.sessionId)}）`;
-    case 'profile':return (op.text||'').slice(0,46);
+    case 'profile':return `${op.name?op.name+'：':''}${(op.text||'').slice(0,46)}`;
     case 'persona':return (op.text||'').slice(0,46);
+    case 'reset':return '清空全部数据（导入覆盖）';
     default:return op.op;
   }
 }
@@ -618,6 +653,37 @@ $('personaSave').onclick=async()=>{
   const d=await r.json();
   $('personaStat').textContent=r.ok?`已保存 ${d.length} 字 · 即时生效`:'保存失败';
   await load();};
+// ── Tab：备份迁移 ──
+// 导出在前端用 /state + /sessions 组装全量包（不依赖新版 /api/export 路由，旧服务端也能导）
+$('expBtn').onclick=async()=>{
+  $('impStat').textContent='';
+  const [st,ss,pf]=await Promise.all([
+    fetch(API+'/state').then(r=>r.json()),
+    fetch(API+'/sessions').then(r=>r.json()),
+    fetch(API+'/profiles').then(r=>r.json()),
+  ]);
+  const dump={version:1,exportedAt:Date.now(),persona:st.persona||'',
+    notes:(st.notes||[]).map(n=>({id:n.id,sessionId:n.sessionId,actor:n.actor,content:n.content,
+      importance:n.importance,kind:n.kind,createdAt:n.createdAt,strength:n.strength,hits:n.hits,lastAccessAt:n.lastAccessAt})),
+    profiles:{},emotions:{}};
+  (pf.profiles||[]).forEach(p=>{if(p.text)dump.profiles[p.key]=p.text;});
+  (ss.sessions||[]).forEach(s=>{if(s.emotion)dump.emotions[s.sessionId]=s.emotion;});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(dump,null,2)],{type:'application/json'}));
+  a.download='brain-export-'+new Date().toISOString().slice(0,10)+'.json';
+  a.click();URL.revokeObjectURL(a.href);};
+$('impForm').onsubmit=async ev=>{
+  ev.preventDefault();
+  const f=$('impFile').files[0];
+  if(!f){$('impStat').textContent='先选择备份文件';return;}
+  const mode=document.querySelector('input[name=impMode]:checked').value;
+  if(mode==='replace'&&!confirm('覆盖模式会清空当前全部记忆、画像、情绪与人格，再以备份整包恢复。确认继续？'))return;
+  const r=await fetch(API+'/import?mode='+mode,{method:'POST',headers:{'Content-Type':'application/json'},body:await f.text()});
+  const d=await r.json().catch(()=>null);
+  $('impStat').textContent=r.ok&&d
+    ?`已导入（${mode==='merge'?'合并':'覆盖'}）：记忆 ${d.notes} 条 · 跳过 ${d.skipped} · 画像 ${d.profiles} · 情绪 ${d.emotions}${d.persona?' · 人格已更新':''}`
+    :'导入失败：'+(r.status===400?'文件不是有效备份':'HTTP '+r.status);
+  ev.target.reset();await load();};
 let queryVersion=0;
 $('query').addEventListener('input',async ev=>{
   const q=ev.target.value.trim();

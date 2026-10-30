@@ -1,4 +1,5 @@
 import type { Brain } from '../brain/index.ts';
+import { splitActor } from '../brain/identity.ts';
 import type { BrainPluginConfig } from '../config.ts';
 
 /**
@@ -77,9 +78,8 @@ export class PromptInjector {
 
       const query = this.lastUserText.get(sessionId) ?? '';
       const actor = this.lastActor.get(sessionId);
-      // actor 形如「昵称 (openid)」（昵称本身可能含括号），取最后 openid 组前的昵称部分
-      const nick = actor?.replace(/\s*\([0-9A-Fa-f-]{8,64}\)\s*$/, '');
-      const brain = this.brain.assemble(sessionId, query, nick);
+      // actor 形如「昵称 (openid)」（昵称本身可能含括号），拆出昵称与 openid 供画像/态度按人取
+      const brain = this.brain.assemble(sessionId, query, actor ? splitActor(actor) : undefined);
 
       const sections = [...(assembled.sections ?? [])];
       if (this.config.injectPersona && brain.persona) {

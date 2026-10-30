@@ -82,6 +82,9 @@ export class BrainHttpServer {
     if (p === `${prefix}/api/sessions`) {
       return json(res, { sessions: this.brain.sessions() });
     }
+    if (p === `${prefix}/api/profiles`) {
+      return json(res, { profiles: this.brain.people() });
+    }
     if (p === `${prefix}/api/ops`) {
       const limit = Math.min(500, Math.max(1, Number(url.searchParams.get('limit')) || 100));
       return json(res, { ops: this.brain.recentOps(limit) });
@@ -129,6 +132,30 @@ export class BrainHttpServer {
           : void res.writeHead(404).end('note not found');
       }
     }
+    if (p === `${prefix}/api/export`) {
+      const day = new Date().toISOString().slice(0, 10);
+      res.writeHead(200, {
+        'Content-Type': 'application/json; charset=utf-8',
+        'Content-Disposition': `attachment; filename="brain-export-${day}.json"`,
+      });
+      res.end(JSON.stringify(this.brain.exportData()));
+      return;
+    }
+    if (p === `${prefix}/api/import` && req.method === 'POST') {
+      const mode = url.searchParams.get('mode') === 'replace' ? 'replace' : 'merge';
+      readBody(req, 10_000_000).then((body) => {
+        const data = parseJson(body);
+        if (!data) { res.writeHead(400).end('bad json'); return; }
+        try {
+          const r = this.brain.importData(data, mode);
+          this.brain.flush();
+          return json(res, { ok: true, mode, ...r });
+        } catch (e) {
+          res.writeHead(400).end(e instanceof Error ? e.message : 'import failed');
+        }
+      });
+      return;
+    }
     if (p === `${prefix}/api/query`) {
       const sessionId = url.searchParams.get('session') ?? undefined;
       const q = url.searchParams.get('q') ?? '';
@@ -163,7 +190,7 @@ export class BrainHttpServer {
       const prefix = this.cfg.prefix.replace(/\/$/, '');
       webServer.register({ path: prefix, handler: (r, s) => this.route(r, s) });
       webServer.register({ path: `${prefix}/`, handler: (r, s) => this.route(r, s) });
-      for (const sub of ['/api/state', '/api/query', '/api/persona', '/api/sessions', '/api/ops', '/api/notes']) {
+      for (const sub of ['/api/state', '/api/query', '/api/persona', '/api/sessions', '/api/profiles', '/api/ops', '/api/notes', '/api/export', '/api/import']) {
         webServer.register({ path: `${prefix}${sub}`, handler: (r, s) => this.route(r, s) });
       }
       this.log(`brain: 已挂载到宿主 webServer ${prefix}`);

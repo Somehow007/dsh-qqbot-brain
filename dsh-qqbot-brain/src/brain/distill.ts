@@ -22,12 +22,15 @@ const PROMPT = `你是陪伴型聊天角色的记忆提炼模块。阅读下面�
 {
   "memories": [{"content": "一句话值得长期记住的事实/事件（含相关实体，忽略寒暄）", "importance": 1-5, "actor": "发言人名（群聊必填，单聊可省略）", "merge": 0}],
   "emotion": {"label": "角色此刻的情绪短语，贴合角色性格（如「嘴硬但开心」「害羞偷笑」「记仇」），不要只写「平静」", "v": -1到1效价, "a": 0到1唤醒, "d": -1到1支配},
-  "profile": "如需更新用户画像则给出画像全文，否则省略",
+  "profiles": [{"actor": "发言人标识", "text": "对该人的画像全文"}],
   "forget": []
 }
 要求：memories 最多 %d 条，可为空数组；只输出 JSON。
 对话每行形如「发言人：内容」；单聊发言人显示为「用户」，群聊显示为「昵称 (openid)」，memories.actor 写该发言人昵称。
-profile 字段：单聊写该用户画像全文；多发言人会话可按发言人分行写群内分人画像。
+profiles 字段：仅在画像需要更新时输出，否则省略整个字段。
+- 群聊：每个发言人有更新就各写一条，actor 原样照抄消息里的「昵称 (openid)」。
+- 单聊：写一条且省略 actor（即会话对象本人）。
+- 可选：再输出一条省略 actor 的条目，表示本次会话整体的画像。
 若本轮对话让「角色」对某人、某事或某话题形成了新的看法/立场/喜恶，或使既有态度发生更新（被说服、改观、加深、转淡），
 给该项加 "kind": "attitude"，content 写成「对<对象>：<角色当前立场一句话>」的完整表述（如对某人的态度写对象昵称）；
 普通事实/事件条目省略 kind。态度条目应与角色性格一致、由对话证据支撑，不要凭空产生。
@@ -38,11 +41,11 @@ profile 字段：单聊写该用户画像全文；多发言人会话可按发言
 对话：
 %s`;
 
-const CONSOLIDATE_PROMPT = `你是陪伴型聊天角色的记忆巩固模块。下面是一个用户的「情景记忆」列表与现有「用户画像」。
+const CONSOLIDATE_PROMPT = `你是陪伴型聊天角色的记忆巩固模块。下面是一个会话的「情景记忆」列表与现有「画像」。
 把零散情景记忆提炼为少量稳定语义记忆（长期事实、稳定偏好、关系结论），并更新画像。输出 JSON：
 {
   "memories": [{"content": "语义记忆：跨时间稳定的事实/偏好/关系", "importance": 1-5, "actor": "相关人名（有则保留）"}],
-  "profile": "更新后的用户画像全文，300字以内"
+  "profiles": [{"actor": "相关发言人标识「昵称 (openid)」（有则照抄）", "text": "更新后的画像全文，300字以内"}]
 }
 要求：memories 最多 5 条，去重合并，丢弃一次性闲聊；只输出 JSON。
 角色设定：%s
@@ -109,11 +112,19 @@ export function parseDistillOutput(raw: string): DistillResult {
       }
     : undefined;
   const profile = typeof o.profile === 'string' && o.profile.trim() ? o.profile.trim() : undefined;
+  const profiles = Array.isArray(o.profiles)
+    ? (o.profiles as Array<Record<string, unknown>>)
+        .filter((x) => typeof x?.text === 'string' && x.text.trim())
+        .map((x) => ({
+          actor: typeof x.actor === 'string' && x.actor.trim() ? x.actor.trim() : undefined,
+          text: String(x.text).trim(),
+        }))
+    : undefined;
   const forget = Array.isArray(o.forget)
     ? (o.forget as unknown[]).filter((x): x is number | string =>
         (typeof x === 'number' && x >= 0) || (typeof x === 'string' && !!x.trim()))
     : undefined;
-  return { memories, emotion, profile, forget: forget?.length ? forget : undefined };
+  return { memories, emotion, profile, profiles: profiles?.length ? profiles : undefined, forget: forget?.length ? forget : undefined };
 }
 
 export class Distiller {

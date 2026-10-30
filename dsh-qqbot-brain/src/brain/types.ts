@@ -54,12 +54,35 @@ export interface NoteDraft {
   mergeIndex?: number;
 }
 
+/**
+ * 画像条目：按人存储，键见 identity.ts（u:<openid> / sess:<sessionId>）
+ */
+export interface ProfileEntry {
+  /** 画像全文，蒸馏整体覆盖重写 */
+  text: string;
+  /** 展示名：发言人昵称；sess 键可为空（页面用 sessionId 短码） */
+  name: string;
+  /** 该画像在哪些会话中出现过 */
+  sessions: string[];
+  /** 最近一次重写时刻 ms epoch */
+  updatedAt: number;
+}
+
+/** 蒸馏产出的单条画像（入库前；actor 缺失=会话整体画像） */
+export interface ProfileDraft {
+  /** 发言人标识，群聊为「昵称 (openid)」，缺省=会话级画像 */
+  actor?: string;
+  text: string;
+}
+
 /** 蒸馏结果 */
 export interface DistillResult {
   memories: NoteDraft[];
   emotion?: { label: string; v: number; a: number; d: number };
-  /** 更新后的用户画像全文（可选，整体覆盖该 session 的画像） */
+  /** 旧字段：会话级画像全文（兼容旧 LLM 输出与调用方） */
   profile?: string;
+  /** 结构化画像：群聊按发言人各一条，单聊/会话级省略 actor */
+  profiles?: ProfileDraft[];
   /** 遗忘意图：数字=已有记忆编号（distill 附带列表下标），字符串=按内容子串匹配删除 */
   forget?: (number | string)[];
 }

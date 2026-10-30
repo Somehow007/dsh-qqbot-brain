@@ -1,0 +1,6 @@
+{"file": ".trellis/spec/backend/index.md", "reason": "后端编码约定：ESM/.ts导入/op变更需同步的类型与页面清单"}
+{"file": "dsh-qqbot-brain/src/brain/store.ts", "reason": "profiles 存储与 JSONL op/快照兼容改造点"}
+{"file": "dsh-qqbot-brain/src/brain/distill.ts", "reason": "profile→profiles 结构化 prompt 与解析"}
+{"file": "dsh-qqbot-brain/src/brain/index.ts", "reason": "assemble 画像注入与 endOfTurn/consolidate 写入路径"}
+{"file": "dsh-qqbot-brain/src/inject/prompt.ts", "reason": "发言人 actor→{nick,openid} 提取与 assemble 传参"}
+{"file": "dsh-qqbot-brain/src/server/page.html", "reason": "画像卡片按人渲染 + /api/profiles"}

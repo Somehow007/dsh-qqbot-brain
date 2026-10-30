@@ -56,6 +56,61 @@ test('store: 写入后重载可恢复', () => {
   rmSync(dir, { recursive: true });
 });
 
+// ── 导出 / 导入 ──
+test('export/import: 整包往返一致，衰减字段保留', () => {
+  const { store } = tmpStore();
+  const note = store.addNote('s1', { content: '用户养了一只橘猫叫年糕', importance: 4 }, NOW - 5 * DAY);
+  store.reinforceById(note.id, 1, 10, NOW - DAY);
+  store.setProfile('s1', '阿澈：软件工程大二');
+  store.setPersona('大肥鱼人设');
+  const dump = JSON.parse(JSON.stringify(store.exportData(NOW)));
+
+  const { store: target } = tmpStore();
+  const r = target.importData(dump, 'merge', NOW);
+  assert.equal(r.notes, 1);
+  const got = target.noteById(note.id)!;
+  assert.equal(got.content, '用户养了一只橘猫叫年糕');
+  assert.equal(got.strength, store.noteById(note.id)!.strength);
+  assert.equal(got.lastAccessAt, store.noteById(note.id)!.lastAccessAt);
+  assert.equal(target.profileOf('s1'), '阿澈：软件工程大二');
+  assert.equal(target.persona(), '大肥鱼人设');
+});
+
+test('import merge: 已存在的 id 跳过，重复导入幂等', () => {
+  const { store } = tmpStore();
+  const note = store.addNote('s1', { content: '原版内容', importance: 3 }, NOW);
+  const dump = store.exportData(NOW);
+  // 本地改过内容后合并，本地优先不被覆盖
+  store.updateNote(note.id, { content: '本地改过的内容' });
+  const r1 = store.importData(dump, 'merge', NOW);
+  assert.equal(r1.notes, 0);
+  assert.equal(r1.skipped, 1);
+  assert.equal(store.noteById(note.id)!.content, '本地改过的内容');
+  assert.equal(store.allNotes().length, 1);
+});
+
+test('import replace: 清库后整包恢复，事件流水留痕', () => {
+  const { store } = tmpStore();
+  store.addNote('s1', { content: '要被清掉的记忆', importance: 3 }, NOW);
+  const dump = store.exportData(NOW);
+  store.addNote('s2', { content: '后来新增的记忆', importance: 3 }, NOW);
+
+  const r = store.importData(dump, 'replace', NOW);
+  assert.equal(r.notes, 1);
+  assert.equal(store.allNotes().length, 1);
+  assert.equal(store.allNotes()[0]!.content, '要被清掉的记忆');
+  assert.ok(store.recentOps(10).some((o) => o.op.op === 'reset'));
+});
+
+test('import: 坏文件与脏数据不报导入成功', () => {
+  const { store } = tmpStore();
+  assert.throws(() => store.importData('not json obj', 'merge', NOW));
+  assert.throws(() => store.importData({ notes: 'x' }, 'merge', NOW));
+  const r = store.importData({ notes: [{ id: '', content: '' }, { id: 'ok', content: '有效记忆' }] }, 'merge', NOW);
+  assert.equal(r.notes, 1);
+  assert.equal(r.skipped, 1);
+});
+
 // ── 检索 ──
 test('retrieval: 相关记忆被命中并强化', async () => {
   const { store } = tmpStore();
@@ -333,4 +388,115 @@ test('graph: 返回节点统计与遗忘标记', () => {
   const g = brain.graph('s1');
   assert.equal(g.stats.total, 2);
   assert.equal(g.stats.fading >= 1, true);
+});
+
+// ── 画像按人建模 ──
+import { splitActor, userProfileKey } from '../src/brain/identity.ts';
+import { writeFileSync } from 'node:fs';
+
+test('splitActor: 拆出昵称与 openid，昵称含括号也能取到末尾 id 组', () => {
+  assert.deepEqual(splitActor('张三 (ABCDEF1234567890)'), { nick: '张三', openid: 'ABCDEF1234567890' });
+  assert.deepEqual(splitActor('小鱼 (夜猫子) (ABCDEF1234567890)'), { nick: '小鱼 (夜猫子)', openid: 'ABCDEF1234567890' });
+  assert.deepEqual(splitActor('裸昵称'), { nick: '裸昵称', openid: undefined });
+});
+
+test('store: 画像按 u:/sess: 键存取，people() 区分人与会话', () => {
+  const { store } = tmpStore();
+  store.setProfile('s1', '会话级画像');                                  // 旧接口 → sess:s1
+  store.setProfileEntry(userProfileKey('OID123'), '张三的画像', { sessionId: 's1', name: '张三' });
+  store.setProfileEntry(userProfileKey('OID123'), '张三的画像v2', { sessionId: 's2', name: '张三' });
+  assert.equal(store.profileOf('s1'), '会话级画像');
+  assert.equal(store.profileOf(userProfileKey('OID123')), '张三的画像v2');
+  const people = store.people();
+  const person = people.find((p) => p.kind === 'person')!;
+  assert.equal(person.openid, 'OID123');
+  assert.equal(person.name, '张三');
+  assert.deepEqual([...person.sessions].sort(), ['s1', 's2']); // 同一人跨会话画像合并
+  // u: 键不制造会话卡片，sess 键仍并入会话并集
+  assert.deepEqual(store.sessions().map((s) => s.sessionId), ['s1']);
+});
+
+test('store: 旧 jsonl 的裸 profile op 重放自动迁移为 sess: 键', () => {
+  const { dir } = tmpStore();
+  writeFileSync(join(dir, 'brain.jsonl'),
+    JSON.stringify({ t: NOW, op: 'profile', sessionId: 's1', text: '老会话画像' }) + '\n');
+  const store = new BrainStore(dir);
+  assert.equal(store.profileOf('s1'), '老会话画像');
+  assert.equal(store.people()[0]!.kind, 'session');
+  rmSync(dir, { recursive: true });
+});
+
+test('parseDistillOutput: profiles 数组解析，旧 profile 字段兼容', () => {
+  const r = parseDistillOutput(JSON.stringify({
+    memories: [],
+    profiles: [
+      { actor: '张三 (ABCDEF1234567890)', text: '嘴甜会夸人' },
+      { text: '会话整体画像' },
+      { actor: '李四', text: '' }, // 空 text 过滤
+    ],
+  }));
+  assert.equal(r.profiles!.length, 2);
+  assert.equal(r.profiles![0]!.actor, '张三 (ABCDEF1234567890)');
+  assert.equal(r.profiles![1]!.actor, undefined);
+  const legacy = parseDistillOutput('{"profile":"p","memories":[]}');
+  assert.equal(legacy.profile, 'p');
+  assert.equal(legacy.profiles, undefined);
+});
+
+test('endOfTurn: 群聊画像按发言人 openid 入 u: 键，跨会话归并', async () => {
+  const { store } = tmpStore();
+  const brain = new Brain({
+    store, now,
+    distiller: mockDistiller({
+      memories: [],
+      profiles: [{ actor: '张三 (ABCDEF1234567890)', text: '张三：嘴甜会夸人' }],
+    }),
+  });
+  brain.ingest('g1', { userText: '鱼鱼真可爱', assistantText: '咕嘟', actor: '张三 (ABCDEF1234567890)', at: NOW });
+  await brain.endOfTurn('g1');
+  brain.ingest('g2', { userText: '又见面了', assistantText: '咕嘟', actor: '张三 (ABCDEF1234567890)', at: NOW });
+  await brain.endOfTurn('g2');
+  const person = store.people().find((p) => p.kind === 'person')!;
+  assert.equal(person.openid, 'ABCDEF1234567890');
+  assert.equal(person.name, '张三');
+  assert.deepEqual([...person.sessions].sort(), ['g1', 'g2']);
+  assert.equal(store.people().filter((p) => p.kind === 'session').length, 0); // 无会话级画像
+});
+
+test('assemble: 发言人带 openid 时注入个人画像，会话画像降格为「会话画像」', () => {
+  const { store } = tmpStore();
+  store.setProfile('g1', '这个群很欢乐');
+  store.setProfileEntry(userProfileKey('OID_ZS'), '张三画像', { sessionId: 'g1', name: '张三' });
+  const brain = new Brain({ store, distiller: mockDistiller({}), now });
+  const ctx = brain.assemble('g1', 'hi', { nick: '张三', openid: 'OID_ZS' });
+  assert.match(ctx.memoryLines[0]!, /^- \[画像\] 张三画像/);
+  assert.match(ctx.memoryLines[1]!, /^- \[会话画像\] 这个群很欢乐/);
+  // 其他发言人只看会话画像
+  const ctx2 = brain.assemble('g1', 'hi', { nick: '李四', openid: 'OID_LS' });
+  assert.match(ctx2.memoryLines[0]!, /^- \[画像\] 这个群很欢乐/);
+});
+
+test('assemble: 「对该人」的态度跨会话保底唤起', () => {
+  const { store } = tmpStore();
+  store.addNote('g1', { content: '对张三：嘴上嫌弃其实信任', importance: 4, kind: 'attitude' }, NOW);
+  const brain = new Brain({ store, distiller: mockDistiller({}), now });
+  const ctx = brain.assemble('g2', '在吗', '张三');
+  assert.ok(ctx.attitudeLines.some((l) => l.includes('对张三')));
+});
+
+test('import/export: u:/sess: 键画像整包往返，旧格式字符串值兼容', () => {
+  const { store } = tmpStore();
+  store.setProfile('s1', '会话画像');
+  store.setProfileEntry(userProfileKey('OID1'), '个人画像', { sessionId: 's1', name: '某人' });
+  const dump = JSON.parse(JSON.stringify(store.exportData(NOW)));
+  const { store: target } = tmpStore();
+  const r = target.importData(dump, 'replace', NOW);
+  assert.equal(r.profiles, 2);
+  assert.equal(target.profileOf('s1'), '会话画像');
+  assert.equal(target.profileOf(userProfileKey('OID1')), '个人画像');
+  // 旧版导出（裸 sessionId 键 + 字符串值）也能导
+  const legacy = { profiles: { s9: '旧画像' } };
+  const r2 = target.importData(legacy, 'merge', NOW);
+  assert.equal(r2.profiles, 1);
+  assert.equal(target.profileOf('s9'), '旧画像');
 });
