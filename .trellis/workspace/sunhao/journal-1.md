@@ -89,3 +89,23 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 5: 上云部署执行
+<!-- trellis-session: v=2 fp=a913dbadb0be2f15 -->
+
+**Date**: 2026-10-30
+**Task**: 上云部署执行
+**Branch**: `main`
+
+### Summary
+
+部署到 ubuntu@124.222.65.169（已有 dsh qqbot 服务）。rsync dist+patch+package.json→~/dsh-qqbot-brain，dsh plugin add 以 link 依赖装入 profile；~/brain-data 整目录迁移（12 notes/5 profiles/persona）；从 .credentials.yaml 提取 DEEPSEEK_API_KEY→~/.dsh/brain.env（600），drop-in EnvironmentFile 注入；脑图 127.0.0.1:4099 SSH 隧道端到端验证；ubuntu cron 每日备份。坑：ctx.logger 不进 qqbot.log，观测靠 API；dsh 命令需 PATH=/opt/node-v24/bin。待办：首轮对话验证蒸馏产出。
+
+### Git Commits
+
+(No commits - planning session)
+
+### Status
+
+[OK] **Completed**
