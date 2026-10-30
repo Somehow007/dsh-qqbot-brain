@@ -67,3 +67,25 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 4: 第一轮上云准备实施
+<!-- trellis-session: v=2 fp=8a5a353385dd3364 -->
+
+**Date**: 2026-10-30
+**Task**: 第一轮上云准备实施
+**Branch**: `main`
+
+### Summary
+
+需求：列出第一轮上云待办并评估设计。产出 P0-P3 清单（task first-round-deploy-prep）：P0=端口收敛+dataDir 日志+runbook，P1=页面 token 感知+迁移+备份+unit。用户决策：SSH 隧道为主，P0+P1 全做。实施：patch/config host→127.0.0.1；page.html fapi 包装 17 处 fetch 透传 token（sessionStorage 续命）；启动日志加数据目录绝对路径；README runbook 含 unit/迁移/验证/备份/回滚。验证：typecheck+41/41 测试+build 全绿。后续：服务器侧部署执行后归档 task。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `13332d0` | feat: 第一轮上云准备——脑图默认绑本机 + 页面 token 感知 + 部署 runbook |
+
+### Status
+
+[OK] **Completed**
