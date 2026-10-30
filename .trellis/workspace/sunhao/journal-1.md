@@ -47,3 +47,23 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 3: 上云部署就绪评估
+<!-- trellis-session: v=2 fp=ee44fb55e695eb97 -->
+
+**Date**: 2026-10-30
+**Task**: 上云部署就绪评估
+**Branch**: `main`
+
+### Summary
+
+问题：能否上云第一轮使用。排查：核对 M0-M4 里程碑、实跑 typecheck+40/40 测试+build 全绿、审查 http 路由/鉴权与 patch 默认配置、复查 journal 遗留坑。结论：可上云，先收端口——默认 0.0.0.0+空 token 会暴露脑图及全部写 API，改 127.0.0.1+SSH 隧道或安全组限 IP；token 与页面不兼容不可依赖。前置：dsh 宿主+qqbot profile+Node≥20+绝对路径 BRAIN_DATA_DIR+单实例独占数据目录。迁移：拷 ~/brain-data 或 export/import API。后续：页面 token 感知、文件锁、systemd 绝对路径。
+
+### Git Commits
+
+(No commits - planning session)
+
+### Status
+
+[OK] **Completed**
