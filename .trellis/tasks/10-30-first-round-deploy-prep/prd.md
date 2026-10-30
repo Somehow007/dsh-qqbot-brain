@@ -60,4 +60,21 @@
 
 ## 剩余项（服务器侧执行，非代码）
 
-- 实际部署、数据迁移、安全组配置、systemd 启用——按 README runbook 执行，第一轮验证通过后归档本任务
+- ~~实际部署、数据迁移、安全组配置、systemd 启用~~ —— 2026-10-30 已完成（见下）
+- 第一轮真实对话验证（机器人应答 + 蒸馏产出记忆）后归档本任务
+
+## 部署记录（2026-10-30）
+
+- 服务器：`ubuntu@124.222.65.169`（腾讯云 Ubuntu，1.9G 内存，已有 dsh qqbot systemd 服务运行中）
+- 插件位置：`~/dsh-qqbot-brain/`（dist + cordis.patch.yml + package.json，pnpm link 进 profile）
+- 数据：`~/brain-data/` 整目录 rsync（12 notes / 5 profiles / persona / 3 sessions 全部就位）
+- 密钥：`.credentials.yaml` 的 `refs.DEEPSEEK_API_KEY` → `~/.dsh/brain.env`（chmod 600），经 drop-in `/etc/systemd/system/dsh-qqbot.service.d/brain.conf` 的 `EnvironmentFile=` 注入
+- 脑图：`127.0.0.1:4099` 仅本机监听（`ss` 已验证），SSH 隧道端到端通过
+- 备份：ubuntu crontab 每日 04:00 打包 `~/brain-data` → `~/backups/brain-*.tgz` 留 7 份，首包已生成
+- 验证：`/api/state` 返回迁移数据、端口绑定正确、`Bot ready!` 重连正常
+
+### 部署发现（待改进）
+
+- 插件 `ctx.logger` 输出不进 `/var/log/dsh/qqbot.log`——「已启动：…蒸馏 on」行不可见，运行期观测只能靠 `/brain/api/*`（蒸馏是否生效要等首轮对话后看 notes 是否增长）
+- `dsh plugin add` 以 `link:` 依赖安装，本地目录重建 dist 后需重启服务生效
+- 服务器系统 Node 是 18，dsh 用 `/opt/node-v24`——插件编译产物 ES2022 无影响，但所有 dsh 命令要 `PATH=/opt/node-v24/bin:$PATH`
