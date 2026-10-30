@@ -136,7 +136,7 @@ export class SessionCapture {
           at: user.at,
         });
         void this.brain.endOfTurn(sessionId).catch((e: unknown) => {
-          if (this.debug) this.log(`brain: 蒸馏失败 ${String(e)}`);
+          this.log(`brain: 蒸馏失败 ${String(e)}`);
         });
         break;
       }

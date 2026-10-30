@@ -14,6 +14,7 @@ import { SessionCapture } from './capture/events.ts';
 import { BrainHttpServer } from './server/http.ts';
 import { findProfileDir, loadPersonaFromPatch } from './setup/persona-loader.ts';
 import { readPersonaFile, writePersonaFile, personaFilePath } from './setup/persona-file.ts';
+import { makeFileLogger } from './setup/file-log.ts';
 
 export const name = 'qqbot-brain';
 export const inject: string[] = [];
@@ -48,14 +49,15 @@ export async function apply(ctx: unknown, config?: Partial<BrainPluginConfig>): 
   cfg.llm.model = env('BRAIN_LLM_MODEL') ?? cfg.llm.model;
 
   const logger = ((ctx as { logger?: { info(m: string): void } }).logger ?? console);
-  const log = (m: string) => logger.info(`[qqbot-brain] ${m}`);
+  const dataDir = resolve(cfg.dataDir);
+  const fileLog = makeFileLogger(dataDir);
+  const log = (m: string) => { fileLog(m); logger.info(`[qqbot-brain] ${m}`); };
 
   // ── brain 装配 ──
-  const store = new BrainStore(resolve(cfg.dataDir), cfg.compactEvery);
+  const store = new BrainStore(dataDir, cfg.compactEvery);
   const distiller = new Distiller(cfg.llm);
 
   // 人格内核优先级：persona.md > store > config/env > groupPrompt迁移 > 默认
-  const dataDir = resolve(cfg.dataDir);
   let persona = readPersonaFile(dataDir);
   let personaFrom = 'persona.md';
   if (!persona) {
@@ -75,7 +77,7 @@ export async function apply(ctx: unknown, config?: Partial<BrainPluginConfig>): 
       consolidateMinAgeDays: cfg.consolidation.minAgeDays,
       consolidateMinNotes: cfg.consolidation.minNotes,
     },
-    log: cfg.debug ? log : undefined,
+    log,
   });
   if (persona && !store.persona()) store.setPersona(persona);
   // 初次落盘导出：让 persona.md 始终反映当前内核

@@ -67,7 +67,7 @@ RestartSec=5
 WantedBy=multi-user.target
 ```
 
-`BRAIN_DATA_DIR` 必须给绝对路径。日志：`journalctl -u dsh -f`。
+`BRAIN_DATA_DIR` 必须给绝对路径。插件日志写 `<数据目录>/brain.log`（含启动行、每轮蒸馏摘要、蒸馏失败；超 1MB 轮转为 brain.log.old），宿主日志 `journalctl -u dsh -f` 或 /var/log/dsh/qqbot.log。
 
 ### 数据迁移（可选）
 
@@ -76,7 +76,7 @@ WantedBy=multi-user.target
 
 ### 验证清单
 
-1. `journalctl -u dsh` 启动行含「数据目录 /var/lib/dsh-brain」「蒸馏 on」「脑图 127.0.0.1:4099/brain」
+1. `tail ~/brain-data/brain.log` 启动行含「数据目录 <绝对路径>」「蒸馏 on」「脑图 127.0.0.1:4099/brain」
 2. 与机器人聊 3 轮以上
 3. `curl 127.0.0.1:4099/brain/api/state` → notes 数增长；`/brain/api/ops` 有 add 流水
 4. 隧道打开 `/brain`：人格内核、态度、记忆、画像、情绪均有数据
@@ -94,7 +94,7 @@ WantedBy=multi-user.target
 ## 排障
 
 - `蒸馏 off(无apiKey)`：设 `BRAIN_LLM_API_KEY` 或 `DEEPSEEK_API_KEY`
-- 记忆不涨：确认事件含 user/message；`debug: true` 看日志
+- 记忆不涨：看 `brain.log`——有「蒸馏失败」查 key/网络；无蒸馏行确认事件含 user/message；`debug: true` 加详细日志
 - 数据写到别处：看启动日志的「数据目录 <绝对路径>」，env 相对路径按 cwd 解析
 - 页面 401：确认 URL 带 `?token=` 或宿主侧未拦截
 - 摘除插件即还原官方行为：`dsh plugin --profile qqbot remove qqbot-brain`

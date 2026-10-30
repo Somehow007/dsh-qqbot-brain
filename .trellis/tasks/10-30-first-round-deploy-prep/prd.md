@@ -75,6 +75,6 @@
 
 ### 部署发现（待改进）
 
-- 插件 `ctx.logger` 输出不进 `/var/log/dsh/qqbot.log`——「已启动：…蒸馏 on」行不可见，运行期观测只能靠 `/brain/api/*`（蒸馏是否生效要等首轮对话后看 notes 是否增长）
+- ~~插件 `ctx.logger` 输出不进 `/var/log/dsh/qqbot.log`~~ → 已解：新增 `src/setup/file-log.ts`，全部插件日志落 `<dataDir>/brain.log`（1MB 轮转 .old），蒸馏失败不再仅 debug 可见；已部署并在服务器验证「蒸馏 on / 数据目录 /home/ubuntu/brain-data」
 - `dsh plugin add` 以 `link:` 依赖安装，本地目录重建 dist 后需重启服务生效
 - 服务器系统 Node 是 18，dsh 用 `/opt/node-v24`——插件编译产物 ES2022 无影响，但所有 dsh 命令要 `PATH=/opt/node-v24/bin:$PATH`
