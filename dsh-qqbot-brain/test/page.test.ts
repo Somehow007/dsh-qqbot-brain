@@ -18,6 +18,12 @@ test('页面脚本语法有效', () => {
   assert.doesNotThrow(() => new Script(script));
 });
 
+test('API 请求经 fapi 透传访问口令', () => {
+  assert.match(script, /sessionStorage\.getItem\('brain-token'\)/);
+  assert.match(script, /token='?\s*\+\s*encodeURIComponent\(TOKEN\)/);
+  assert.equal(script.match(/\bfetch\(/g)?.length, 1);
+});
+
 test('脑图标签在共同开头之后显示可区分的内容', () => {
   const notes = [
     { id: 'a', content: '用户今天提到下个月要去青岛看海，已经订好车票' },

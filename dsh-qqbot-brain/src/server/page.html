@@ -336,6 +336,10 @@
 </div>
 <script>
 const API = location.pathname.replace(/\/$/, '') + '/api';
+const TOKEN = new URLSearchParams(location.search).get('token')
+  || sessionStorage.getItem('brain-token') || '';
+if (TOKEN) sessionStorage.setItem('brain-token', TOKEN);
+const fapi = (u, o) => fetch(u + (TOKEN ? (u.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(TOKEN) : ''), o);
 const $ = id => document.getElementById(id);
 let STATE = null, OPS = [], SESS = [], PEERS = [], SELECTED = null;
 
@@ -405,10 +409,10 @@ function mapSummary(key){
 
 async function load(){
   const [st, ops, sess, prof] = await Promise.all([
-    fetch(API+'/state').then(r=>r.json()),
-    fetch(API+'/ops?limit=120').then(r=>r.json()),
-    fetch(API+'/sessions').then(r=>r.json()),
-    fetch(API+'/profiles').then(r=>r.json()),
+    fapi(API+'/state').then(r=>r.json()),
+    fapi(API+'/ops?limit=120').then(r=>r.json()),
+    fapi(API+'/sessions').then(r=>r.json()),
+    fapi(API+'/profiles').then(r=>r.json()),
   ]);
   STATE=st; OPS=ops.ops; SESS=sess.sessions; PEERS=prof.profiles||[];
   render(); renderLibrary(); renderSessions(); renderOps();
@@ -536,11 +540,11 @@ function panel(key){
       </div>`;
     detail.appendChild(ed);
     $('ne-save').onclick=async()=>{
-      await fetch(`${API}/notes/${n.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},
+      await fapi(`${API}/notes/${n.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({content:$('ne-content').value,importance:+$('ne-imp').value,kind:$('ne-kind').value})});
       await load();};
-    $('ne-reinf').onclick=async()=>{await fetch(`${API}/notes/${n.id}/reinforce`,{method:'POST'});await load();};
-    $('ne-del').onclick=async()=>{if(confirm('删除这条记忆？（写入 del 墓碑，不可恢复）')){await fetch(`${API}/notes/${n.id}`,{method:'DELETE'});await load();}};
+    $('ne-reinf').onclick=async()=>{await fapi(`${API}/notes/${n.id}/reinforce`,{method:'POST'});await load();};
+    $('ne-del').onclick=async()=>{if(confirm('删除这条记忆？（写入 del 墓碑，不可恢复）')){await fapi(`${API}/notes/${n.id}`,{method:'DELETE'});await load();}};
   }
   if(key!=='core'&&key!=='emotion'&&![...document.querySelectorAll('.map-node')].some(x=>x.dataset.key===key))render();
   document.querySelectorAll('.map-node, .card, .result-hit, tr.data').forEach(x=>x.classList.toggle('selected',x.dataset.key===key));
@@ -576,8 +580,8 @@ function renderLibrary(){
     tr.querySelector('.lib-preview').textContent=previewText(n,[],starts.get(n.id));tr.cells[0].title=n.content;
     tr.querySelector('.lib-open').onclick=()=>{panel(n.id);$('info-title').scrollIntoView({behavior:'smooth'});};
     tr.onclick=ev=>{if(ev.target.closest('button'))return;panel(n.id);$('info-title').scrollIntoView({behavior:'smooth'});};
-    tr.querySelector('[data-a=reinf]').onclick=async()=>{await fetch(`${API}/notes/${n.id}/reinforce`,{method:'POST'});await load();};
-    tr.querySelector('[data-a=del]').onclick=async()=>{if(confirm('删除这条记忆？')){await fetch(`${API}/notes/${n.id}`,{method:'DELETE'});await load();}};
+    tr.querySelector('[data-a=reinf]').onclick=async()=>{await fapi(`${API}/notes/${n.id}/reinforce`,{method:'POST'});await load();};
+    tr.querySelector('[data-a=del]').onclick=async()=>{if(confirm('删除这条记忆？')){await fapi(`${API}/notes/${n.id}`,{method:'DELETE'});await load();}};
     tb.appendChild(tr);});
 }
 // ── Tab：画像（按人 + 会话级）──
@@ -628,7 +632,7 @@ function renderOps(){
 }
 // ── Tab：人格编辑 ──
 async function loadPersona(){
-  const r=await fetch(API+'/persona');const d=await r.json();
+  const r=await fapi(API+'/persona');const d=await r.json();
   $('personaEdit').value=d.text||'';
   $('personaStat').textContent=`${(d.text||'').length} 字 · 保存即生效`;
 }
@@ -644,11 +648,11 @@ $('deck-more').onclick=()=>{document.querySelector('[data-pane=lib]').click();$(
 $('addForm').onsubmit=async ev=>{
   ev.preventDefault();
   const f=ev.target;
-  await fetch(API+'/notes',{method:'POST',headers:{'Content-Type':'application/json'},
+  await fapi(API+'/notes',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({content:f.content.value,kind:f.kind.value,importance:+f.importance.value})});
   f.content.value='';await load();};
 $('personaSave').onclick=async()=>{
-  const r=await fetch(API+'/persona',{method:'POST',headers:{'Content-Type':'application/json'},
+  const r=await fapi(API+'/persona',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({text:$('personaEdit').value})});
   const d=await r.json();
   $('personaStat').textContent=r.ok?`已保存 ${d.length} 字 · 即时生效`:'保存失败';
@@ -658,9 +662,9 @@ $('personaSave').onclick=async()=>{
 $('expBtn').onclick=async()=>{
   $('impStat').textContent='';
   const [st,ss,pf]=await Promise.all([
-    fetch(API+'/state').then(r=>r.json()),
-    fetch(API+'/sessions').then(r=>r.json()),
-    fetch(API+'/profiles').then(r=>r.json()),
+    fapi(API+'/state').then(r=>r.json()),
+    fapi(API+'/sessions').then(r=>r.json()),
+    fapi(API+'/profiles').then(r=>r.json()),
   ]);
   const dump={version:1,exportedAt:Date.now(),persona:st.persona||'',
     notes:(st.notes||[]).map(n=>({id:n.id,sessionId:n.sessionId,actor:n.actor,content:n.content,
@@ -678,7 +682,7 @@ $('impForm').onsubmit=async ev=>{
   if(!f){$('impStat').textContent='先选择备份文件';return;}
   const mode=document.querySelector('input[name=impMode]:checked').value;
   if(mode==='replace'&&!confirm('覆盖模式会清空当前全部记忆、画像、情绪与人格，再以备份整包恢复。确认继续？'))return;
-  const r=await fetch(API+'/import?mode='+mode,{method:'POST',headers:{'Content-Type':'application/json'},body:await f.text()});
+  const r=await fapi(API+'/import?mode='+mode,{method:'POST',headers:{'Content-Type':'application/json'},body:await f.text()});
   const d=await r.json().catch(()=>null);
   $('impStat').textContent=r.ok&&d
     ?`已导入（${mode==='merge'?'合并':'覆盖'}）：记忆 ${d.notes} 条 · 跳过 ${d.skipped} · 画像 ${d.profiles} · 情绪 ${d.emotions}${d.persona?' · 人格已更新':''}`
@@ -690,7 +694,7 @@ $('query').addEventListener('input',async ev=>{
   const version=++queryVersion;
   document.querySelectorAll('.pathway').forEach(p=>p.classList.remove('active'));
   if(!q){$('results').textContent='输入后展示将被唤起的记忆（真实检索）。';return;}
-  const r=await (await fetch(API+'/query?q='+encodeURIComponent(q))).json();
+  const r=await (await fapi(API+'/query?q='+encodeURIComponent(q))).json();
   if(version!==queryVersion)return;
   const ids=new Set(r.hits.map(h=>h.id));
   document.querySelectorAll('.pathway').forEach(p=>{

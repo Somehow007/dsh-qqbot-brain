@@ -101,7 +101,7 @@ export const DEFAULT_CONFIG: BrainPluginConfig = {
   retrieval: { topK: 6, alpha: 0.6, beta: 0.4, gamma: 0.2 },
   /** 语义巩固：周期性把老情景记忆提炼为语义记忆/重写画像 */
   consolidation: { enabled: true, tickMinutes: 60, cooldownHours: 24, minAgeDays: 1, minNotes: 4 },
-  http: { enabled: true, port: 4099, host: '0.0.0.0', prefix: '/brain', token: '' },
+  http: { enabled: true, port: 4099, host: '127.0.0.1', prefix: '/brain', token: '' },
   compactEvery: 200,
   debug: false,
 };

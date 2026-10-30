@@ -15,43 +15,86 @@
 - 经 `session/event` 捕获 user/assistant 轮次，`turn/end` 调 LLM 蒸馏为记忆笔记
 - 记忆按艾宾浩斯曲线 `R=e^(-t/S)` 衰减，被检索命中时 S+1 强化（用进废退）
 
-## 安装（2C2G 服务器）
+## 部署 runbook（云服务器第一轮）
+
+### 前置
+
+- 服务器 ≥1C2G，Node ≥20，出网可达 api.deepseek.com 与 QQ 平台
+- dsh qqbot profile 已配置且官方 `@tencent-connect/dsh-qqbot` 能独立跑通
+- DeepSeek API key（没有也能跑，蒸馏自动关闭）
+
+### 构建与安装
 
 ```bash
-# 1. 拉取并构建（本地先 pnpm/npm build，或直接传 src 依赖 dsh 的 ts 运行时）
-git clone <本目录> && cd dsh-qqbot-brain && npm i && npm run build
+# 本地构建后上传（dist 不入库）
+npm ci && npm run build
+rsync -av dist/ cordis.patch.yml package.json server:/opt/dsh-qqbot-brain/
 
-# 2. 与官方插件并列安装到 qqbot profile
-npx @deepseek-ai/dsh plugin --profile qqbot add /path/to/dsh-qqbot-brain
+# 或服务器上 clone + npm ci && npm run build
 
-# 3. 配置（二选一）
-#  a) cordis.patch.yml 追加：
-#    - id: qqbot-brain
-#      name: '@local/dsh-qqbot-brain'
-#      config:
-#        personaCore: "大肥鱼人设全文…"
-#        http: { port: 4099 }
-#  b) 环境变量（更省事的默认路径）：
-export DEEPSEEK_API_KEY=sk-xxx        # 蒸馏用，或 BRAIN_LLM_API_KEY
-export BRAIN_DATA_DIR=/var/lib/dsh-brain   # 可选，默认 ./brain-data
-npx @deepseek-ai/dsh --profile qqbot
+# 与官方插件并列安装到 qqbot profile
+npx @deepseek-ai/dsh plugin --profile qqbot add /opt/dsh-qqbot-brain
 ```
 
-脑图页：`http://<服务器>:4099/brain`（CLI profile 走内置 node:http；
-web 模式自动改挂宿主 webServer 同端口）。
+### 访问收敛（二选一）
 
-## systemd（可选常驻）
+- **SSH 隧道（推荐）**：保持默认 `host: 127.0.0.1`，安全组只放 22。
+  本机 `ssh -L 4099:127.0.0.1:4099 user@server`，浏览器开 `http://127.0.0.1:4099/brain`。
+- **公网直连**：patch 改 `host: 0.0.0.0` 且 `token: '<随机口令>'`，安全组 4099 只放自己 IP。
+  浏览器开 `http://<服务器>:4099/brain?token=<口令>`（口令存入会话存储，后续刷新免带）。
+- webServer 挂载模式下 `http.host` 不生效，只能靠 token 或宿主侧控制。
+
+### systemd 常驻
+
+`/etc/systemd/system/dsh.service`：
 
 ```ini
+[Unit]
+Description=dsh qqbot (+brain)
+After=network-online.target
+
 [Service]
-Environment=DEEPSEEK_API_KEY=sk-xxx
+Type=simple
+User=dsh
+WorkingDirectory=/var/lib/dsh
+Environment=BRAIN_LLM_API_KEY=sk-xxx
 Environment=BRAIN_DATA_DIR=/var/lib/dsh-brain
-ExecStart=/usr/bin/npx @deepseek-ai/dsh --profile qqbot
+ExecStart=/abs/path/to/node /abs/path/to/dsh --profile qqbot
 Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
 ```
+
+`BRAIN_DATA_DIR` 必须给绝对路径。日志：`journalctl -u dsh -f`。
+
+### 数据迁移（可选）
+
+- 保完整 op 流水：停服后 `rsync -av ~/brain-data/ server:/var/lib/dsh-brain/`
+- 只带状态：`GET /brain/api/export` → `POST /brain/api/import?mode=replace`
+
+### 验证清单
+
+1. `journalctl -u dsh` 启动行含「数据目录 /var/lib/dsh-brain」「蒸馏 on」「脑图 127.0.0.1:4099/brain」
+2. 与机器人聊 3 轮以上
+3. `curl 127.0.0.1:4099/brain/api/state` → notes 数增长；`/brain/api/ops` 有 add 流水
+4. 隧道打开 `/brain`：人格内核、态度、记忆、画像、情绪均有数据
+
+### 备份
+
+```cron
+0 4 * * * tar czf /var/backups/brain-$(date +\%F).tgz -C /var/lib/dsh-brain . && ls -t /var/backups/brain-*.tgz | tail -n +8 | xargs rm -f
+```
+
+### 回滚
+
+`dsh plugin --profile qqbot remove qqbot-brain` → 还原官方行为，`BRAIN_DATA_DIR` 数据保留。
 
 ## 排障
 
 - `蒸馏 off(无apiKey)`：设 `BRAIN_LLM_API_KEY` 或 `DEEPSEEK_API_KEY`
 - 记忆不涨：确认事件含 user/message；`debug: true` 看日志
+- 数据写到别处：看启动日志的「数据目录 <绝对路径>」，env 相对路径按 cwd 解析
+- 页面 401：确认 URL 带 `?token=` 或宿主侧未拦截
 - 摘除插件即还原官方行为：`dsh plugin --profile qqbot remove qqbot-brain`
