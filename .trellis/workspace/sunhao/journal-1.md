@@ -109,3 +109,25 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 6: 插件文件日志
+<!-- trellis-session: v=2 fp=30ac367c3fc22a9a -->
+
+**Date**: 2026-10-30
+**Task**: 插件文件日志
+**Branch**: `main`
+
+### Summary
+
+问题：服务器上 ctx.logger 不进 qqbot.log，插件运行状态不可观测。方案：makeFileLogger 写 dataDir/brain.log（ISO 时间戳、1MB 轮转 .old、失败静默）；Brain.log 常开拿蒸馏摘要；蒸馏失败去 debug 门控。验证：44/44 测试+部署后 brain.log 输出蒸馏 on+数据目录。观测入口定为 brain.log，README 同步。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `7959cb3` | feat: 插件文件日志 <dataDir>/brain.log——ctx.logger 不落盘环境的观测兜底 |
+
+### Status
+
+[OK] **Completed**
