@@ -170,6 +170,9 @@
     .ops .ok-ind.persona, .ops .ok-ind.profile { background: #e4dfc4; color: #6b5c2e; }
     .ops .ok-ind.emotion { background: #f2ded4; color: #8a5240; }
     textarea.persona-edit { width: 100%; min-height: 320px; border: 1px solid var(--line); background: #fff; padding: 12px; font-size: 12.5px; line-height: 1.8; resize: vertical; }
+    .persona-controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+    .persona-controls input, .persona-controls select { border: 1px solid var(--line); background: #fff; padding: 6px 9px; font-size: 12px; color: var(--ink); min-width: 130px; }
+    .persona-controls select { max-width: 100%; }
     .editbar { display: flex; gap: 10px; align-items: center; margin-top: 10px; }
     .editbar .stat { font-size: 11px; color: var(--muted); }
     .note-edit { margin-top: 14px; border-top: 1px dashed var(--line); padding-top: 12px; font-size: 12px; }
@@ -311,8 +314,14 @@
       <div class="pane" id="pane-sess" hidden><div class="sess-grid" id="sessGrid"></div></div>
       <div class="pane" id="pane-ops" hidden><div class="ops" id="opsList"></div></div>
       <div class="pane" id="pane-persona" hidden>
+        <div class="persona-controls">
+          <label for="personaSelect">人设版本</label><select id="personaSelect"></select>
+          <button class="act" id="personaNew" type="button">新增人设</button>
+          <label for="personaName">名称</label><input id="personaName" maxlength="80" placeholder="人设名称">
+          <button class="act" id="personaActivate" type="button">设为当前人设</button>
+        </div>
         <textarea class="persona-edit" id="personaEdit" spellcheck="false"></textarea>
-        <div class="editbar"><button class="savebtn" id="personaSave">保存人格内核</button><span class="stat" id="personaStat"></span></div>
+        <div class="editbar"><button class="savebtn" id="personaSave">保存此人设</button><span class="stat" id="personaStat"></span></div>
       </div>
       <div class="pane" id="pane-backup" hidden>
         <div class="toolbar">
@@ -342,6 +351,7 @@ if (TOKEN) sessionStorage.setItem('brain-token', TOKEN);
 const fapi = (u, o) => fetch(u + (TOKEN ? (u.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(TOKEN) : ''), o);
 const $ = id => document.getElementById(id);
 let STATE = null, OPS = [], SESS = [], PEERS = [], SELECTED = null;
+let PERSONAS = {activeId:'',personas:[]}, editingPersonaId = '', personaBaseline = {name:'',text:''};
 
 // ── 脑区锚点与防重叠布局 ──
 const REGION = {
@@ -401,20 +411,22 @@ function bindMapNode(g,key){
   g.addEventListener('blur',()=>{$('map-current').textContent=mapSummary(SELECTED);});
 }
 function mapSummary(key){
-  if(key==='core')return '人格内核 · 大肥鱼';
+  if(key==='core')return '人格内核 · '+(PERSONAS.personas.find(p=>p.id===PERSONAS.activeId)?.name||'大肥鱼');
   if(key==='emotion')return `情绪回路 · ${STATE.emotion.label||'平静'}`;
   const note=STATE.notes.find(n=>n.id===key);
   return note?previewText(note,STATE.notes):'选择节点查看记忆全文';
 }
 
 async function load(){
-  const [st, ops, sess, prof] = await Promise.all([
+  const [st, ops, sess, prof, personas] = await Promise.all([
     fapi(API+'/state').then(r=>r.json()),
     fapi(API+'/ops?limit=120').then(r=>r.json()),
     fapi(API+'/sessions').then(r=>r.json()),
     fapi(API+'/profiles').then(r=>r.json()),
+    fapi(API+'/personas').then(r=>r.json()),
   ]);
   STATE=st; OPS=ops.ops; SESS=sess.sessions; PEERS=prof.profiles||[];
+  showPersonas(personas);
   render(); renderLibrary(); renderSessions(); renderOps();
   // 正在详情面板编辑时不要重绘（会清掉未保存的输入）
   const editing = document.activeElement && document.activeElement.closest('#info-detail');
@@ -513,7 +525,7 @@ function panel(key){
   SELECTED=key;let d;
   const detail=$('info-detail'),rows=$('info-rows'),foot=$('info-foot');
   rows.replaceChildren();
-  if(key==='core')d={t:'人格内核',h:'它是谁，比它记得什么更重要。',icon:'鱼',cls:'',q:STATE.persona||'（未配置）',foot:'可在下方「人格内核」页签中直接编辑'};
+  if(key==='core')d={t:'人格内核 · '+(PERSONAS.personas.find(p=>p.id===PERSONAS.activeId)?.name||'大肥鱼'),h:'它是谁，比它记得什么更重要。',icon:'鱼',cls:'',q:STATE.persona||'（未配置）',foot:'可在下方「人格内核」页签中直接编辑'};
   else if(key==='emotion'){const e=STATE.emotion;d={t:'情绪回路',h:'情绪流动，但不改写人格。',icon:'◒',cls:'emotion',q:e.label||'平静',foot:`v=${e.v.toFixed(2)} a=${e.a.toFixed(2)} d=${e.d.toFixed(2)}${STATE.emotionSession?` · 会话 ${shortId(STATE.emotionSession)}`:''}`}}
   else{const n=STATE.notes.find(x=>x.id===key);if(!n)return;
     d={t:n.kind==='attitude'?'态度立场':`${kindLabel(n.kind)}记忆`,h:n.kind==='attitude'?'人格不变，立场会被他人塑造。':'经历留下的痕迹。',icon:kindGlyph(n.kind),cls:'memory',q:n.content,
@@ -631,17 +643,36 @@ function renderOps(){
     box.appendChild(d);});
 }
 // ── Tab：人格编辑 ──
-async function loadPersona(){
-  const r=await fapi(API+'/persona');const d=await r.json();
-  $('personaEdit').value=d.text||'';
-  $('personaStat').textContent=`${(d.text||'').length} 字 · 保存即生效`;
+function personaDirty(){
+  return $('personaName').value!==personaBaseline.name||$('personaEdit').value!==personaBaseline.text;
+}
+function selectPersona(id){
+  editingPersonaId=id;
+  const p=PERSONAS.personas.find(x=>x.id===id);
+  $('personaSelect').value=id||'__new__';
+  $('personaName').value=p?.name||'';
+  $('personaEdit').value=p?.text||'';
+  personaBaseline={name:$('personaName').value,text:$('personaEdit').value};
+  $('personaActivate').disabled=!id||id===PERSONAS.activeId;
+  $('personaStat').textContent=id===PERSONAS.activeId?'当前生效 · 保存即生效':'未启用 · 保存不影响当前回复';
+}
+function showPersonas(data){
+  PERSONAS=data;
+  const sel=$('personaSelect'),current=editingPersonaId;
+  sel.replaceChildren(...data.personas.map(p=>new Option(p.name+(p.id===data.activeId?'（当前）':''),p.id)));
+  if(current==='__new__')sel.add(new Option('新建人设','__new__'));
+  if(!current||current!=='__new__'&&!data.personas.some(p=>p.id===current))selectPersona(data.activeId);
+  else if(personaDirty()){
+    sel.value=current;
+    $('personaStat').textContent='有未保存修改';
+  }else selectPersona(current);
+  $('personaActivate').disabled=!editingPersonaId||editingPersonaId==='__new__'||editingPersonaId===data.activeId;
 }
 
 // ── 事件绑定 ──
 document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
   document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===t));
   document.querySelectorAll('.pane').forEach(p=>p.hidden=p.id!=='pane-'+t.dataset.pane);
-  if(t.dataset.pane==='persona')loadPersona();
 });
 $('deck-more').onclick=()=>{document.querySelector('[data-pane=lib]').click();$('pane-lib').scrollIntoView({behavior:'smooth'});};
 ['libQ','libKind','libSess','libFade','libSort'].forEach(id=>$(id).addEventListener('input',renderLibrary));
@@ -651,27 +682,48 @@ $('addForm').onsubmit=async ev=>{
   await fapi(API+'/notes',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({content:f.content.value,kind:f.kind.value,importance:+f.importance.value})});
   f.content.value='';await load();};
+$('personaSelect').onchange=ev=>{
+  const next=ev.target.value;
+  if(personaDirty()&&!confirm('未保存的编辑会丢失，确认切换查看？')){$('personaSelect').value=editingPersonaId||'__new__';return;}
+  selectPersona(next);
+};
+$('personaNew').onclick=()=>{
+  if(personaDirty()&&!confirm('未保存的编辑会丢失，确认新建？'))return;
+  editingPersonaId='__new__';
+  showPersonas(PERSONAS);
+  selectPersona('__new__');
+};
 $('personaSave').onclick=async()=>{
-  const r=await fapi(API+'/persona',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({text:$('personaEdit').value})});
-  const d=await r.json();
-  $('personaStat').textContent=r.ok?`已保存 ${d.length} 字 · 即时生效`:'保存失败';
-  await load();};
+  const name=$('personaName').value.trim(),text=$('personaEdit').value.trim();
+  if(!name||!text){$('personaStat').textContent='名称和内容不能为空';return;}
+  const fresh=editingPersonaId==='__new__';
+  const r=await fapi(API+'/personas',{method:fresh?'POST':'PATCH',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({id:editingPersonaId,name,text})});
+  if(!r.ok){$('personaStat').textContent='保存失败：'+await r.text();return;}
+  const data=await r.json();
+  if(fresh)editingPersonaId=data.personas.find(p=>!PERSONAS.personas.some(x=>x.id===p.id))?.id||'';
+  personaBaseline={name,text};
+  showPersonas(data);
+  await load();
+  $('personaStat').textContent=editingPersonaId===data.activeId?'已保存 · 即时生效':'已保存 · 可设为当前';
+};
+$('personaActivate').onclick=async()=>{
+  if(personaDirty()&&!confirm('未保存的编辑会丢失，确认启用此前保存的版本？'))return;
+  const r=await fapi(API+'/personas/activate',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({id:editingPersonaId})});
+  if(!r.ok){$('personaStat').textContent='切换失败：'+await r.text();return;}
+  if(personaDirty())selectPersona(editingPersonaId);
+  showPersonas(await r.json());
+  await load();
+  $('personaStat').textContent='已切换 · 后续回复立即生效';
+};
 // ── Tab：备份迁移 ──
-// 导出在前端用 /state + /sessions 组装全量包（不依赖新版 /api/export 路由，旧服务端也能导）
+// 导出改用 /api/export 全量备份，包含人设列表和会话摘要
 $('expBtn').onclick=async()=>{
   $('impStat').textContent='';
-  const [st,ss,pf]=await Promise.all([
-    fapi(API+'/state').then(r=>r.json()),
-    fapi(API+'/sessions').then(r=>r.json()),
-    fapi(API+'/profiles').then(r=>r.json()),
-  ]);
-  const dump={version:1,exportedAt:Date.now(),persona:st.persona||'',
-    notes:(st.notes||[]).map(n=>({id:n.id,sessionId:n.sessionId,actor:n.actor,content:n.content,
-      importance:n.importance,kind:n.kind,createdAt:n.createdAt,strength:n.strength,hits:n.hits,lastAccessAt:n.lastAccessAt})),
-    profiles:{},emotions:{}};
-  (pf.profiles||[]).forEach(p=>{if(p.text)dump.profiles[p.key]=p.text;});
-  (ss.sessions||[]).forEach(s=>{if(s.emotion)dump.emotions[s.sessionId]=s.emotion;});
+  const r=await fapi(API+'/export');
+  if(!r.ok){$('impStat').textContent='导出失败：HTTP '+r.status;return;}
+  const dump=await r.json();
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([JSON.stringify(dump,null,2)],{type:'application/json'}));
   a.download='brain-export-'+new Date().toISOString().slice(0,10)+'.json';

@@ -19,13 +19,19 @@ type Op =
   | { op: 'profile'; sessionId: string; text: string; key?: string; name?: string; at?: number }
   | { op: 'digest'; sessionId: string; text: string; uptoTurn?: number }
   | { op: 'persona'; text: string }
+  | { op: 'persona-save'; persona: PersonaEntry }
+  | { op: 'persona-activate'; id: string }
   | { op: 'reset' };
+
+export interface PersonaEntry { id: string; name: string; text: string }
 
 /** 导出文件格式（脑图页「备份迁移」） */
 export interface BrainExport {
   version: 1;
   exportedAt: number;
   persona: string;
+  personas?: PersonaEntry[];
+  activePersonaId?: string;
   notes: MemoryNote[];
   emotions: Record<string, EmotionState>;
   /** 键为画像主键（u:/sess:）；值为完整条目，导入时兼容旧版字符串值 */
@@ -107,6 +113,8 @@ export class BrainStore {
   /** 画像按人存储：键 u:<openid>（发言人）或 sess:<sessionId>（兜底） */
   private profiles = new Map<string, ProfileEntry>();
   private personaText = '';
+  private personaEntries = new Map<string, PersonaEntry>();
+  private activeId = '';
   /** 版本号：任何写入后 +1，检索器据此重建索引 */
   version = 0;
   private dirtyOps = 0;
@@ -134,6 +142,7 @@ export class BrainStore {
           notes: MemoryNote[]; emotions: Record<string, EmotionState>;
           profiles: Record<string, ProfileEntry | string>; persona: string;
           digests?: Record<string, SessionDigest>;
+          personas?: PersonaEntry[]; activePersonaId?: string;
         };
         for (const raw of snap.notes ?? []) {
           const n = raw as MemoryNote & { e?: string };
@@ -156,6 +165,16 @@ export class BrainStore {
           });
         }
         this.personaText = snap.persona ?? '';
+        for (const entry of snap.personas ?? []) {
+          if (typeof entry.id === 'string' && typeof entry.name === 'string' && typeof entry.text === 'string')
+            this.personaEntries.set(entry.id, entry);
+        }
+        if (snap.activePersonaId && this.personaEntries.has(snap.activePersonaId))
+          this.activeId = snap.activePersonaId;
+        if (!this.activeId && this.personaText) {
+          this.personaEntries.set('legacy', { id: 'legacy', name: '原有人设', text: this.personaText });
+          this.activeId = 'legacy';
+        }
       } catch { /* 快照损坏时仅依赖 jsonl 重放 */ }
     }
     if (existsSync(this.file)) {
@@ -218,13 +237,30 @@ export class BrainStore {
         });
         break;
       }
-      case 'persona': this.personaText = op.text; break;
+      case 'persona': {
+        const id = this.activeId || 'legacy';
+        const old = this.personaEntries.get(id);
+        this.personaEntries.set(id, { id, name: old?.name ?? '原有人设', text: op.text });
+        this.activeId = id;
+        this.personaText = op.text;
+        break;
+      }
+      case 'persona-save':
+        this.personaEntries.set(op.persona.id, op.persona);
+        if (this.activeId === op.persona.id) this.personaText = op.persona.text;
+        break;
+      case 'persona-activate':
+        this.activeId = op.id;
+        this.personaText = this.personaEntries.get(op.id)?.text ?? '';
+        break;
       case 'reset':
         this.notes.clear();
         this.emotions.clear();
         this.profiles.clear();
         this.digests.clear();
         this.personaText = '';
+        this.personaEntries.clear();
+        this.activeId = '';
         break;
     }
   }
@@ -259,6 +295,8 @@ export class BrainStore {
       profiles: Object.fromEntries(this.profiles),
       digests: Object.fromEntries(this.digests),
       persona: this.personaText,
+      personas: [...this.personaEntries.values()],
+      activePersonaId: this.activeId,
     };
     const tmp = this.snapshotFile + '.tmp';
     writeFileSync(tmp, JSON.stringify(snap));
@@ -461,11 +499,48 @@ export class BrainStore {
   }
 
   setPersona(text: string): void {
-    this.persist({ op: 'persona', text });
+    const value = text.trim();
+    if (!value) throw new Error('人设内容不能为空');
+    if (!this.activeId) this.persist({ op: 'persona', text: value });
+    else this.savePersona(this.activeId, this.personaEntries.get(this.activeId)!.name, value);
   }
 
   persona(): string {
     return this.personaText;
+  }
+
+  listPersonas(): PersonaEntry[] {
+    return [...this.personaEntries.values()].map((p) => ({ ...p }));
+  }
+
+  activePersonaId(): string {
+    return this.activeId;
+  }
+
+  createPersona(name: string, text: string, id: string = randomUUID()): PersonaEntry {
+    const persona = this.validPersona(id, name, text);
+    if (this.personaEntries.has(id)) throw new Error('人设 ID 已存在');
+    this.persist({ op: 'persona-save', persona });
+    return persona;
+  }
+
+  savePersona(id: string, name: string, text: string): PersonaEntry {
+    if (!this.personaEntries.has(id)) throw new Error('人设不存在');
+    const persona = this.validPersona(id, name, text);
+    this.persist({ op: 'persona-save', persona });
+    return persona;
+  }
+
+  activatePersona(id: string): void {
+    if (!this.personaEntries.has(id)) throw new Error('人设不存在');
+    if (id !== this.activeId) this.persist({ op: 'persona-activate', id });
+  }
+
+  private validPersona(id: string, name: string, text: string): PersonaEntry {
+    if (typeof id !== 'string' || !id.trim() || typeof name !== 'string' || !name.trim() || typeof text !== 'string' || !text.trim())
+      throw new Error('人设名称和内容不能为空');
+    if (name.trim().length > 80 || text.length > 50_000) throw new Error('人设过长');
+    return { id, name: name.trim(), text: text.trim() };
   }
 
   // ── 导出 / 导入（脑图页「备份迁移」）──
@@ -475,6 +550,8 @@ export class BrainStore {
       version: 1,
       exportedAt: now,
       persona: this.personaText,
+      personas: this.listPersonas(),
+      activePersonaId: this.activeId,
       notes: [...this.notes.values()],
       emotions: Object.fromEntries(this.emotions),
       profiles: Object.fromEntries(this.profiles),
@@ -492,6 +569,15 @@ export class BrainStore {
     const data = raw as Partial<BrainExport> | null;
     if (!data || typeof data !== 'object') throw new Error('备份文件格式无效');
     if (data.notes != null && !Array.isArray(data.notes)) throw new Error('备份文件 notes 字段无效');
+    if (data.personas != null && (!Array.isArray(data.personas)
+      || data.personas.some((p) => !p || typeof p !== 'object'
+        || typeof p.id !== 'string' || !p.id.trim()
+        || typeof p.name !== 'string' || !p.name.trim()
+        || typeof p.text !== 'string' || !p.text.trim()
+        || p.name.length > 80 || p.text.length > 50_000)))
+      throw new Error('备份文件 personas 字段无效');
+    if (data.activePersonaId && data.personas?.length && !data.personas.some((p) => p.id === data.activePersonaId))
+      throw new Error('备份文件活动人设无效');
     if (mode === 'replace') this.persist({ op: 'reset' });
 
     const res: ImportResult = { notes: 0, skipped: 0, profiles: 0, emotions: 0, persona: false };
@@ -533,8 +619,14 @@ export class BrainStore {
         }
       }
     }
-    if (typeof data.persona === 'string' && data.persona.trim()) {
-      this.persist({ op: 'persona', text: data.persona });
+    if (data.personas?.length) {
+      for (const p of data.personas) {
+        if (!this.personaEntries.has(p.id)) this.createPersona(p.name, p.text, p.id);
+      }
+      if (!this.activeId) this.activatePersona(data.activePersonaId || data.personas[0]!.id);
+      res.persona = true;
+    } else if (typeof data.persona === 'string' && data.persona.trim() && (mode === 'replace' || !this.activeId)) {
+      this.persist({ op: 'persona', text: data.persona.trim() });
       res.persona = true;
     }
     return res;

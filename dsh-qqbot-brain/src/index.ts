@@ -7,6 +7,7 @@
  *   ctx.webServer / node:http → /brain 脑图页 + JSON API
  */
 import { resolve } from 'node:path';
+import { readFileSync } from 'node:fs';
 import { Brain, BrainStore, Distiller, Embedder } from './brain/index.ts';
 import { DEFAULT_CONFIG, type BrainPluginConfig } from './config.ts';
 import { PromptInjector } from './inject/prompt.ts';
@@ -90,7 +91,10 @@ export async function apply(ctx: unknown, config?: Partial<BrainPluginConfig>): 
     },
     log,
   });
-  if (persona && !store.persona()) store.setPersona(persona);
+  if (persona && persona !== store.persona()) store.setPersona(persona);
+  if (!store.listPersonas().some((p) => p.id === 'whale-gentle')) {
+    store.createPersona('鲸鱼娘 · 温柔版', readFileSync(new URL('./setup/whale-gentle.md', import.meta.url), 'utf8'), 'whale-gentle');
+  }
   // 初次落盘导出：让 persona.md 始终反映当前内核
   if (persona && !readPersonaFile(dataDir)) writePersonaFile(dataDir, persona);
 

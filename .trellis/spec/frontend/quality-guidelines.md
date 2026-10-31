@@ -31,6 +31,8 @@ detail.querySelector('.quote').textContent = note.content;
 
 Keep the full memory library as a path to notes omitted from the capped SVG overview. Node and search-hit selection should lead to the same full-text detail. Page tests live at `dsh-qqbot-brain/test/page.test.ts` and run via `npm test`; they cover the inline script syntax and shared-prefix previews. When changing page interaction, also check the 15-second refresh path, long text, empty data and narrow layout.
 
+The persona editor reads `GET /api/personas` and keeps local `editingPersonaId` and `personaBaseline`. A 15-second `load()` must update the list/active indicator without replacing unsaved name or text. Switch or new-entry actions prompt before discarding drafts; saving a non-active entry must not change the active bot persona. The backup button should download the full `/api/export` payload, not synthesize a backup from `/api/state` (which omits version history and digest metadata).
+
 ---
 
 ## Forbidden Patterns

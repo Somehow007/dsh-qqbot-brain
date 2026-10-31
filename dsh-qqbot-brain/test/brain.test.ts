@@ -65,6 +65,45 @@ test('store: 写入后重载可恢复', () => {
   rmSync(dir, { recursive: true });
 });
 
+test('personas: legacy 内容、命名版本和活动选择跨快照重启保留', () => {
+  const { dir, store } = tmpStore();
+  store.setPersona('旧人设');
+  assert.equal(store.activePersonaId(), 'legacy');
+  const added = store.createPersona('鲸鱼娘温柔版', '温柔内容');
+  assert.equal(store.persona(), '旧人设');
+  store.activatePersona(added.id);
+  store.savePersona(added.id, '鲸鱼娘温柔版', '新版内容');
+  assert.equal(store.persona(), '新版内容');
+  store.flush();
+  const restored = new BrainStore(dir);
+  assert.equal(restored.persona(), '新版内容');
+  assert.equal(restored.activePersonaId(), added.id);
+  restored.activatePersona('legacy');
+  assert.equal(restored.persona(), '旧人设');
+  rmSync(dir, { recursive: true });
+});
+
+test('personas: 备份恢复列表、旧版字段与错误输入不改变活动版本', () => {
+  const { store } = tmpStore();
+  store.setPersona('旧版');
+  const added = store.createPersona('新版本', '新文案');
+  store.activatePersona(added.id);
+  const dump = store.exportData(NOW);
+  const { store: restored } = tmpStore();
+  restored.importData(dump, 'replace', NOW);
+  assert.equal(restored.persona(), '新文案');
+  assert.equal(restored.listPersonas().length, 2);
+  restored.importData({ persona: '外部旧备份' }, 'merge', NOW);
+  assert.equal(restored.persona(), '新文案');
+  assert.throws(() => restored.activatePersona('missing'));
+  assert.throws(() => restored.savePersona(added.id, '', 'bad'));
+  assert.throws(() => restored.importData({ personas: [{ id: '', name: 'bad', text: 'bad' }] }, 'replace', NOW));
+  assert.equal(restored.persona(), '新文案');
+  const { store: legacy } = tmpStore();
+  legacy.importData({ persona: '外部旧备份' }, 'replace', NOW);
+  assert.equal(legacy.persona(), '外部旧备份');
+});
+
 // ── 导出 / 导入 ──
 test('export/import: 整包往返一致，衰减字段保留', () => {
   const { store } = tmpStore();

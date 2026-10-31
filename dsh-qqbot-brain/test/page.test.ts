@@ -24,6 +24,37 @@ test('API 请求经 fapi 透传访问口令', () => {
   assert.equal(script.match(/\bfetch\(/g)?.length, 1);
 });
 
+test('人设列表定时刷新时保留未保存的名称与全文草稿', () => {
+  const controls: Record<string, { value: string; textContent?: string; disabled?: boolean; options?: unknown[]; replaceChildren?: (...options: unknown[]) => void; add?: (option: unknown) => void }> = {
+    personaName: { value: '' }, personaEdit: { value: '' }, personaStat: { value: '' },
+    personaActivate: { value: '', disabled: false },
+    personaSelect: { value: '', options: [] },
+  };
+  controls.personaSelect!.replaceChildren = (...options) => { controls.personaSelect!.options = options; };
+  controls.personaSelect!.add = (option) => { controls.personaSelect!.options!.push(option); };
+  const functions = script.match(/function personaDirty\(\)[\s\S]*?(?=\/\/ ── 事件绑定)/)?.[0] ?? '';
+  const sandbox = {
+    document: { getElementById: (id: string) => controls[id] },
+    Option: class {
+      text: string;
+      value: string;
+      constructor(text: string, value: string) { this.text = text; this.value = value; }
+    },
+  };
+  const update = runInNewContext(`
+    let PERSONAS={activeId:'',personas:[]}, editingPersonaId='', personaBaseline={name:'',text:''};
+    const $=id=>document.getElementById(id);
+    ${functions}
+    ({showPersonas,personaDirty})
+  `, sandbox) as { showPersonas: (data: object) => void; personaDirty: () => boolean };
+  update.showPersonas({ activeId: 'a', personas: [{ id: 'a', name: '原版', text: '原内容' }] });
+  controls.personaEdit!.value = '本地草稿';
+  assert.equal(update.personaDirty(), true);
+  update.showPersonas({ activeId: 'a', personas: [{ id: 'a', name: '原版', text: '外部更新' }] });
+  assert.equal(controls.personaEdit!.value, '本地草稿');
+  assert.equal(controls.personaStat!.textContent, '有未保存修改');
+});
+
 test('脑图标签在共同开头之后显示可区分的内容', () => {
   const notes = [
     { id: 'a', content: '用户今天提到下个月要去青岛看海，已经订好车票' },

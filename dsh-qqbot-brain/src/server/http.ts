@@ -70,7 +70,7 @@ export class BrainHttpServer {
         readBody(req).then((body) => {
           let text = body.trim();
           const o = parseJson<{ text?: string }>(body);
-          if (o?.text) text = o.text.trim();
+          if (o && typeof o === 'object' && 'text' in o) text = typeof o.text === 'string' ? o.text.trim() : '';
           if (!text) { res.writeHead(400).end('empty persona'); return; }
           this.brain.setPersona(text);
           this.onPersonaSet?.(text);
@@ -78,6 +78,27 @@ export class BrainHttpServer {
         });
         return;
       }
+    }
+    if (p === `${prefix}/api/personas` && req.method === 'GET') return json(res, this.brain.personas());
+    if ((p === `${prefix}/api/personas` && (req.method === 'POST' || req.method === 'PATCH'))
+      || (p === `${prefix}/api/personas/activate` && req.method === 'POST')) {
+      try {
+        const o = parseJson<{ id?: string; name?: string; text?: string }>(await readBody(req));
+        if (!o || typeof o !== 'object') { res.writeHead(400).end('invalid json'); return; }
+        if (p.endsWith('/activate')) {
+          if (typeof o.id !== 'string') { res.writeHead(400).end('id required'); return; }
+          this.brain.activatePersona(o.id);
+          this.onPersonaSet?.(this.brain.persona());
+        } else if (req.method === 'PATCH') {
+          if (typeof o.id !== 'string') { res.writeHead(400).end('id required'); return; }
+          this.brain.savePersona(o.id, o.name!, o.text!);
+          if (o.id === this.brain.personas().activeId) this.onPersonaSet?.(this.brain.persona());
+        } else this.brain.createPersona(o.name!, o.text!);
+        return json(res, { ok: true, ...this.brain.personas() });
+      } catch (e) {
+        res.writeHead(e instanceof Error && e.message === '人设不存在' ? 404 : 400).end(e instanceof Error ? e.message : 'invalid persona');
+      }
+      return;
     }
     if (p === `${prefix}/api/sessions`) {
       return json(res, { sessions: this.brain.sessions() });
@@ -148,6 +169,7 @@ export class BrainHttpServer {
         if (!data) { res.writeHead(400).end('bad json'); return; }
         try {
           const r = this.brain.importData(data, mode);
+          if (this.brain.persona()) this.onPersonaSet?.(this.brain.persona());
           this.brain.flush();
           return json(res, { ok: true, mode, ...r });
         } catch (e) {
@@ -190,7 +212,7 @@ export class BrainHttpServer {
       const prefix = this.cfg.prefix.replace(/\/$/, '');
       webServer.register({ path: prefix, handler: (r, s) => this.route(r, s) });
       webServer.register({ path: `${prefix}/`, handler: (r, s) => this.route(r, s) });
-      for (const sub of ['/api/state', '/api/query', '/api/persona', '/api/sessions', '/api/profiles', '/api/ops', '/api/notes', '/api/export', '/api/import']) {
+      for (const sub of ['/api/state', '/api/query', '/api/persona', '/api/personas', '/api/personas/activate', '/api/sessions', '/api/profiles', '/api/ops', '/api/notes', '/api/export', '/api/import']) {
         webServer.register({ path: `${prefix}${sub}`, handler: (r, s) => this.route(r, s) });
       }
       this.log(`brain: 已挂载到宿主 webServer ${prefix}`);

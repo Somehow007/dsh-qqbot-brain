@@ -89,6 +89,22 @@ export class Brain {
     this.store.setPersona(text.trim());
   }
 
+  personas(): { activeId: string; personas: ReturnType<BrainStore['listPersonas']> } {
+    return { activeId: this.store.activePersonaId(), personas: this.store.listPersonas() };
+  }
+
+  createPersona(name: string, text: string, id?: string): ReturnType<BrainStore['createPersona']> {
+    return this.store.createPersona(name, text, id);
+  }
+
+  savePersona(id: string, name: string, text: string): ReturnType<BrainStore['savePersona']> {
+    return this.store.savePersona(id, name, text);
+  }
+
+  activatePersona(id: string): void {
+    this.store.activatePersona(id);
+  }
+
   /**
    * 每轮组装注入上下文。
    * speaker：当前发言人（群聊），可为昵称字符串或 {nick, openid}。
