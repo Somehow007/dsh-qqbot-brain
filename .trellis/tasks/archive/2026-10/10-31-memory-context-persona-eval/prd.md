@@ -144,3 +144,25 @@ QQ 的 openid 按上下文不同而不同：demo 有 `u:99449CA8...`（群主人
 - [x] 线上 brain-data 定量分析（notes/profiles/emotions/ops/log）
 - [x] 线上 transcript 侧验证（system prompt 实际装配、窗口、回放）
 - [x] 输出按严重度分级的问题清单与候选方向，供用户过目定后续
+
+## Resolution（2026-10-31）
+
+**遇到了什么问题**：用户体感「上下文/记忆/人格」效果不够好，要求评估现状。调研确诊四个断点——蒸馏写拌嘴流水而非长期事实（importance 34/44 条为 2 分失效）；检索被 R 热度主导且保底唤起刷 hits 马太锁死（单条 hits=266）；记忆不跨会话 + 同人多 openid 画像割裂；注入带宽仅 ~10 行、1M 窗口利用率 <10%。人格稳定性反而是三项中最好的（reasoning block 证实模型显式按 persona 规划）。
+
+**怎么解决的**：形成本调研报告并按 ROI 排定修复优先级；经用户确认范围 P0+P1 全排、引入第二家 embedding API（后定为百炼 text-embedding-v3）。全部落进 `10-31-memory-quality-fix` 任务实施。
+
+**后续优化方向**：巩固增强（已吸收 episodic 退出检索池、attitude 归并、触发调频）；评测集持续扩充用例；漂移度量手段；蒸馏改批量的再评估。
+
+**什么时候干的**：2026-10-31 单会话完成「代码梳理 → 线上 brain-data/transcript 定量分析 → 问题分级 → 优先级评定」。
+
+### Key Decisions
+
+- 蒸馏保持每轮一次（批量蒸馏省调用但延迟记忆形成，本轮不做）
+- embedding 走 OpenAI 兼容 `/embeddings` 泛化设计，无 key 全链路回退 lexical
+- 跨会话召回只放 attitude/semantic，episodic 流水不外溢
+- 画像同名归并做读侧合并，不迁移写侧数据
+
+### 验证结论
+
+- 快照复算证实评分被 R 项主导（cos 贡献仅 ~0.05 vs R 0.4）
+- transcript 侧证实 system prompt 尾部注入生效、contextWindow=1M、reasoning 按 persona 规划
