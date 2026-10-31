@@ -305,3 +305,25 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 15: 画像内容边界——时效信息归记忆
+<!-- trellis-session: v=2 fp=9d8aa6eaab04921f -->
+
+**Date**: 2026-10-31
+**Task**: 画像内容边界——时效信息归记忆
+**Branch**: `main`
+
+### Summary
+
+问题：画像被「最近课表」等时效内容污染，根因是蒸馏 prompt 只规定格式没定义「什么配进画像」。解决：主蒸馏与巩固 prompt 补边界——画像只写性格/身份/关系/稳定偏好，时效信息（课表、当下事务、一次性安排）进 memories。验证：62/62 测试+typecheck+build，远端已部署生效；存量画像不做迁移，随修订自然代谢。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1e85bdf` | fix(brain): 画像内容边界——时效信息进记忆，画像只留长期判断 |
+
+### Status
+
+[OK] **Completed**
