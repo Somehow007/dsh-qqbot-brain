@@ -278,26 +278,32 @@
     card.addEventListener("click", () => select(item.key));
     cards.append(card);
   }
-  const ngrams = s => { const text = s.replace(/[\s，。？、！·]/g, ""); const out = []; for (const n of [1, 2, 3]) for (let i = 0; i <= text.length - n; i++) out.push(text.slice(i, i + n)); return out; };
+  const ngrams = s => { const text = s.toLowerCase().replace(/[^\p{L}\p{N}]/gu, ""); const out = []; for (const n of [1, 2, 3]) for (let i = 0; i <= text.length - n; i++) out.push(text.slice(i, i + n)); return out; };
   const docs = memories.map(m => ngrams(m.text + m.title));
   const df = {};
   for (const doc of docs) for (const term of new Set(doc)) df[term] = (df[term] || 0) + 1;
-  function score(query, item, index) {
+  function cosine(query, index) {
     const a = {}, b = {}, idf = term => Math.log((memories.length + 1) / ((df[term] || 0) + 1)) + 1;
     for (const term of ngrams(query)) a[term] = (a[term] || 0) + idf(term);
     for (const term of docs[index]) b[term] = (b[term] || 0) + idf(term);
     let dot = 0, na = 0, nb = 0;
     for (const term in a) { na += a[term] ** 2; dot += a[term] * (b[term] || 0); }
     for (const term in b) nb += b[term] ** 2;
-    return .88 * dot / (Math.sqrt(na * nb) + 1e-9) + .12 * item.retention;
+    return dot / (Math.sqrt(na * nb) + 1e-9);
   }
+  // 与 retrieval.ts 同一评分式与相关性门槛（仅模拟）
+  const score = (c, item) => .6 * c + .4 * item.retention + .2 * (item.importance / 5);
   $("query").addEventListener("input", event => {
     const query = event.target.value.trim();
     document.querySelectorAll(".pathway").forEach(path => path.classList.remove("active"));
     if (!query) { $("results").textContent = "这只是视觉与交互概念，不连接真实 QQ 或 DeepSeek。"; select(selected); return; }
-    const matches = memories.map((item, index) => ({ item, s: score(query, item, index) }))
+    const matches = memories.map((item, index) => ({ item, c: cosine(query, index) }))
+      .filter(m => m.c >= .04)
+      .map(m => ({ item: m.item, s: score(m.c, m.item) }))
       .sort((a, b) => b.s - a.s).slice(0, 2);
-    $("results").textContent = `可能被唤起：${matches.map(m => m.item.title).join("、")} · 黄色路径表示检索结果（仅模拟）`;
+    $("results").textContent = matches.length
+      ? `可能被唤起：${matches.map(m => m.item.title).join("、")} · 黄色路径表示检索结果（仅模拟）`
+      : "相关性不足，此刻没有记忆会被唤起（仅模拟）";
     document.querySelectorAll(".pathway").forEach(path => path.classList.toggle("active", matches.some(m => m.item.key === path.dataset.to)));
   });
   select("core");

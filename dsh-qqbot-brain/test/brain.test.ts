@@ -140,6 +140,36 @@ test('retrieval: 只检索本 session 的记忆', () => {
   assert.ok(ctx.hits.every((n) => n.sessionId === 's1'));
 });
 
+test('retrieval: 标点切断的句子经归一化仍可命中', () => {
+  const { store } = tmpStore();
+  // 「橘猫，名叫年糕」归一化前 bigram 为 猫，名，查询的 猫叫/猫名 永远对不上
+  store.addNote('s1', { content: '用户阿澈养了一只橘猫，名叫年糕', importance: 4 }, NOW - 20 * DAY);
+  const brain = new Brain({ store, distiller: mockDistiller({}), now });
+  const ctx = brain.assemble('s1', '我家猫叫什么');
+  assert.ok(ctx.hits.some((n) => n.content.includes('年糕')));
+});
+
+test('retrieval: 相关性门槛过滤零余弦噪声，不再让新鲜记忆凑满 topK', () => {
+  const { store } = tmpStore();
+  // 6 条高重要度新鲜记忆——旧行为下它们靠 R+imp 基线分占满 topK=6
+  for (let i = 0; i < 6; i++) {
+    store.addNote('s1', { content: `今晚吃啥大伙商量着定了第${i}家烧烤`, importance: 5 }, NOW);
+  }
+  store.addNote('s1', { content: '用户阿澈养了一只橘猫，名叫年糕', importance: 4 }, NOW - 20 * DAY);
+  const brain = new Brain({ store, distiller: mockDistiller({}), now });
+  const ctx = brain.assemble('s1', '我家猫叫什么');
+  assert.equal(ctx.hits.length, 1);
+  assert.match(ctx.hits[0]!.content, /年糕/);
+});
+
+test('retrieval: 完全无关的查询返回空，单字查询经 unigram 命中', () => {
+  const { store } = tmpStore();
+  store.addNote('s1', { content: '用户养了一只橘猫叫年糕', importance: 4 }, NOW);
+  const brain = new Brain({ store, distiller: mockDistiller({}), now });
+  assert.equal(brain.assemble('s1', '量子力学好难').hits.length, 0);
+  assert.equal(brain.assemble('s1', '猫').hits.length, 1);
+});
+
 // ── 蒸馏 ──
 test('parseDistillOutput: 解析 JSON / 容忍噪声', () => {
   const r = parseDistillOutput('```json\n{"memories":[{"content":"x","importance":4}],"emotion":{"label":"开心","v":0.7,"a":0.6,"d":0.2},"profile":"p"}\n```');

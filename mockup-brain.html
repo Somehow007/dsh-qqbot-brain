@@ -89,8 +89,9 @@ const THRESH = 0.2, DAY_MS = 86400e3;
 const retention = n => Math.exp(-(TODAY - n.day) / Math.max(n.importance, .5));
 NOTES.forEach(n => n.R = retention(n));
 
-const ngrams = s => { s = s.replace(/\s/g,""); const g=[];
-  for (const n of [2,3]) for (let i=0;i<=s.length-n;i++) g.push(s.slice(i,i+n)); return g; };
+const norm = s => s.toLowerCase().replace(/[^\p{L}\p{N}]/gu,'');
+const ngrams = s => { s = norm(s); const g=[];
+  for (const n of [1,2,3]) for (let i=0;i<=s.length-n;i++) g.push(s.slice(i,i+n)); return g; };
 const df={}, tfs=NOTES.map(n=>{const c={}; ngrams(n.content).forEach(g=>c[g]=(c[g]||0)+1);
   Object.keys(c).forEach(k=>df[k]=(df[k]||0)+1); return c;});
 const idf = k => Math.log((NOTES.length+1)/((df[k]||0)+1))+1;
@@ -98,8 +99,11 @@ const vec = c => {const v={}; for(const k in c) v[k]=c[k]*idf(k); return v;};
 const cos = (a,b)=>{let d=0,na=0,nb=0; for(const k in a){d+=a[k]*(b[k]||0);na+=a[k]*a[k]}
   for(const k in b)nb+=b[k]*b[k]; return d/(Math.sqrt(na)*Math.sqrt(nb)+1e-9);};
 function queryCounts(s){const c={}; ngrams(s).forEach(g=>c[g]=(c[g]||0)+1); return c;}
+// 相关性门槛：余弦低于 0.04 的结果不唤起（与 retrieval.ts 的 minCosine 一致）
 const retrieve = q => { const qv=vec(queryCounts(q));
-  return NOTES.map(n=>({n, s:.6*cos(vec(tfs[NOTES.indexOf(n)]),qv)+.4*n.R}))
+  return NOTES.map(n=>({n, c:cos(vec(tfs[NOTES.indexOf(n)]),qv)}))
+    .filter(t=>t.c>=.04)
+    .map(t=>({n:t.n, s:.6*t.c+.4*t.n.R+.2*(t.n.importance/5)}))
     .sort((a,b)=>b.s-a.s).slice(0,6); };
 
 // ============ 画布 & 力导向布局 ============
@@ -199,6 +203,7 @@ document.getElementById('q').addEventListener('input',e=>{
   if(!q){qr.innerHTML='';return;}
   const top=retrieve(q); top.forEach(t=>{const i=NOTES.indexOf(t.n);hitSet.add(i);
     document.querySelector(`.mem[data-i="${i}"]`)?.classList.add('hi');});
+  if(!top.length){qr.innerHTML='<div style="margin-top:5px;color:#7fb8e0">相关性不足，没有记忆被唤起。</div>';return;}
   qr.innerHTML='<div style="margin-top:5px;color:#7fb8e0">将注入 top-'+top.length+'：</div>'+
     top.map(t=>`<div class="tag">R${t.n.R.toFixed(2)} ${t.n.content.slice(0,10)}…</div>`).join('');
 });

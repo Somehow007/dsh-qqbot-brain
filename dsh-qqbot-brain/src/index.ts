@@ -74,6 +74,8 @@ export async function apply(ctx: unknown, config?: Partial<BrainPluginConfig>): 
     distiller,
     defaultPersona: persona,
     config: {
+      // 此前漏接：retrieval.* 配了不生效，现在并入 BrainConfig
+      ...cfg.retrieval,
       consolidateMinAgeDays: cfg.consolidation.minAgeDays,
       consolidateMinNotes: cfg.consolidation.minNotes,
     },

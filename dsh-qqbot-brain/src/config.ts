@@ -24,6 +24,8 @@ export interface RetrievalConfig {
   alpha: number;
   beta: number;
   gamma: number;
+  /** 相关性门槛：余弦低于该值的记忆不返回（0=不过滤） */
+  minCosine: number;
 }
 
 export interface HttpConfig {
@@ -98,7 +100,7 @@ export const DEFAULT_CONFIG: BrainPluginConfig = {
     timeoutMs: 30_000,
     maxNotes: 5,
   },
-  retrieval: { topK: 6, alpha: 0.6, beta: 0.4, gamma: 0.2 },
+  retrieval: { topK: 6, alpha: 0.6, beta: 0.4, gamma: 0.2, minCosine: 0.04 },
   /** 语义巩固：周期性把老情景记忆提炼为语义记忆/重写画像 */
   consolidation: { enabled: true, tickMinutes: 60, cooldownHours: 24, minAgeDays: 1, minNotes: 4 },
   http: { enabled: true, port: 4099, host: '127.0.0.1', prefix: '/brain', token: '' },

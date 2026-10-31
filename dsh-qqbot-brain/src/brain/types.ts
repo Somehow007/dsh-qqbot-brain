@@ -126,6 +126,8 @@ export interface BrainConfig {
   emotionDecayPerDay: number;
   /** 检索候选数上限（粗排） */
   candidatePool: number;
+  /** 检索相关性门槛：余弦低于该值的记忆不返回（0=不过滤） */
+  minCosine: number;
   /** 语义巩固：只汇总 age >= 该天数 的情景记忆 */
   consolidateMinAgeDays: number;
   /** 语义巩固：会话内情景记忆达到该数量才触发 */
@@ -144,6 +146,7 @@ export const DEFAULT_BRAIN_CONFIG: BrainConfig = {
   forgetThreshold: 0.2,
   emotionDecayPerDay: 0.35,
   candidatePool: 200,
+  minCosine: 0.04,
   consolidateMinAgeDays: 1,
   consolidateMinNotes: 4,
   evictAfterDays: 30,
