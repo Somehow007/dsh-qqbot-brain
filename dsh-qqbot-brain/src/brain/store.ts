@@ -62,7 +62,9 @@ function sanitizeNote(raw: unknown, now: number): MemoryNote | undefined {
     strength: Math.max(0.5, num(n.strength, 3)),
     hits: Math.max(0, Math.round(num(n.hits, 0))),
     lastAccessAt: num(n.lastAccessAt, now),
-    embedding: Array.isArray(n.embedding) && n.embedding.length ? n.embedding : undefined,
+    embedding: (Array.isArray(n.embedding) && n.embedding.length)
+      ? n.embedding
+      : decodeVec((n as { e?: string }).e),
   };
 }
 
@@ -80,6 +82,20 @@ function sanitizeEmotion(raw: unknown): EmotionState | undefined {
 
 /** 流水视图用：op + 写入时刻 */
 export interface OpRecord { t: number; op: Op }
+
+// ── 向量编解码：派生态以 base64(f32) 存快照，不进 op 流水 ──
+function encodeVec(v: number[]): string {
+  const buf = Buffer.alloc(v.length * 4);
+  v.forEach((x, i) => buf.writeFloatLE(x, i * 4));
+  return buf.toString('base64');
+}
+function decodeVec(s: unknown): number[] | undefined {
+  if (typeof s !== 'string' || !s) return undefined;
+  const buf = Buffer.from(s, 'base64');
+  const f = new Float32Array(Math.floor(buf.length / 4));
+  for (let i = 0; i < f.length; i++) f[i] = buf.readFloatLE(i * 4);
+  return [...f];
+}
 
 export class BrainStore {
   private notes = new Map<string, MemoryNote>();
@@ -117,7 +133,13 @@ export class BrainStore {
           profiles: Record<string, ProfileEntry | string>; persona: string;
           digests?: Record<string, SessionDigest>;
         };
-        for (const n of snap.notes ?? []) this.notes.set(n.id, n);
+        for (const raw of snap.notes ?? []) {
+          const n = raw as MemoryNote & { e?: string };
+          // 快照里向量以 e(base64 f32) 存储；兼容旧版 number[]
+          if (!n.embedding && n.e) n.embedding = decodeVec(n.e);
+          delete n.e;
+          this.notes.set(n.id, n);
+        }
         for (const [k, v] of Object.entries(snap.emotions ?? {})) this.emotions.set(k, v);
         for (const [k, v] of Object.entries(snap.digests ?? {})) this.digests.set(k, v);
         // 旧快照：键为裸 sessionId、值为字符串 → 迁移为 sess: 键 + 完整条目
@@ -140,7 +162,8 @@ export class BrainStore {
         try {
           const rec = JSON.parse(line) as OpRecord & Op;
           this.apply(rec);
-          this.pushOp({ t: rec.t ?? 0, op: rec });
+          // embed 是派生态不进事件流水展示（兼容重放旧 op）
+          if (rec.op !== 'embed') this.pushOp({ t: rec.t ?? 0, op: rec });
         } catch { /* 跳过坏行 */ }
       }
     }
@@ -222,7 +245,10 @@ export class BrainStore {
       }
     }
     const snap = {
-      notes: [...this.notes.values()],
+      notes: [...this.notes.values()].map((n) =>
+        n.embedding
+          ? { ...n, embedding: undefined, e: encodeVec(n.embedding) }
+          : n),
       emotions: Object.fromEntries(this.emotions),
       profiles: Object.fromEntries(this.profiles),
       digests: Object.fromEntries(this.digests),
@@ -268,10 +294,15 @@ export class BrainStore {
     return [...this.notes.values()];
   }
 
-  /** 写入/回填语义向量（不更新衰减字段） */
+  /**
+   * 写入/回填语义向量（不更新衰减字段）。
+   * 向量是派生态：只进内存 + 快照（base64），不落 op 流水——
+   * 重启快照间隙的向量丢失由启动回填兜底（每次最多 5 条/30s）。
+   */
   setEmbedding(id: string, vector: number[]): void {
     if (!vector.length) return;
-    this.persist({ op: 'embed', id, vector });
+    this.apply({ op: 'embed', id, vector });
+    this.version++;
   }
 
   // ── 会话滚动摘要 ──

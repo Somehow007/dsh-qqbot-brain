@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Brain } from '../src/brain/index.ts';
@@ -629,12 +629,20 @@ function mockEmbedder(vecs: number[][]) {
   return new Embedder({ enabled: true, baseUrl: 'https://x.test', apiKey: 'k', model: 'm', timeoutMs: 1000 }, f);
 }
 
-test('embed op: 向量持久化，重载后仍在', () => {
+test('embed: 向量是派生态——不进 op 流水，随快照(base64)持久化', () => {
   const { dir, store } = tmpStore();
   const n = store.addNote('s1', { content: '用户讨厌香菜', importance: 3 }, NOW);
   store.setEmbedding(n.id, [0.1, 0.9, 0.2]);
+  // 事件流水不含 embed 噪音
+  assert.equal(store.recentOps(50).some((o) => o.op.op === 'embed'), false);
+  // 未压缩前 jsonl 无 embed 行；快照持久化后可重载（精度 f32）
+  store.flush();
+  const raw = readFileSync(join(dir, 'brain.snapshot.json'), 'utf8');
+  assert.match(raw, /"e":"[A-Za-z0-9+/=]+"/);
+  assert.equal(raw.includes('[0.1,0.9,0.2]'), false);
   const store2 = new BrainStore(dir);
-  assert.deepEqual(store2.noteById(n.id)!.embedding, [0.1, 0.9, 0.2]);
+  const v = store2.noteById(n.id)!.embedding!;
+  assert.ok(Math.abs(v[0]! - 0.1) < 1e-6 && Math.abs(v[1]! - 0.9) < 1e-6);
 });
 
 test('assemble: queryVec 命中带向量的记忆走语义余弦，正交向量被 embedMinCos 过滤', () => {
