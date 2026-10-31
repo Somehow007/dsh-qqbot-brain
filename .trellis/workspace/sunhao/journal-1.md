@@ -219,3 +219,23 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 11: 类脑架构学习路线探讨
+<!-- trellis-session: v=2 fp=7a7cd84d91b8b3af -->
+
+**Date**: 2026-10-31
+**Task**: 类脑架构学习路线探讨
+**Branch**: `main`
+
+### Summary
+
+用户问提升类脑架构需学什么→定位项目为LLM之上的认知架构而非神经网络，transformer为选修→梳理已有设计与正式理论对应（检索公式=Generative Agents、strength=ACT-R简化、巩固=系统巩固理论、PAD=Mehrabian）→给出六阶段路线：记忆科学→Agent记忆论文→检索工程→情感计算→评测→NN选修，及评测先行→embedding混合检索→reflection→记忆关联→干扰式遗忘→prospective memory→OCC的迭代顺序
+
+### Git Commits
+
+(No commits - planning session)
+
+### Status
+
+[OK] **Completed**

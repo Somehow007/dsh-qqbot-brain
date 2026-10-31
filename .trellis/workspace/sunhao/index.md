@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 10
+- **Total Sessions**: 11
 - **Last Active**: 2026-10-31
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~221 | Active |
+| `journal-1.md` | ~241 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 11 | 2026-10-31 | 类脑架构学习路线探讨 | - | `main` |
 | 10 | 2026-10-31 | 检索修复部署上云 + runbook 尾斜杠修正 | `d1c22e5` | `main` |
 | 9 | 2026-10-31 | WorkBuddy 接入可行性调研 | `1bc466c` | `main` |
 | 8 | 2026-10-31 | 跨 harness 可移植性评估 | `7dc559e` | `main` |
