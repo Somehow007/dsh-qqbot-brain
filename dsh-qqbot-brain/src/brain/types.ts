@@ -147,8 +147,10 @@ export interface BrainConfig {
   minCosine: number;
   /** 只有 rel >= 该阈值的命中才做唤起强化（保底/弱相关不刷 hits） */
   reinforceMinCos: number;
-  /** embedding 相关性门槛（启用 embedding 时替代 minCosine） */
+  /** embedding 相关性门槛（启用 embedding 时替代 minCosine；百炼 v3 噪声底~0.4，取 0.47） */
   embedMinCos: number;
+  /** emb 命中强化阈值（emb 余弦分布整体偏高，与 lexical 分开判） */
+  reinforceMinEmbedCos: number;
   /** 会话滚动摘要：每累计该轮数触发一次（0=关闭） */
   digestEveryTurns: number;
   /** 滚动摘要输入的最近轮数上限 */
@@ -173,7 +175,8 @@ export const DEFAULT_BRAIN_CONFIG: BrainConfig = {
   candidatePool: 200,
   minCosine: 0.04,
   reinforceMinCos: 0.15,
-  embedMinCos: 0.25,
+  embedMinCos: 0.47,
+  reinforceMinEmbedCos: 0.5,
   digestEveryTurns: 15,
   digestWindowTurns: 40,
   consolidateMinAgeDays: 1,

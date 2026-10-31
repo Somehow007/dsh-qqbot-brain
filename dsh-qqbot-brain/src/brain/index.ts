@@ -110,7 +110,8 @@ export class Brain {
       this.store.allNotes(), sessionId, queryText, now, this.store.version, queryVec,
     );
     for (const s of scored) {
-      if (s.rel >= this.cfg.reinforceMinCos) {
+      const th = s.relSrc === 'emb' ? this.cfg.reinforceMinEmbedCos : this.cfg.reinforceMinCos;
+      if (s.rel >= th) {
         this.store.reinforce(s.note, this.cfg.reinforceStep, this.cfg.strengthCap, now);
       }
     }
@@ -155,7 +156,8 @@ export class Brain {
           const d = Math.floor(ageInDays(n, now));
           const when = d <= 0 ? '今天' : `${d}天前`;
           memoryLines.push(`- [跨群·${when}记] ${n.actor ? `[${n.actor}] ` : ''}${n.content}`);
-          if (s.rel >= this.cfg.reinforceMinCos) {
+          const th = s.relSrc === 'emb' ? this.cfg.reinforceMinEmbedCos : this.cfg.reinforceMinCos;
+          if (s.rel >= th) {
             this.store.reinforce(n, this.cfg.reinforceStep, this.cfg.strengthCap, now);
           }
         }

@@ -38,11 +38,15 @@ function makeBrain(store: BrainStore, embedder?: Embedder): Brain {
   return new Brain({ store, distiller: off, embedder, now });
 }
 
-async function runEval(embedder?: Embedder): Promise<{ hitRate: number; fpRate: number }> {
+async function runEval(embedder?: Embedder): Promise<{ hitRate: number; fpRate: number; lines: string[] }> {
   const dir = mkdtempSync(join(tmpdir(), 'brain-eval-'));
   const store = new BrainStore(dir);
   store.importData({ version: 1, exportedAt: NOW, notes: fixture.notes, emotions: {}, profiles: {} }, 'replace', NOW);
   const brain = makeBrain(store, embedder);
+  // embedding 路径：先给全部 fixture 记忆回填向量，否则逐条回退 lexical 无对比意义
+  if (embedder?.enabled) {
+    while (await brain.backfillEmbeddings(50)) { /* 分批补完 */ }
+  }
 
   let hit = 0;
   let hitTotal = 0;
@@ -66,7 +70,7 @@ async function runEval(embedder?: Embedder): Promise<{ hitRate: number; fpRate: 
     if (found) hit++;
     lines.push(`${found ? ' ok ' : 'FAIL'} ${c.id} 「${c.query}」→ ${ctx.hits.length}条${found ? '' : ' 期望:' + (c.expect ?? []).join('|')}`);
   }
-  return { hitRate: hit / Math.max(1, hitTotal), fpRate: fp / Math.max(1, fpTotal) };
+  return { hitRate: hit / Math.max(1, hitTotal), fpRate: fp / Math.max(1, fpTotal), lines };
 }
 
 function report(tag: string, r: { hitRate: number; fpRate: number }, lines?: string[]): void {
@@ -76,22 +80,7 @@ function report(tag: string, r: { hitRate: number; fpRate: number }, lines?: str
 }
 
 const lex = await runEval();
-// 逐用例明细只打 lexical 一轮
-const dir2 = mkdtempSync(join(tmpdir(), 'brain-eval-'));
-const store2 = new BrainStore(dir2);
-store2.importData({ version: 1, exportedAt: NOW, notes: fixture.notes, emotions: {}, profiles: {} }, 'replace', NOW);
-const brain2 = makeBrain(store2);
-const detail: string[] = [];
-for (const c of fixture.cases) {
-  const ctx = brain2.assemble(c.sessionId, c.query, c.speaker);
-  if (c.expectNone) {
-    detail.push(`${ctx.hits.length === 0 ? ' ok ' : 'FAIL'} ${c.id} 噪声${ctx.hits.length}条${ctx.hits.length ? ' ← ' + ctx.hits.map((h) => h.content.slice(0, 24)).join(' | ') : ''}`);
-  } else {
-    const found = (c.expect ?? []).some((sub) => ctx.hits.some((h) => h.content.includes(sub)) || ctx.memoryLines.some((l) => l.includes(sub)));
-    detail.push(`${found ? ' ok ' : 'FAIL'} ${c.id} 「${c.query}」→ ${ctx.hits.length}条${found ? '' : ' 期望:' + (c.expect ?? []).join('|')}`);
-  }
-}
-report('lexical', lex, detail);
+report('lexical', lex, lex.lines);
 
 const embedder = new Embedder({
   enabled: true,
@@ -101,7 +90,8 @@ const embedder = new Embedder({
   timeoutMs: 15_000,
 });
 if (embedder.enabled) {
-  report('embedding+lex混合', await runEval(embedder));
+  const emb = await runEval(embedder);
+  report('embedding+lex混合', emb, emb.lines);
 } else {
   console.log('\n（未设 BRAIN_EMBED_API_KEY，跳过 embedding 路径对比）');
 }

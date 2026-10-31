@@ -29,13 +29,26 @@ export class Embedder {
     return this.cfg.enabled && !!this.cfg.apiKey;
   }
 
+  /** 单次请求文本数上限（DashScope/百炼限制 10 条/批） */
+  private static readonly BATCH = 10;
+
   /**
-   * 批量取向量；任何一步失败返回 null（调用方回退 lexical）。
+   * 批量取向量；超过单批上限自动分块串行，任何一块失败返回 null（调用方回退 lexical）。
    * 返回顺序与输入一一对应。
    */
   async embed(texts: string[]): Promise<number[][] | null> {
     const input = texts.map((t) => t.trim()).filter(Boolean);
     if (!this.enabled || input.length === 0) return null;
+    const out: number[][] = [];
+    for (let i = 0; i < input.length; i += Embedder.BATCH) {
+      const chunk = await this.embedChunk(input.slice(i, i + Embedder.BATCH));
+      if (!chunk) return null;
+      out.push(...chunk);
+    }
+    return out;
+  }
+
+  private async embedChunk(input: string[]): Promise<number[][] | null> {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), this.cfg.timeoutMs);
     try {
@@ -53,7 +66,7 @@ export class Embedder {
         data?: Array<{ embedding?: number[]; index?: number }>;
       };
       if (!Array.isArray(data.data) || data.data.length === 0) return null;
-      // OpenAI 兼容返回按 index 排序对齐输入
+      // OpenAI 兼容返回的 index 是本批内下标，按它排序对齐输入
       const sorted = [...data.data].sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
       const vecs = sorted.map((d) => d.embedding);
       if (vecs.length !== input.length || vecs.some((v) => !Array.isArray(v) || v.length === 0)) return null;

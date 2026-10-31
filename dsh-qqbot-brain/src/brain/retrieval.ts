@@ -25,6 +25,8 @@ export interface ScoredNote {
   rel: number;
   /** 综合分（排序用） */
   score: number;
+  /** 相关性来源：emb=语义向量 / lex=字符n-gram（阈值不同量纲，分开判） */
+  relSrc: 'emb' | 'lex';
 }
 
 function normalize(text: string): string {
@@ -129,16 +131,20 @@ export class Retriever {
     const scored: ScoredNote[] = [];
     idx.docs.forEach((n, i) => {
       let rel: number;
+      let relSrc: 'emb' | 'lex';
       if (queryVec && n.embedding) {
         rel = vecCosine(queryVec, n.embedding);
+        relSrc = 'emb';
         if (rel < this.cfg.embedMinCos) return;
       } else {
         rel = this.cosine(this.vectorize(idx.tf[i] ?? new Map(), idx), qv);
+        relSrc = 'lex';
         if (rel < this.cfg.minCosine) return;
       }
       scored.push({
         note: n,
         rel,
+        relSrc,
         score: alpha * rel * (1 + beta * retention(n, now)) + gamma * (n.importance / 5),
       });
     });

@@ -727,3 +727,15 @@ test('digest: 摘要随快照持久化', () => {
   assert.equal(store2.digestOf('s1')!.text, '会话脉络文本');
   assert.equal(store2.digestOf('s1')!.uptoTurn, 15);
 });
+
+test('assemble: emb 低相关命中过 embedMinCos 但不达 reinforceMinEmbedCos 不强化', () => {
+  const { store } = tmpStore();
+  const n = store.addNote('s1', { content: '普通条目', importance: 3 }, NOW);
+  // cos([0.95,0.05],[0.8,0.2])≈0.97 高强化的对照组不需要；这里构造 rel≈0.48 的命中：
+  // 与 queryVec [1,0] 成约 0.49 余弦的向量 [0.49,0.87]
+  store.setEmbedding(n.id, [0.49, 0.87]);
+  const brain = new Brain({ store, distiller: mockDistiller({}), now, config: { embedMinCos: 0.4 } });
+  const ctx = brain.assemble('s1', 'x', undefined, [1, 0]);
+  assert.equal(ctx.hits.length, 1);              // rel≈0.49 ≥ 0.4 入围
+  assert.equal(store.noteById(n.id)!.hits, 0);   // 但 < 0.5 不强化
+});
