@@ -197,3 +197,25 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 10: 检索修复部署上云 + runbook 尾斜杠修正
+<!-- trellis-session: v=2 fp=2b9387645a9870c1 -->
+
+**Date**: 2026-10-31
+**Task**: 检索修复部署上云 + runbook 尾斜杠修正
+**Branch**: `main`
+
+### Summary
+
+把检索修复构建产物部署到 ubuntu@124.222.65.169:~/dsh-qqbot-brain/ 并重启 dsh-qqbot 生效（验证：minCosine 在 dist、/api/state 23 notes/5 sessions、brain.log 正常启动）。过程中发现 runbook rsync 'dist/'（带尾斜杠）会把编译产物撒到插件根目录而非 dist/——首部署已留过同样残渣，本次清理根目录散落文件、按正确路径重传、README 加注释修正。数据与 persona 不受影响（服务重启前已在跑、数据目录独立）。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `d1c22e5` | docs: 修正部署 runbook 的 rsync 尾斜杠——dist/ 会把产物撒到插件根目录 |
+
+### Status
+
+[OK] **Completed**
