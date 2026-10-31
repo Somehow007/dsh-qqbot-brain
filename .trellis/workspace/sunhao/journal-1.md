@@ -239,3 +239,25 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 12: 记忆/上下文/人格现状调研 + 记忆质量修复实施
+<!-- trellis-session: v=2 fp=ce1d41aa46f13f22 -->
+
+**Date**: 2026-10-31
+**Task**: 记忆/上下文/人格现状调研 + 记忆质量修复实施
+**Branch**: `main`
+
+### Summary
+
+调研发现：蒸馏写的是拌嘴流水而非事实、检索被 R 热度主导+保底唤起刷 hits 锁死、记忆不跨会话且同人多 openid 画像割裂、注入带宽仅~10行。实施修复：蒸馏 prompt v2（四类白名单+流水黑名单+importance锚点）、检索评分改相关性门控 rel·(1+β·R)+reinforceMinCos、发言人保底不 reinforce、跨会话召回 attitude/semantic、同名 u: 画像读侧归并、会话滚动摘要【会话脉络】order 81 注入、OpenAI 兼容 embedding 接入（无 key 回退 lexical）+启动回填、评测集（44条真实记忆+22用例，lexical 基线 recall 88.2%/噪声FP 40%）。typecheck/test(59)/build 全绿。待办：服务器更新 dist 重启、提供 BRAIN_EMBED_API_KEY 后跑 eval 对比。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1ce36bc78b77216aace1a80d21da33a30f14ff73` | feat(brain): 记忆质量修复——蒸馏提质、检索纠偏、身份层、滚动摘要、embedding |
+
+### Status
+
+[OK] **Completed**
