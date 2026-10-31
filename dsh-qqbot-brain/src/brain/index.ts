@@ -4,8 +4,9 @@ import { isUserKey, splitActor, userProfileKey } from './identity.ts';
 import { ageInDays, retention } from './decay.ts';
 import { Retriever } from './retrieval.ts';
 import { EmotionEngine, NEUTRAL_EMOTION } from './emotion.ts';
-import { BrainStore } from './store.ts';
+import { BrainStore, PROFILE_TEXT_CAP } from './store.ts';
 import { Distiller } from './distill.ts';
+import type { ProfileReviewItem } from './distill.ts';
 import type { Embedder } from './embed.ts';
 
 export * from './types.ts';
@@ -49,6 +50,8 @@ export class Brain {
   private readonly log?: (msg: string) => void;
   private turnBuffer = new Map<string, Turn[]>();
   private distilling = new Set<string>();
+  /** 已审核的画像文本；旧数据每次进程启动后首次涉及该人时重新检查。 */
+  private reviewedProfiles = new Map<string, string>();
   /** 滚动摘要输入：最近对话轮次缓存（每会话封顶 60 条） */
   private historyBuffer = new Map<string, Turn[]>();
   /** 每会话已捕获轮数（驱动 digest 触发；重启后从 digest.uptoTurn 续算） */
@@ -248,7 +251,7 @@ export class Brain {
         const s = this.emotion.apply(sessionId, result.emotion, now);
         this.store.setEmotion(sessionId, s);
       }
-      this.writeProfiles(sessionId, result, turns.map((t) => t.actor));
+      await this.reviewAndWriteProfiles(sessionId, result, turns.map((t) => t.actor));
       // 新/改记忆补语义向量（失败静默，检索回退 lexical）
       await this.embedNotes(touched);
       // 滚动摘要：累计轮数到阈值则更新「会话脉络」
@@ -305,6 +308,44 @@ export class Brain {
     return out;
   }
 
+  private async reviewAndWriteProfiles(
+    sessionId: string, result: DistillResult, actors: (string | undefined)[],
+  ): Promise<void> {
+    const existing = this.existingProfiles(sessionId, actors);
+    const candidates = [
+      ...(result.profile ? [{ text: result.profile }] : []),
+      ...(result.profiles ?? []),
+    ];
+    const byActor = new Map<string, ProfileReviewItem>();
+    for (const p of existing) {
+      byActor.set(p.actor ?? '', { actor: p.actor, previous: p.text, candidate: p.text });
+    }
+    for (const p of candidates) {
+      const key = p.actor ?? '';
+      const prev = byActor.get(key);
+      byActor.set(key, { actor: p.actor, previous: prev?.previous ?? '', candidate: p.text });
+    }
+    const pending = [...byActor.entries()].filter(([actor, item]) =>
+      item.candidate !== item.previous
+      || this.reviewedProfiles.get(`${sessionId}:${actor}`) !== item.previous);
+    if (!pending.length) return;
+    const reviewed = await this.distiller.reviewProfiles(pending.map(([, item]) => item));
+    if (!reviewed) {
+      this.log?.(`画像审核失败：${sessionId.slice(0, 8)}…，保持原画像`);
+      return;
+    }
+    for (const [i, [actor, item]] of pending.entries()) {
+      const text = reviewed[i]!.slice(0, PROFILE_TEXT_CAP);
+      const openid = actor ? splitActor(actor).openid : undefined;
+      const needsSessionLink = openid && text && this.store.people().some((p) =>
+        p.key === userProfileKey(openid) && !p.sessions.includes(sessionId));
+      if (text !== item.previous || needsSessionLink) {
+        this.writeProfiles(sessionId, { memories: [], profiles: [{ actor: item.actor, text }] }, actors);
+      }
+      this.reviewedProfiles.set(`${sessionId}:${actor}`, text);
+    }
+  }
+
   /**
    * 画像落盘：身份键经真实发言人记录校验，不信任 LLM 输出的 openid。
    * - actor 的 openid 在已知发言人中（记忆 actor / 已有 u: 画像键 / 本轮 actor）→ u: 键
@@ -353,7 +394,7 @@ export class Brain {
       .join('\n');
     const result = await this.distiller.consolidate(eps, profileText, this.persona());
     const added = result.memories.map((m) => this.store.addNote(sessionId, { ...m, kind: 'semantic' }, now));
-    this.writeProfiles(sessionId, result, eps.map((n) => n.actor));
+    await this.reviewAndWriteProfiles(sessionId, result, eps.map((n) => n.actor));
     void this.embedNotes(added);
     return result.memories.length;
   }

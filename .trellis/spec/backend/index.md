@@ -12,4 +12,5 @@
 - 画像按人存储：键 `u:<openid>`（发言人 tag 带 openid）/ `sess:<sessionId>`（兜底，私聊 sessionId 即用户派生）。主键/actor 拆分走 `src/brain/identity.ts`；store 兼容旧裸 sessionId 键与字符串值（load/apply 时迁移）；蒸馏 `profiles:[{actor?,text}]` 结构化输出，旧 `profile` 字符串字段仍解析为会话级。注入时发言人 openid 取个人画像置顶，sess 画像标「会话画像」次之；attitude 保底唤起不限本会话（对人记忆跟人走）。页面 `/api/profiles` 按人出卡，sess 卡由 `/api/sessions` 出。
 - 画像身份键必须经真实发言人记录校验（store.speakers()：记忆 actor + 已有 u: 键 + 本轮 actor）——LLM 会幻觉/抄错 openid，出现过同名双卡 bug；openid 可信→u: 键、昵称唯一匹配→校正、都不匹配→退化 sess: 不造幽灵人。
 - 蒸馏 prompt 的「现有画像」段（buildDistillPrompt 第 6 参）喂 sess+涉及发言人的旧画像，画像增量修订防漂移；consolidate 走同一 existingProfiles 收集。
+- 画像内容边界不能只靠蒸馏 prompt 的「不要写近期课表」字样：旧画像会循环进入后续 prompt。endOfTurn/consolidate 的画像都必须通过 Distiller.reviewProfiles（旧文+草稿，按 index 对齐，失效时保持旧画像）；首次涉及旧画像也需审核。审核为空可用空 profile op 删除旧画像；请用实际落盘/重放测试而非只测 prompt 字符串。不要用「课表/明天」关键词硬删稳定的习惯或身份背景。二次 LLM 有成本，线上需观察效果。
 - 蒸馏/LLM 调用必须可注入 fetch、可配置关闭、失败静默不阻塞回复。

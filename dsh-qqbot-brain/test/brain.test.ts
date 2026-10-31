@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Brain } from '../src/brain/index.ts';
 import { BrainStore } from '../src/brain/store.ts';
-import { Distiller, buildDistillPrompt, parseDistillOutput } from '../src/brain/distill.ts';
+import { Distiller, buildDistillPrompt, buildProfileReviewPrompt, parseDistillOutput } from '../src/brain/distill.ts';
 import { SessionCapture, parseSenderTag } from '../src/capture/events.ts';
 import type { PromptInjector } from '../src/inject/prompt.ts';
 import { retention } from '../src/brain/decay.ts';
@@ -24,10 +24,19 @@ function tmpStore() {
 function mockDistiller(result: object) {
   return new Distiller(
     { enabled: true, baseUrl: 'https://x.test', apiKey: 'k', model: 'm', timeoutMs: 1000, maxNotes: 5 },
-    async () => ({
-      ok: true, status: 200,
-      json: async () => ({ choices: [{ message: { content: JSON.stringify(result) } }] }),
-    }),
+    async (_url, init) => {
+      const prompt = (JSON.parse(init.body) as { messages: { content: string }[] }).messages[0]!.content;
+      let content = JSON.stringify(result);
+      if (prompt.includes('长期人物画像的编辑')) {
+        const raw = prompt.slice(prompt.indexOf('待整理画像') + '待整理画像（actor 仅用于区分人物，不得修改身份）：'.length).trim();
+        const items = JSON.parse(raw) as { index: number; candidate: string }[];
+        content = JSON.stringify({ profiles: items.map((item) => ({ index: item.index, text: item.candidate })) });
+      }
+      return {
+        ok: true, status: 200,
+        json: async () => ({ choices: [{ message: { content } }] }),
+      };
+    },
   );
 }
 
@@ -763,4 +772,96 @@ test('buildDistillPrompt: 画像边界提示——时效信息进记忆不进画
   );
   assert.match(p, /长期成立的判断/);
   assert.match(p, /时效性信息/);
+});
+
+test('buildProfileReviewPrompt: 连旧画像一并审查，不只过滤本轮新增', () => {
+  const p = buildProfileReviewPrompt([
+    { actor: '张三 (ABCDEF1234567890)', previous: '性格随和，最近课表周二早八', candidate: '性格随和，最近课表周二早八' },
+  ]);
+  assert.match(p, /旧画像也必须重新审查/);
+  assert.match(p, /性格随和，最近课表周二早八/);
+  assert.match(p, /稳定的作息习惯可以保留/);
+});
+
+test('endOfTurn: 画像草稿经二次审核后才落盘，旧画像只含时效信息可清除', async () => {
+  const { dir, store } = tmpStore();
+  store.setProfile('s1', '最近课表周二早八');
+  let reviews = 0;
+  const distiller = new Distiller(
+    { enabled: true, baseUrl: 'https://x.test', apiKey: 'k', model: 'm', timeoutMs: 1000, maxNotes: 5 },
+    async (_url, init) => {
+      const prompt = (JSON.parse(init.body) as { messages: { content: string }[] }).messages[0]!.content;
+      const auditing = prompt.includes('长期人物画像的编辑');
+      if (auditing) reviews++;
+      const content = auditing
+        ? JSON.stringify({ profiles: [{ index: 0, text: '' }] })
+        : JSON.stringify({ memories: [{ content: '用户本周课表周二早八', importance: 2 }] });
+      return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content } }] }) };
+    },
+  );
+  const brain = new Brain({ store, distiller, now });
+  brain.ingest('s1', { userText: '记住这周课表', assistantText: '好', at: NOW });
+  await brain.endOfTurn('s1');
+  assert.equal(store.profileOf('s1'), '');
+  assert.equal(store.allNotes()[0]!.content, '用户本周课表周二早八');
+  assert.equal(reviews, 1);
+  // 没有画像更新时，不应每轮多发一次审核请求。
+  brain.ingest('s1', { userText: '你好', assistantText: '好', at: NOW });
+  await brain.endOfTurn('s1');
+  assert.equal(reviews, 1);
+  assert.equal(new BrainStore(dir).profileOf('s1'), '');
+});
+
+test('endOfTurn: 审核失败时不让未经审核的画像覆盖旧画像', async () => {
+  const { store } = tmpStore();
+  store.setProfile('s1', '稳定偏好：喜欢民谣');
+  const distiller = new Distiller(
+    { enabled: true, baseUrl: 'https://x.test', apiKey: 'k', model: 'm', timeoutMs: 1000, maxNotes: 5 },
+    async (_url, init) => {
+      const prompt = (JSON.parse(init.body) as { messages: { content: string }[] }).messages[0]!.content;
+      const content = prompt.includes('长期人物画像的编辑')
+        ? '{"profiles":[]}'
+        : JSON.stringify({ memories: [], profiles: [{ text: '最近课表周二早八' }] });
+      return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content } }] }) };
+    },
+  );
+  const brain = new Brain({ store, distiller, now });
+  brain.ingest('s1', { userText: '最近课表变了', assistantText: '知道了', at: NOW });
+  await brain.endOfTurn('s1');
+  assert.equal(store.profileOf('s1'), '稳定偏好：喜欢民谣');
+});
+
+test('consolidate: 语义巩固产出的画像也必须先审核', async () => {
+  const { store } = tmpStore();
+  store.addNote('s1', { content: '张三喜欢听民谣', importance: 4 }, NOW - 3 * DAY);
+  let reviews = 0;
+  const distiller = new Distiller(
+    { enabled: true, baseUrl: 'https://x.test', apiKey: 'k', model: 'm', timeoutMs: 1000, maxNotes: 5 },
+    async (_url, init) => {
+      const prompt = (JSON.parse(init.body) as { messages: { content: string }[] }).messages[0]!.content;
+      const auditing = prompt.includes('长期人物画像的编辑');
+      if (auditing) reviews++;
+      const content = auditing
+        ? JSON.stringify({ profiles: [{ index: 0, text: '喜欢听民谣' }] })
+        : JSON.stringify({ memories: [], profiles: [{ text: '喜欢听民谣，最近课表周二早八' }] });
+      return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content } }] }) };
+    },
+  );
+  const brain = new Brain({ store, distiller, now, config: { consolidateMinNotes: 1 } });
+  await brain.consolidate('s1');
+  assert.equal(reviews, 1);
+  assert.equal(store.profileOf('s1'), '喜欢听民谣');
+});
+
+test('reviewProfiles: 索引重复或条数缺失时整体失败，不落部分画像', async () => {
+  const distiller = new Distiller(
+    { enabled: true, baseUrl: 'https://x.test', apiKey: 'k', model: 'm', timeoutMs: 1000, maxNotes: 5 },
+    async () => ({
+      ok: true, status: 200,
+      json: async () => ({ choices: [{ message: { content: '{"profiles":[{"index":0,"text":"a"},{"index":0,"text":"b"}]}' } }] }),
+    }),
+  );
+  assert.equal(await distiller.reviewProfiles([
+    { previous: '', candidate: 'a' }, { previous: '', candidate: 'b' },
+  ]), undefined);
 });

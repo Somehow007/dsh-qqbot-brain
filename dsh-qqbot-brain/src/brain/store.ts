@@ -83,6 +83,8 @@ function sanitizeEmotion(raw: unknown): EmotionState | undefined {
 /** 流水视图用：op + 写入时刻 */
 export interface OpRecord { t: number; op: Op }
 
+export const PROFILE_TEXT_CAP = 500;
+
 // ── 向量编解码：派生态以 base64(f32) 存快照，不进 op 流水 ──
 function encodeVec(v: number[]): string {
   const buf = Buffer.alloc(v.length * 4);
@@ -111,8 +113,6 @@ export class BrainStore {
   /** 最近操作流水（环形，供"事件流水"页查看真实落盘历史） */
   private opsLog: OpRecord[] = [];
   private static readonly OPS_LOG_CAP = 500;
-  /** 单条画像文本硬上限：修订式重写会鼓励 LLM 保留旧要点，需防单调膨胀 */
-  private static readonly PROFILE_TEXT_CAP = 500;
   /** 物理遗忘谓词（由 Brain 按衰减参数注入）：快照时真删除返回 true 的记忆 */
   shouldEvict?: (n: MemoryNote, now: number) => boolean;
   private readonly file: string;
@@ -205,9 +205,13 @@ export class BrainStore {
       case 'profile': {
         // 旧 op 无 key → 按 sessionId 兜底为 sess: 键
         const key = op.key ? normalizeProfileKey(op.key) : sessionProfileKey(op.sessionId);
+        if (!op.text.trim()) {
+          this.profiles.delete(key);
+          break;
+        }
         const prev = this.profiles.get(key);
         this.profiles.set(key, {
-          text: op.text.trim().slice(0, BrainStore.PROFILE_TEXT_CAP),
+          text: op.text.trim().slice(0, PROFILE_TEXT_CAP),
           name: op.name ?? prev?.name ?? '',
           sessions: [...new Set([...(prev?.sessions ?? []), op.sessionId])],
           updatedAt: op.at ?? Date.now(),
