@@ -349,3 +349,26 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 17: 脑图人设切换与鲸鱼娘温柔版
+<!-- trellis-session: v=2 fp=a6b4bd4a8c836d09 -->
+
+**Date**: 2026-11-01
+**Task**: 脑图人设切换与鲸鱼娘温柔版
+**Branch**: `main`
+
+### Summary
+
+问题：脑图原先只能覆盖单份人设，无法在现有版本与温柔版间切换。排查：定位 store/persona.md 启动优先级、HTTP API、页面定时刷新与备份链路。方案：新增多版本持久化和活动指针、内置温柔版、脑图新增编辑切换与全量备份，保留旧单份数据与文件镜像；用户确认多版本交互。验证：72/72 测试、类型检查、构建和 npm 包预置文件检查通过，未触碰用户原有暂存文件。后续：云端部署和在线验证按用户新要求继续。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `36ca91c` | feat(brain): preserve personas across switches and restarts |
+| `55a5322` | chore: archive persona switching decision and verification |
+
+### Status
+
+[OK] **Completed**

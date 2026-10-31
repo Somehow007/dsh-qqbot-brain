@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 16
-- **Last Active**: 2026-10-31
+- **Total Sessions**: 17
+- **Last Active**: 2026-11-01
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~351 | Active |
+| `journal-1.md` | ~374 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 17 | 2026-11-01 | 脑图人设切换与鲸鱼娘温柔版 | `36ca91c`, `55a5322` | `main` |
 | 16 | 2026-10-31 | 画像长期边界写前复核 | `98430ae` | `main` |
 | 15 | 2026-10-31 | 画像内容边界——时效信息归记忆 | `1e85bdf` | `main` |
 | 14 | 2026-10-31 | 画像文本上限（500字硬截断） | `36a3586` | `main` |
