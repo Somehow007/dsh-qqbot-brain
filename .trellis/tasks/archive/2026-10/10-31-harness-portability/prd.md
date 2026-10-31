@@ -46,6 +46,25 @@
 3. 群聊发言人标识（可选）——结构化字段或文本标签；缺失只损失分人画像/态度归因
 4. 能跑 Node ≥20 进程（插件模式或 sidecar 模式）
 
+## Addendum（2026-10-31）：WorkBuddy 实测调研
+
+来源：https://www.codebuddy.cn/docs/workbuddy/QQ-Guide 及配套功能文档（连接器、记忆）。
+
+**WorkBuddy 形态**：腾讯 CodeBuddy 闭源桌面 agent 应用（非自托管 harness、无插件机制）。QQ 接入是 App 内置功能——WorkBuddy 直接用 AppID/AppSecret 走 WebSocket 长连接或 URL 回调连 QQ 开放平台，QQ→WorkBuddy 直连，无中间层可挂代码。定位是「远程遥控桌面 agent 派任务」（群聊须 @机器人才触发），与 qqbot-brain 的「群聊常驻陪伴角色」场景不同。
+
+**宿主能力清单核对**：
+
+| 判据 | WorkBuddy |
+| --- | --- |
+| 推理前改 system prompt 的 hook | 无 |
+| 轮次级事件流 | 无 |
+| 群聊发言人标识 | 文档未提；群聊仅 @ 触发 |
+| 跑外部进程/服务 | 有——连接器支持自定义，文档明确「MCP + CLI（标准化协议）和 Skill + CLI（内置脚本）两种形式」 |
+
+**额外发现**：WorkBuddy 自带「记忆」功能（每晚提炼会话、注入系统提示词、可编辑/导入），与 brain 记忆层重叠但无发言人归因/情绪/人格内核/衰减强化；「技能（Skills）」为用户自建 SKILL.md 指令包，可写「每轮先调 recall」类约定但靠模型自觉。
+
+**落档结论**：WorkBuddy 属第 3 档——Cordis 插件不可跑；可行路径为 brain MCP 化作 sidecar（recall/ingest/assemble 工具）经自定义连接器挂载 + Skill 约定驱动，代价是记忆退化为模型按需调用、情绪/立场/发言人归因基本丢失、turn/end 蒸馏靠 Skill 约定。若要「一套 brain 多 harness」，MCP 化是通用投资（workbuddy/Claude 系/任何 MCP harness 均可接）；需新写 `src/mcp/` 入口并把发言人格式参数化。场景适配需注意：WorkBuddy QQ 集成是任务派发型，撑不起群聊陪伴 bot 的常驻人设需求。
+
 ## Resolution（2026-10-31）
 
 **遇到了什么问题**：需要回答「qqbot 改接 workbuddy/其他 harness 提供方时本插件是否可用」——本质是摸清插件对 dsh 的耦合面。
