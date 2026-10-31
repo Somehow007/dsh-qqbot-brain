@@ -283,3 +283,25 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 14: 画像文本上限（500字硬截断）
+<!-- trellis-session: v=2 fp=2b967144fbacd685 -->
+
+**Date**: 2026-10-31
+**Task**: 画像文本上限（500字硬截断）
+**Branch**: `main`
+
+### Summary
+
+问题：单条画像无硬上限，修订式重写鼓励 LLM 保留全部旧要点→单调膨胀，唯一约束是蒸馏 max_tokens=700 会挤占 memories 产出。解决：apply() 统一 PROFILE_TEXT_CAP=500 截断（写入/重放/导入全覆盖）+ prompt 补「每条 300 字、求精不求长」。验证：61/61 测试+typecheck+build，远端已部署。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `36a3586` | fix(brain): 画像文本上限 500 字——防修订式重写单调膨胀 |
+
+### Status
+
+[OK] **Completed**
