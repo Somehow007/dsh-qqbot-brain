@@ -153,3 +153,25 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 8: 跨 harness 可移植性评估
+<!-- trellis-session: v=2 fp=a8f6dbddcfd798fe -->
+
+**Date**: 2026-10-31
+**Task**: 跨 harness 可移植性评估
+**Branch**: `main`
+
+### Summary
+
+用户问 qqbot 改接 workbuddy/其他 agent/harness 提供方时插件是否可用 → 逐文件审查 index/capture/inject/server/persona-loader/distill，把耦合面拆三层：插件壳层绑定 Cordis 协议（system-prompt/assemble waterfall、session/event 事件流、cordis.patch.yml 安装）不可移植；QQ 适配约定（[昵称 (openid)] 标签、Chat history/Current message 锚点）绑定官方 dsh-qqbot、换适配器时优雅降级；src/brain/ 内核宿主无关、蒸馏走 OpenAI 兼容 env 可配 → 结论：Cordis 系宿主直接可用，有 hook 的 JS harness 需重写约 300 行 glue，无插件机制者走 sidecar（补 /api/ingest+/api/assemble），无扩展点者不可用；验证基于源码审查，未实测其他宿主；后续方向：sidecar 端点、发言人格式可配置、蒸馏 provider 抽象
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `7dc559e` | chore(task): archive 10-31-harness-portability |
+
+### Status
+
+[OK] **Completed**
