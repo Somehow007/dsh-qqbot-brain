@@ -747,3 +747,12 @@ test('assemble: emb 低相关命中过 embedMinCos 但不达 reinforceMinEmbedCo
   assert.equal(ctx.hits.length, 1);              // rel≈0.49 ≥ 0.4 入围
   assert.equal(store.noteById(n.id)!.hits, 0);   // 但 < 0.5 不强化
 });
+
+test('store: 单条画像文本 500 字硬截断，防修订膨胀', () => {
+  const { store } = tmpStore();
+  const long = '长'.repeat(800);
+  store.setProfileEntry(userProfileKey('OID_LONG'), long, { sessionId: 's1', name: 'x' });
+  assert.equal(store.profileOf(userProfileKey('OID_LONG')).length, 500);
+  store.setProfile('s1', long); // sess 路径同样截断
+  assert.equal(store.profileOf('s1').length, 500);
+});
