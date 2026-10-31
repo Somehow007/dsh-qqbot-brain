@@ -10,4 +10,6 @@
 - 记忆 kind 三型：episodic 情景 / semantic 语义 / attitude 态度（角色对人·事·话题的立场，content 规范「对<对象>：<立场>」）。attitude 不进语义巩固输入；含当前发言人昵称的 attitude 在 assemble 中保底唤起（≤3 条），不占 topK。
 - 新增记忆 kind 或 JSONL op 时同步改：types.ts 联合、distill 解析、http.ts 入参、page.html 的 kindLabel/KIND_GLYPH/REGION/三个 kind select。
 - 画像按人存储：键 `u:<openid>`（发言人 tag 带 openid）/ `sess:<sessionId>`（兜底，私聊 sessionId 即用户派生）。主键/actor 拆分走 `src/brain/identity.ts`；store 兼容旧裸 sessionId 键与字符串值（load/apply 时迁移）；蒸馏 `profiles:[{actor?,text}]` 结构化输出，旧 `profile` 字符串字段仍解析为会话级。注入时发言人 openid 取个人画像置顶，sess 画像标「会话画像」次之；attitude 保底唤起不限本会话（对人记忆跟人走）。页面 `/api/profiles` 按人出卡，sess 卡由 `/api/sessions` 出。
+- 画像身份键必须经真实发言人记录校验（store.speakers()：记忆 actor + 已有 u: 键 + 本轮 actor）——LLM 会幻觉/抄错 openid，出现过同名双卡 bug；openid 可信→u: 键、昵称唯一匹配→校正、都不匹配→退化 sess: 不造幽灵人。
+- 蒸馏 prompt 的「现有画像」段（buildDistillPrompt 第 6 参）喂 sess+涉及发言人的旧画像，画像增量修订防漂移；consolidate 走同一 existingProfiles 收集。
 - 蒸馏/LLM 调用必须可注入 fetch、可配置关闭、失败静默不阻塞回复。

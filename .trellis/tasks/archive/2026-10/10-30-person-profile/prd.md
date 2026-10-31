@@ -70,3 +70,11 @@
 ### 什么时候干的
 
 2026-10-30，单会话完成「排查→设计→实现→验证」；40/40 测试 + typecheck + build + 真实数据迁移验证通过。dsh 实例需重启生效。
+
+## Post-fix（2026-10-31）
+
+- **幻觉 openid bug**：远端出现 `u:B24EA87B…` 幽灵人物卡——该 openid 从未在任何真实发言人 tag 出现，是 LLM 在 profiles 输出里抄错/编造的。修复：`writeProfiles` 落盘前经 `store.speakers()` 校验（真实 actor 注册表），openid 可信才写 u: 键；昵称唯一匹配自动校正到真实 openid；两者都不匹配退化 sess: 会话级。坏数据已从远端 snapshot 手术清除（备份在 ~/brain-data.bak-1031）。
+- **EADDRINUSE 带崩宿主**：本地 ssh 隧道占 4099 时插件 listen 报 uncaught exception 杀死 dsh。修复：http server 挂 error handler 降级为无页面。
+- **画像漂移**：每轮蒸馏原本不带旧画像，LLM 盲写覆盖。修复：buildDistillPrompt 新增第 6 参 existingProfiles（sess+涉及发言人的旧画像），prompt 明确「在其基础上修订」；consolidate 共用同一收集逻辑。
+- 部署方式确认：远端 ubuntu@124.222.65.169 为纯 dist 部署（`~/dsh-qqbot-brain/dist`），rsync dist + `sudo systemctl restart dsh-qqbot` 即生效；本地仅开发。
+- demo 同名双卡（FEFE5282/99449CA8）两个 openid 均真实出现在 tag 中，疑为同一人不同语境 openid 或同名两人，暂观察。
