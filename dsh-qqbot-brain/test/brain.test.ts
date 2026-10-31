@@ -756,3 +756,11 @@ test('store: 单条画像文本 500 字硬截断，防修订膨胀', () => {
   store.setProfile('s1', long); // sess 路径同样截断
   assert.equal(store.profileOf('s1').length, 500);
 });
+
+test('buildDistillPrompt: 画像边界提示——时效信息进记忆不进画像', () => {
+  const p = buildDistillPrompt(
+    [{ userText: '明天早八', assistantText: '咕嘟', at: NOW }], '大肥鱼', 5,
+  );
+  assert.match(p, /长期成立的判断/);
+  assert.match(p, /时效性信息/);
+});
