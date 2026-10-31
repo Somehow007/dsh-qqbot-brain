@@ -131,3 +131,25 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 7: 脑图检索算法优化（lexical 修复）
+<!-- trellis-session: v=2 fp=66ea1458c68a0def -->
+
+**Date**: 2026-10-31
+**Task**: 脑图检索算法优化（lexical 修复）
+**Branch**: `main`
+
+### Summary
+
+用户反馈脑图检索模拟检不到有效信息。排查：topK 无门槛致新鲜记忆靠 R+imp 凑数、n-gram 不去标点切断 bigram（橘猫，名叫年糕 对 猫叫什么 cos=0）、单字查询空向量、复述匹配弱；另发现 cfg.retrieval 漏接 Brain。方案：归一化+n=[1,2,3]+minCosine=0.04（19 条数据离线校准：噪声≤0.034、最弱相关 0.042+），接通配置，两 mockup 同步。验证：47/47 测试+tsc+build 过，3 条新检索测试。后续：分词/embedding 留待评估，BM25 暂缓。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `a337230` | feat: 检索相关性修复——归一化 n-gram + minCosine 门槛，接通 retrieval 配置 |
+
+### Status
+
+[OK] **Completed**

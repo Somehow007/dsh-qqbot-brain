@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 6
-- **Last Active**: 2026-10-30
+- **Total Sessions**: 7
+- **Last Active**: 2026-10-31
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~133 | Active |
+| `journal-1.md` | ~155 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 7 | 2026-10-31 | 脑图检索算法优化（lexical 修复） | `a337230` | `main` |
 | 6 | 2026-10-30 | 插件文件日志 | `7959cb3` | `main` |
 | 5 | 2026-10-30 | 上云部署执行 | - | `main` |
 | 4 | 2026-10-30 | 第一轮上云准备实施 | `13332d0` | `main` |
