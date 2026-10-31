@@ -261,3 +261,25 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 13: 百炼 embedding 接入校准 + 线上部署验证
+<!-- trellis-session: v=2 fp=ecd721c9ef207009 -->
+
+**Date**: 2026-10-31
+**Task**: 百炼 embedding 接入校准 + 线上部署验证
+**Branch**: `main`
+
+### Summary
+
+用户提供百炼 key 接入 embedding。接入发现两个坑：①百炼批上限10条/请求致整批静默失败，改自动分块；②其 v3 余弦分布压缩（相关0.48~0.84/噪声底0.33~0.56），embedMinCos 校准 0.47，并新增 reinforceMinEmbedCos=0.5 与 lexical 分源判强化，防噪声命中刷 hits 换皮回归。评测：lexical recall88.2%/FP40% → embedding混合 recall100%/FP20%（n02微积分蹭满课记忆为语义相邻边界）。已部署线上：rsync dist+重启，brain.env 写 BRAIN_EMBED_*（chmod600），启动行确认脉络on/向量on，回填tick正常。两任务（调研评估+质量修复）已按两层流程归档。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `b145a3f` | fix(brain): 百炼 embedding 校准——分块请求、阈值校准、强化阈值分源 |
+
+### Status
+
+[OK] **Completed**

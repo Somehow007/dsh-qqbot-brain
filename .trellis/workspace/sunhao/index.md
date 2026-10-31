@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 12
+- **Total Sessions**: 13
 - **Last Active**: 2026-10-31
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~263 | Active |
+| `journal-1.md` | ~285 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 13 | 2026-10-31 | 百炼 embedding 接入校准 + 线上部署验证 | `b145a3f` | `main` |
 | 12 | 2026-10-31 | 记忆/上下文/人格现状调研 + 记忆质量修复实施 | `1ce36bc78b77216aace1a80d21da33a30f14ff73` | `main` |
 | 11 | 2026-10-31 | 类脑架构学习路线探讨 | - | `main` |
 | 10 | 2026-10-31 | 检索修复部署上云 + runbook 尾斜杠修正 | `d1c22e5` | `main` |
