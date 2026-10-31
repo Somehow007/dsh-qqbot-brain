@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 15
+- **Total Sessions**: 16
 - **Last Active**: 2026-10-31
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~329 | Active |
+| `journal-1.md` | ~351 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 16 | 2026-10-31 | 画像长期边界写前复核 | `98430ae` | `main` |
 | 15 | 2026-10-31 | 画像内容边界——时效信息归记忆 | `1e85bdf` | `main` |
 | 14 | 2026-10-31 | 画像文本上限（500字硬截断） | `36a3586` | `main` |
 | 13 | 2026-10-31 | 百炼 embedding 接入校准 + 线上部署验证 | `b145a3f` | `main` |

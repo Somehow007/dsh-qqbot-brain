@@ -327,3 +327,25 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 16: 画像长期边界写前复核
+<!-- trellis-session: v=2 fp=c67f01085a17db4c -->
+
+**Date**: 2026-10-31
+**Task**: 画像长期边界写前复核
+**Branch**: `main`
+
+### Summary
+
+2026-10-31：此前仅靠蒸馏 prompt 限制画像内容，旧画像仍随每轮重喂，时效事实如最近课表反复被继承。修复：轮末与语义巩固的画像草稿进入独立模型审核，逐条对比旧画像/草稿，只保留稳定信息，旧画像首次涉及也审核；返回空可删除时效污染画像，审核失败维持原画像。67/67 测试、typecheck、build 通过。未部署云服务器、未触碰线上数据；二次调用有成本，需监控并抽样评测画像纯度。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `98430ae` | fix(brain): review profile updates before persisting long-term traits |
+
+### Status
+
+[OK] **Completed**
