@@ -28,7 +28,8 @@
 ```bash
 # 本地构建后上传（dist 不入库）
 npm ci && npm run build
-rsync -av dist/ cordis.patch.yml package.json server:/opt/dsh-qqbot-brain/
+# 注意：dist 不带尾斜杠——`dist/`（带斜杠）会把编译产物撒到插件根目录而非 dist/ 子目录
+rsync -av dist cordis.patch.yml package.json server:/opt/dsh-qqbot-brain/
 
 # 或服务器上 clone + npm ci && npm run build
 
