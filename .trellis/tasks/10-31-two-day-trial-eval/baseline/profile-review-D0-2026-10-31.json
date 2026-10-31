@@ -1,0 +1,51 @@
+{
+  "capturedAt": "2026-10-31T18:19:25+08:00",
+  "deployedAt": "2026-10-31T18:20:00+08:00",
+  "followUpAt": "2026-11-02T18:20:00+08:00",
+  "codeCommit": "98430ae",
+  "server": "ubuntu@124.222.65.169",
+  "source": "Remote /brain/api/profiles, /brain/api/state, /brain/api/sessions and brain-data file metadata",
+  "profiles": 8,
+  "profilesByKind": {
+    "person": 4,
+    "session": 4
+  },
+  "sessions": 6,
+  "notes": 72,
+  "notesByKind": {
+    "episodic": 48,
+    "attitude": 12,
+    "semantic": 12
+  },
+  "classScheduleProfiles": 0,
+  "temporalMarkerProfiles": 2,
+  "temporalMarkerPattern": "最近课表|本周课表|下周课表|这周课表|明天|今天|昨天|这周|下周|最近|刚刚",
+  "profileRows": [
+    {"keyHash": "2d702f947e60", "kind": "person", "chars": 104, "updatedAt": 1793441927125, "markers": ["最近"]},
+    {"keyHash": "e7f40e326c80", "kind": "person", "chars": 200, "updatedAt": 1793441874125, "markers": []},
+    {"keyHash": "1f3326925fd7", "kind": "person", "chars": 457, "updatedAt": 1793441001540, "markers": ["最近"]},
+    {"keyHash": "529742390619", "kind": "session", "chars": 60, "updatedAt": 1793440219821, "markers": []},
+    {"keyHash": "d8d157807961", "kind": "session", "chars": 47, "updatedAt": 1793413374786, "markers": []},
+    {"keyHash": "97438eb395ca", "kind": "person", "chars": 92, "updatedAt": 1793354606633, "markers": []},
+    {"keyHash": "e054c5572e46", "kind": "session", "chars": 39, "updatedAt": 0, "markers": []},
+    {"keyHash": "08a7486052ad", "kind": "session", "chars": 21, "updatedAt": 0, "markers": []}
+  ],
+  "storageBeforeDeploy": {
+    "snapshotBytes": 396955,
+    "jsonlBytes": 33083,
+    "jsonlLines": 138,
+    "profileOpsInCurrentJsonl": 16,
+    "brainLogBytes": 29869
+  },
+  "backupOnServer": "~/backups/brain-before-profile-review-20261031T1820CST.tgz",
+  "postDeployCheck": {
+    "systemd": "active",
+    "profilesEndpoint": 200,
+    "stateEndpoint": 200,
+    "profiles": 8,
+    "notes": 72,
+    "sessions": 6,
+    "localAndRemoteDistHashesMatch": true
+  },
+  "limitations": "Temporal markers are recall-oriented hints, not proof of bad profiles; old profiles are reviewed only when their person/session next participates. No real post-deployment conversation was sent during deployment."
+}
