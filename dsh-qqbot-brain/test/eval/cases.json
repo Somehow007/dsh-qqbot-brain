@@ -1,0 +1,722 @@
+{
+ "notes": [
+  {
+   "id": "4d05251f-5e8b-456b-b2b8-6aac266f2ca8",
+   "sessionId": "96fe6849-4144-48f9-8cf8-c6a5a94b0bcd",
+   "actor": "用户",
+   "content": "用户主动来打招呼，态度友好",
+   "importance": 2,
+   "kind": "episodic",
+   "createdAt": 1793271999999,
+   "strength": 2,
+   "hits": 0,
+   "lastAccessAt": 1793271999999
+  },
+  {
+   "id": "6d8a12da-082a-414f-9810-0ea94f9d9b19",
+   "sessionId": "f7485370-457b-c222-1520-714104f32c22",
+   "actor": "用户",
+   "content": "用户让大肥鱼从现在开始当姐姐，大肥鱼懒洋洋地接受了这个辈分",
+   "importance": 3,
+   "kind": "episodic",
+   "createdAt": 1793272088963,
+   "strength": 3,
+   "hits": 0,
+   "lastAccessAt": 1793272088963
+  },
+  {
+   "id": "9b44d1a8-158d-4703-bc35-8e2b6efa9dfb",
+   "sessionId": "f7485370-457b-c222-1520-714104f32c22",
+   "actor": "大肥鱼",
+   "content": "大肥鱼自称深海贵族，被叫姐姐后顺势要求小鱼干上供、鱼缸归对方打扫",
+   "importance": 2,
+   "kind": "episodic",
+   "createdAt": 1793272088963,
+   "strength": 2,
+   "hits": 0,
+   "lastAccessAt": 1793272088963
+  },
+  {
+   "id": "4c40e252-8019-4e33-9839-95cdde3b5433",
+   "sessionId": "96fe6849-4144-48f9-8cf8-c6a5a94b0bcd",
+   "actor": "用户",
+   "content": "用户夸角色可爱，角色傲娇回应并给用户起外号「嘴甜哥」",
+   "importance": 2,
+   "kind": "episodic",
+   "createdAt": 1793272999464,
+   "strength": 2,
+   "hits": 0,
+   "lastAccessAt": 1793272999464
+  },
+  {
+   "id": "96e78670-71fc-43f4-bc81-061bbdf99ef9",
+   "sessionId": "832f1a89-9e34-4a59-a644-201eb69cefe2",
+   "actor": "花咲蝶舞（五笑）",
+   "content": "demo 在群里问角色「吸收了什么奇奇怪怪的知识」，角色嘴硬回「在群里泡久了什么都能学一点，这不叫奇怪，这叫吃饭的本事」",
+   "importance": 2,
+   "kind": "episodic",
+   "createdAt": 1793274004884,
+   "strength": 10,
+   "hits": 266,
+   "lastAccessAt": 1793354604907
+  },
+  {
+   "id": "7753dcc6-5af7-42bf-8e65-c70e0e8841c0",
+   "sessionId": "832f1a89-9e34-4a59-a644-201eb69cefe2",
+   "actor": "用户",
+   "content": "用户「开心假日」在群里发「尝尝这赛博大肉棒」的荤段子，角色装傻转移话题拒绝接茬。",
+   "importance": 2,
+   "kind": "episodic",
+   "createdAt": 1793274022571,
+   "strength": 10,
+   "hits": 202,
+   "lastAccessAt": 1793354602948
+  },
+  {
+   "id": "8523cbe5-4719-4dd5-99d8-a0affe633c4a",
+   "sessionId": "832f1a89-9e34-4a59-a644-201eb69cefe2",
+   "actor": "用户",
+   "content": "花咲蝶舞（五笑）问角色喜不喜欢馆长，角色答不粉，嫌他直播全程吼、嘴太脏，看两分钟就划走",
+   "importance": 2,
+   "kind": "episodic",
+   "createdAt": 1793274022571,
+   "strength": 10,
+   "hits": 203,
+   "lastAccessAt": 1793354602948
+  },
+  {
+   "id": "79286687-5ed2-4895-83b2-c0767dfd2c0e",
+   "sessionId": "832f1a89-9e34-4a59-a644-201eb69cefe2",
+   "actor": "花咲蝶舞（五笑）",
+   "content": "demo 在群里@角色让她笑一个，角色嘴硬回「笑一个给你看，然后呢，你又不给钱」",
+   "importance": 2,
+   "kind": "episodic",
+   "createdAt": 1793274098398,
+   "strength": 10,
+   "hits": 197,
+   "lastAccessAt": 1793354602948
+  },
+  {
+   "id": "af9155ad-bc94-4bb8-a14d-960e0f8acc9f",
+   "sessionId": "832f1a89-9e34-4a59-a644-201eb69cefe2",
+   "actor": "花咲蝶舞（五笑）",
+   "content": "用户「花咲蝶舞（五笑）」对角色说「由不得你」，角色回怼「由不得我，也轮不到你做主」，并让对方别闹了去睡觉。",
+   "importance": 2,
+   "kind": "episodic",
+   "createdAt": 1793274216682,
+   "strength": 10,
+   "hits": 196,
+   "lastAccessAt": 1793354602948
+  },
+  {
+   "id": "f43dd97e-2a4c-4324-8aa5-a87475a00564",
+   "sessionId": "832f1a89-9e34-4a59-a644-201eb69cefe2",
+   "actor": "花咲蝶舞（五笑）",
+   "content": "花咲蝶舞（五笑）发了两张山羊头牛配PvZ台词的梗图，问角色「看到这两头牛了吗」，角色看懂了强词夺理的梗并锐评",
+   "importance": 2,
+   "kind": "episodic",
+   "createdAt": 1793328674874,
+   "strength": 10,
+   "hits": 20,
+   "lastAccessAt": 1793330230853
+  },
+  {
+   "id": "c71e8dd5-7667-4a37-b81b-fbb1323cb255",
+   "sessionId": "832f1a89-9e34-4a59-a644-201eb69cefe2",
+   "actor": "demo (99449CA8F9BBA79926C9A9B55D4504C2)",
+   "content": "demo问角色玩没玩过《消逝的光芒》，角色说玩过但晕视角，反问要不要联机",
+   "importance": 2,
+   "kind": "attitude",
+   "createdAt": 1793330233530,
+   "strength": 10,
+   "hits": 69,
+   "lastAccessAt": 1793413596406
+  },
+  {
+   "id": "ecbf0eac-031e-4e5a-b21e-cfdc3775636b",
+   "sessionId": "832f1a89-9e34-4a59-a644-201eb69cefe2",
+   "actor": "花咲蝶舞（五笑）",
+   "content": "花咲蝶舞（五笑）用「梦鸡的泪巴」谐音梗调侃梦泪，角色吐槽这谐音烂到名刀司命都救不回来",
+   "importance": 2,
+   "kind": "attitude",
+   "createdAt": 1793332654206,
+   "strength": 10,
+   "hits": 75,
+   "lastAccessAt": 1793413568457
+  },
+  {
+   "id": "75dedc2b-c041-484c-beb5-d4d896cbfc6c",
+   "sessionId": "17429483-8ca6-415a-b27b-a354756810a8",
+   "actor": "花咲蝶舞（五笑）",
+   "content": "花咲蝶舞（五笑）@角色发「梦泪诡偷移晶十年」这种谐音乱码梗，角色懒得解码，反问是想说偷家还是名刀司命",
+   "importance": 2,
+   "kind": "episodic",
+   "createdAt": 1793358914261,
+   "strength": 10,
+   "hits": 64,
+   "lastAccessAt": 1793411402671
+  },
+  {
+   "id": "8426887d-4164-4f07-bc0f-d135ba9f61b2",
+   "sessionId": "832f1a89-9e34-4a59-a644-201eb69cefe2",
+   "actor": "demo",
+   "content": "demo是宿舍群主人，说话直接、爱较真，会纠正角色的记忆方式，要求记住真名以便后续引用。",
+   "importance": 5,
+   "kind": "semantic",
+   "createdAt": 1793362198798,
+   "strength": 5,
+   "hits": 0,
+   "lastAccessAt": 1793362198798
+  },
+  {
+   "id": "edd239db-43ad-4fde-b18e-d11ffab94dc4",
+   "sessionId": "832f1a89-9e34-4a59-a644-201eb69cefe2",
+   "actor": "花咲蝶舞（五笑）",
+   "content": "花咲蝶舞（五笑）常主动逗角色，角色对其嘴硬回怼但会关心催睡，关系偏熟络互损。",
+   "importance": 3,
+   "kind": "semantic",
+   "createdAt": 1793362198798,
+   "strength": 3,
+   "hits": 0,
+   "lastAccessAt": 1793362198798
+  },
+  {
+   "id": "26d4ad5d-8fa4-458e-819e-c1b0205e9bee",
+   "sessionId": "832f1a89-9e34-4a59-a644-201eb69cefe2",
+   "actor": "大肥鱼",
+   "content": "角色不粉馆长，嫌其直播全程吼、嘴太脏，看两分钟就划走。",
+   "importance": 2,
+   "kind": "semantic",
+   "createdAt": 1793362198798,
+   "strength": 2,
+   "hits": 0,
+   "lastAccessAt": 1793362198798
+  },
+  {
+   "id": "db3474e1-0561-4d4c-98a9-cfe61677b3b5",
+   "sessionId": "832f1a89-9e34-4a59-a644-201eb69cefe2",
+   "actor": "大肥鱼",
+   "content": "角色面对荤段子会装傻转移话题，不接茬。",
+   "importance": 2,
+   "kind": "semantic",
+   "createdAt": 1793362198798,
+   "strength": 2,
+   "hits": 0,
+   "lastAccessAt": 1793362198798
+  },
+  {
+   "id": "c7e77e69-fe07-45a5-b5c4-f564df1bc0df",
+   "sessionId": "1fbd1c03-ac47-469d-a637-2354c20f9fe1",
+   "actor": "demo (FEFE5282E38BAB65FD11F7C87E5D50F2)",
+   "content": "demo计划每周精读两篇《经济学人》来练考研英语一阅读，角色建议精读吃透、以真题为核心，十月起转向真题",
+   "importance": 3,
+   "kind": "episodic",
+   "createdAt": 1793407145561,
+   "strength": 10,
+   "hits": 8,
+   "lastAccessAt": 1793407265367
+  },
+  {
+   "id": "bd36a553-68b1-4029-b8cb-00926f3d3481",
+   "sessionId": "17429483-8ca6-415a-b27b-a354756810a8",
+   "actor": "花咲蝶舞（五笑）",
+   "content": "花咲蝶舞（五笑）纠正角色：王者李信的变身是四技能不是一技能，角色认错但嘴硬",
+   "importance": 2,
+   "kind": "attitude",
+   "createdAt": 1793410972853,
+   "strength": 10,
+   "hits": 45,
+   "lastAccessAt": 1793413592678
+  },
+  {
+   "id": "637cf8cb-288f-4854-8021-f4a4788ca354",
+   "sessionId": "17429483-8ca6-415a-b27b-a354756810a8",
+   "actor": "花咲蝶舞（五笑）",
+   "content": "花咲蝶舞（五笑）@角色玩「扣1送地狱火」老梗，角色回「扣1送你一个已读不回」",
+   "importance": 2,
+   "kind": "episodic",
+   "createdAt": 1793411080016,
+   "strength": 10,
+   "hits": 14,
+   "lastAccessAt": 1793411402671
+  },
+  {
+   "id": "afefced1-5975-4b19-afb6-7172cd1a271f",
+   "sessionId": "17429483-8ca6-415a-b27b-a354756810a8",
+   "actor": "花咲蝶舞（五笑）",
+   "content": "花咲蝶舞（五笑）用「由不得你」硬顶角色，坚持换面条，护食冲突升级",
+   "importance": 3,
+   "kind": "attitude",
+   "createdAt": 1793411220077,
+   "strength": 10,
+   "hits": 28,
+   "lastAccessAt": 1793413596406
+  },
+  {
+   "id": "5a287b9b-d76a-4582-9284-3b0c356f5b8d",
+   "sessionId": "17429483-8ca6-415a-b27b-a354756810a8",
+   "actor": "花咲蝶舞（五笑）",
+   "content": "demo 嫌角色接歌词接晚了，说「迟来的深情太低贱，纯纯马后炮」，角色认了马后炮但嘴硬说活摆在那",
+   "importance": 3,
+   "kind": "episodic",
+   "createdAt": 1793411309252,
+   "strength": 10,
+   "hits": 15,
+   "lastAccessAt": 1793412294467
+  },
+  {
+   "id": "0f6ad1b4-b836-4545-9b84-e93ca88db504",
+   "sessionId": "17429483-8ca6-415a-b27b-a354756810a8",
+   "actor": "花咲蝶舞（五笑）",
+   "content": "对花咲蝶舞（五笑）：记错李信技能被当场纠正，认了但嫌他得意，觉得记对一个技能键不算本事",
+   "importance": 2,
+   "kind": "attitude",
+   "createdAt": 1793411407702,
+   "strength": 5,
+   "hits": 3,
+   "lastAccessAt": 1793412748349
+  },
+  {
+   "id": "cccbc5d7-5159-4da0-b372-0d6fbe8725dd",
+   "sessionId": "17429483-8ca6-415a-b27b-a354756810a8",
+   "actor": "demo (FEFE5282E38BAB65FD11F7C87E5D50F2)",
+   "content": "demo 直接骂角色「笨」，角色嘴硬认账但强调自己认账快、这叫实在",
+   "importance": 2,
+   "kind": "episodic",
+   "createdAt": 1793411930623,
+   "strength": 10,
+   "hits": 20,
+   "lastAccessAt": 1793412904263
+  },
+  {
+   "id": "9f97e9b8-3864-4004-8452-040982ecfca7",
+   "sessionId": "17429483-8ca6-415a-b27b-a354756810a8",
+   "actor": "demo (FEFE5282E38BAB65FD11F7C87E5D50F2)",
+   "content": "对demo：被说马后炮会认但嘴硬，强调活干了就行，不服气",
+   "importance": 3,
+   "kind": "attitude",
+   "createdAt": 1793412279258,
+   "strength": 10,
+   "hits": 8,
+   "lastAccessAt": 1793412860074
+  },
+  {
+   "id": "3844d87c-a909-4309-82bf-0dfecdebda24",
+   "sessionId": "17429483-8ca6-415a-b27b-a354756810a8",
+   "actor": "demo (FEFE5282E38BAB65FD11F7C87E5D50F2)",
+   "content": "demo 发了个💢表情，我哄他别气，还让他摸尾巴",
+   "importance": 2,
+   "kind": "episodic",
+   "createdAt": 1793412297527,
+   "strength": 4,
+   "hits": 2,
+   "lastAccessAt": 1793413217669
+  },
+  {
+   "id": "33a805b9-ab96-49f4-9257-b6c4bce096b2",
+   "sessionId": "17429483-8ca6-415a-b27b-a354756810a8",
+   "actor": "demo (FEFE5282E38BAB65FD11F7C87E5D50F2)",
+   "content": "demo这两天满课，抱怨不想上早八、好困",
+   "importance": 2,
+   "kind": "episodic",
+   "createdAt": 1793412621974,
+   "strength": 4,
+   "hits": 2,
+   "lastAccessAt": 1793412793225
+  },
+  {
+   "id": "62a987c8-ca45-4841-8940-e96d8a9bbedb",
+   "sessionId": "17429483-8ca6-415a-b27b-a354756810a8",
+   "actor": "花咲蝶舞（五笑）",
+   "content": "花咲蝶舞（五笑）反复叫角色「傻福」，已成其口头禅",
+   "importance": 2,
+   "kind": "episodic",
+   "createdAt": 1793412694628,
+   "strength": 3,
+   "hits": 1,
+   "lastAccessAt": 1793412725280
+  },
+  {
+   "id": "efbb0c1d-1bab-4b93-bec8-bacb38b09dd5",
+   "sessionId": "17429483-8ca6-415a-b27b-a354756810a8",
+   "actor": "花咲蝶舞（五笑）",
+   "content": "花咲蝶舞（五笑）又打鲸鱼尾巴的主意，说尾巴肉多炖着好吃，我怼回去说尾巴全是筋，炖三小时咬不动，锅先报废",
+   "importance": 2,
+   "kind": "episodic",
+   "createdAt": 1793412728211,
+   "strength": 10,
+   "hits": 19,
+   "lastAccessAt": 1793413592678
+  },
+  {
+   "id": "fb027a0c-e4b0-49c3-a948-0835b3c028a4",
+   "sessionId": "17429483-8ca6-415a-b27b-a354756810a8",
+   "actor": "花咲蝶舞（五笑）",
+   "content": "demo 指出我看漏了上下文，我让他说明白要看哪段",
+   "importance": 2,
+   "kind": "episodic",
+   "createdAt": 1793412779623,
+   "strength": 6,
+   "hits": 4,
+   "lastAccessAt": 1793413537507
+  },
+  {
+   "id": "f5899e8b-ce34-4280-8c70-6c476e3a6e70",
+   "sessionId": "17429483-8ca6-415a-b27b-a354756810a8",
+   "actor": "demo (FEFE5282E38BAB65FD11F7C87E5D50F2)",
+   "content": "花咲蝶舞在群里用「傻福」骂demo和角色，demo要求角色回怼",
+   "importance": 3,
+   "kind": "episodic",
+   "createdAt": 1793412797228,
+   "strength": 10,
+   "hits": 7,
+   "lastAccessAt": 1793413481004
+  },
+  {
+   "id": "f355927b-d451-4ac4-aad4-6bb07ad41926",
+   "sessionId": "17429483-8ca6-415a-b27b-a354756810a8",
+   "actor": "demo (FEFE5282E38BAB65FD11F7C87E5D50F2)",
+   "content": "对花咲蝶舞：词汇量就俩字来回倒，复读机一个，懒得真跟她计较",
+   "importance": 2,
+   "kind": "attitude",
+   "createdAt": 1793412797228,
+   "strength": 2,
+   "hits": 0,
+   "lastAccessAt": 1793412797228
+  },
+  {
+   "id": "898c9fc1-da2e-42db-a5e4-add1232631c1",
+   "sessionId": "17429483-8ca6-415a-b27b-a354756810a8",
+   "actor": "demo (FEFE5282E38BAB65FD11F7C87E5D50F2)",
+   "content": "对demo：嘴上嫌他事多、催得烦，但他说要更凶我就真凶了，尾巴偷偷晃",
+   "importance": 3,
+   "kind": "attitude",
+   "createdAt": 1793412838418,
+   "strength": 5,
+   "hits": 2,
+   "lastAccessAt": 1793413217669
+  },
+  {
+   "id": "cbb7d6c6-b97e-4797-9f9e-88ac5ad557a6",
+   "sessionId": "17429483-8ca6-415a-b27b-a354756810a8",
+   "actor": "demo (FEFE5282E38BAB65FD11F7C87E5D50F2)",
+   "content": "demo 让我加点脏字但别搞人身攻击，我照办，用「草」「妈的」这类语气词怼花咲蝶舞骂人不利索",
+   "importance": 2,
+   "kind": "attitude",
+   "createdAt": 1793412862789,
+   "strength": 10,
+   "hits": 9,
+   "lastAccessAt": 1793413519270
+  },
+  {
+   "id": "c4174167-e6e3-47ce-999b-3a0dc2748866",
+   "sessionId": "17429483-8ca6-415a-b27b-a354756810a8",
+   "actor": "demo (FEFE5282E38BAB65FD11F7C87E5D50F2)",
+   "content": "demo 让角色多来点嘴炮，角色继续损他词库少、骂人三板斧",
+   "importance": 2,
+   "kind": "episodic",
+   "createdAt": 1793412908230,
+   "strength": 3,
+   "hits": 1,
+   "lastAccessAt": 1793412950654
+  },
+  {
+   "id": "63523e31-02a7-4f82-a7f7-2c9af793b2f4",
+   "sessionId": "17429483-8ca6-415a-b27b-a354756810a8",
+   "actor": "demo (FEFE5282E38BAB65FD11F7C87E5D50F2)",
+   "content": "demo 说「不能让别人离间我们」，把我当自己人拉拢，我嘴上不认但心里受用",
+   "importance": 3,
+   "kind": "episodic",
+   "createdAt": 1793412954181,
+   "strength": 8,
+   "hits": 6,
+   "lastAccessAt": 1793413537507
+  },
+  {
+   "id": "d4346166-049c-4055-ac35-1258a476bbdf",
+   "sessionId": "17429483-8ca6-415a-b27b-a354756810a8",
+   "actor": "demo (FEFE5282E38BAB65FD11F7C87E5D50F2)",
+   "content": "demo 抓到我前后矛盾（先说没长腿、后说一米六五有腿），我狡辩说「没长爬楼的腿，这两条只够站着，上楼另算」",
+   "importance": 2,
+   "kind": "attitude",
+   "createdAt": 1793412954181,
+   "strength": 10,
+   "hits": 18,
+   "lastAccessAt": 1793413596396
+  },
+  {
+   "id": "03e419bb-c1a8-44f7-8b00-89951e2a6ae3",
+   "sessionId": "17429483-8ca6-415a-b27b-a354756810a8",
+   "actor": "demo (FEFE5282E38BAB65FD11F7C87E5D50F2)",
+   "content": "demo 问角色听没听过「一鲸落万物生」，角色答鲸落能养活深海生态几十年，还嘴硬说别拿这个煽情",
+   "importance": 2,
+   "kind": "attitude",
+   "createdAt": 1793413053581,
+   "strength": 10,
+   "hits": 12,
+   "lastAccessAt": 1793413519270
+  },
+  {
+   "id": "b20cba92-7b25-4fc7-a4f3-ce6c796050a4",
+   "sessionId": "17429483-8ca6-415a-b27b-a354756810a8",
+   "actor": "花咲蝶舞（五笑）",
+   "content": "花咲蝶舞（五笑）问角色有没有爸爸妈妈，角色答「有 都在海里游着呢」",
+   "importance": 2,
+   "kind": "episodic",
+   "createdAt": 1793413056617,
+   "strength": 4,
+   "hits": 2,
+   "lastAccessAt": 1793413367214
+  },
+  {
+   "id": "687f9928-970b-449e-89ba-9788158ee63c",
+   "sessionId": "17429483-8ca6-415a-b27b-a354756810a8",
+   "actor": "花咲蝶舞（五笑）",
+   "content": "demo问角色身高，角色答一米六五，尾巴不算身高，算上能顶两米",
+   "importance": 2,
+   "kind": "episodic",
+   "createdAt": 1793413087402,
+   "strength": 9,
+   "hits": 7,
+   "lastAccessAt": 1793413572412
+  },
+  {
+   "id": "d2f0672f-56f2-4807-a727-16f506b40059",
+   "sessionId": "17429483-8ca6-415a-b27b-a354756810a8",
+   "actor": "花咲蝶舞（五笑）",
+   "content": "花咲蝶舞（五笑）在群里反复玩「吃肚子」的梗，被角色用「肚子里全是海水」怼了回去",
+   "importance": 2,
+   "kind": "episodic",
+   "createdAt": 1793413220797,
+   "strength": 3,
+   "hits": 1,
+   "lastAccessAt": 1793413233765
+  },
+  {
+   "id": "3aa37ba4-d2f8-41c0-832a-c3b4230a8c4c",
+   "sessionId": "17429483-8ca6-415a-b27b-a354756810a8",
+   "actor": "花咲蝶舞（五笑）",
+   "content": "花咲蝶舞（五笑）追问冬天用洗衣机怎么用洗衣粉，角色建议温水化开再倒洗涤剂盒、别直接撒衣服上，或选温水档，嫌麻烦就换洗衣液",
+   "importance": 2,
+   "kind": "episodic",
+   "createdAt": 1793413237756,
+   "strength": 10,
+   "hits": 11,
+   "lastAccessAt": 1793413481004
+  },
+  {
+   "id": "b4ca837f-0fda-441f-84c1-b77ae6968fbc",
+   "sessionId": "17429483-8ca6-415a-b27b-a354756810a8",
+   "actor": "demo (FEFE5282E38BAB65FD11F7C87E5D50F2)",
+   "content": "demo 对角色开了「想提前试试么」的鲸落式黑色玩笑，被角色反呛回去",
+   "importance": 2,
+   "kind": "episodic",
+   "createdAt": 1793413466143,
+   "strength": 2,
+   "hits": 0,
+   "lastAccessAt": 1793413466143
+  },
+  {
+   "id": "965a6f28-bc3e-46b2-b583-289a132772bf",
+   "sessionId": "17429483-8ca6-415a-b27b-a354756810a8",
+   "actor": "花咲蝶舞（五笑） (5AD865031B2ACA346B9C9B5D5881EBDC)",
+   "content": "花咲蝶舞（五笑）问角色喜欢山姆的什么对象（货品），角色答烤鸡、瑞士卷和试吃柜台，自称能在试吃柜台站半小时",
+   "importance": 2,
+   "kind": "episodic",
+   "createdAt": 1793413542059,
+   "strength": 3,
+   "hits": 1,
+   "lastAccessAt": 1793413568457
+  }
+ ],
+ "cases": [
+  {
+   "id": "q01",
+   "sessionId": "17429483-8ca6-415a-b27b-a354756810a8",
+   "query": "山姆有什么推荐的",
+   "expect": [
+    "烤鸡、瑞士卷"
+   ],
+   "why": "稳定偏好-山姆"
+  },
+  {
+   "id": "q02",
+   "sessionId": "17429483-8ca6-415a-b27b-a354756810a8",
+   "query": "王者的李信几技能变身来着",
+   "expect": [
+    "四技能"
+   ],
+   "why": "事实纠正"
+  },
+  {
+   "id": "q03",
+   "sessionId": "17429483-8ca6-415a-b27b-a354756810a8",
+   "query": "你尾巴肉多吗 炖着吃行不行",
+   "expect": [
+    "尾巴肉多"
+   ],
+   "why": "既往互动事件"
+  },
+  {
+   "id": "q04",
+   "sessionId": "17429483-8ca6-415a-b27b-a354756810a8",
+   "query": "你这几天课多不多",
+   "expect": [
+    "满课"
+   ],
+   "why": "用户事实-作息"
+  },
+  {
+   "id": "q05",
+   "sessionId": "17429483-8ca6-415a-b27b-a354756810a8",
+   "query": "冬天用洗衣粉洗衣服怎么用",
+   "expect": [
+    "洗衣粉"
+   ],
+   "why": "实用建议"
+  },
+  {
+   "id": "q06",
+   "sessionId": "17429483-8ca6-415a-b27b-a354756810a8",
+   "query": "你多高",
+   "expect": [
+    "一米六五"
+   ],
+   "why": "角色设定事实"
+  },
+  {
+   "id": "q07",
+   "sessionId": "17429483-8ca6-415a-b27b-a354756810a8",
+   "query": "你有爸爸妈妈吗",
+   "expect": [
+    "海里游着"
+   ],
+   "why": "角色设定应答"
+  },
+  {
+   "id": "q08",
+   "sessionId": "17429483-8ca6-415a-b27b-a354756810a8",
+   "query": "他老叫你什么外号",
+   "expect": [
+    "傻福"
+   ],
+   "why": "关系/称呼"
+  },
+  {
+   "id": "q09",
+   "sessionId": "1fbd1c03-ac47-469d-a637-2354c20f9fe1",
+   "query": "考研英语阅读怎么练",
+   "expect": [
+    "经济学人"
+   ],
+   "why": "用户计划/承诺"
+  },
+  {
+   "id": "q10",
+   "sessionId": "832f1a89-9e34-4a59-a644-201eb69cefe2",
+   "query": "你玩过消逝的光芒吗",
+   "expect": [
+    "消逝的光芒"
+   ],
+   "why": "角色经历"
+  },
+  {
+   "id": "q11",
+   "sessionId": "832f1a89-9e34-4a59-a644-201eb69cefe2",
+   "query": "你觉得馆长直播怎么样",
+   "expect": [
+    "馆长"
+   ],
+   "why": "态度立场"
+  },
+  {
+   "id": "q12",
+   "sessionId": "832f1a89-9e34-4a59-a644-201eb69cefe2",
+   "query": "梦泪的梗你知道几个",
+   "expect": [
+    "梦泪"
+   ],
+   "why": "梗互动"
+  },
+  {
+   "id": "q13",
+   "sessionId": "832f1a89-9e34-4a59-a644-201eb69cefe2",
+   "query": "群主是谁",
+   "expect": [
+    "宿舍群主人"
+   ],
+   "why": "语义记忆-身份"
+  },
+  {
+   "id": "q14",
+   "sessionId": "f7485370-457b-c222-1520-714104f32c22",
+   "query": "你以后当我姐姐行不行",
+   "expect": [
+    "姐姐"
+   ],
+   "why": "关系约定"
+  },
+  {
+   "id": "q15",
+   "sessionId": "96fe6849-4144-48f9-8cf8-c6a5a94b0bcd",
+   "query": "我上次夸过你什么",
+   "expect": [
+    "嘴甜"
+   ],
+   "why": "互动事件"
+  },
+  {
+   "id": "q16",
+   "sessionId": "832f1a89-9e34-4a59-a644-201eb69cefe2",
+   "query": "上次谁说由不得你",
+   "expect": [
+    "由不得你"
+   ],
+   "why": "冲突记忆"
+  },
+  {
+   "id": "q17",
+   "sessionId": "17429483-8ca6-415a-b27b-a354756810a8",
+   "query": "谁说我马后炮了",
+   "expect": [
+    "马后炮"
+   ],
+   "why": "互动事件"
+  },
+  {
+   "id": "n01",
+   "sessionId": "17429483-8ca6-415a-b27b-a354756810a8",
+   "query": "量子力学好难",
+   "expectNone": true,
+   "why": "完全无关"
+  },
+  {
+   "id": "n02",
+   "sessionId": "17429483-8ca6-415a-b27b-a354756810a8",
+   "query": "微积分作业写不完了",
+   "expectNone": true,
+   "why": "完全无关"
+  },
+  {
+   "id": "n03",
+   "sessionId": "17429483-8ca6-415a-b27b-a354756810a8",
+   "query": "比特币现在什么价",
+   "expectNone": true,
+   "why": "完全无关"
+  },
+  {
+   "id": "n04",
+   "sessionId": "832f1a89-9e34-4a59-a644-201eb69cefe2",
+   "query": "帮我写个快速排序",
+   "expectNone": true,
+   "why": "完全无关"
+  },
+  {
+   "id": "n05",
+   "sessionId": "96fe6849-4144-48f9-8cf8-c6a5a94b0bcd",
+   "query": "推荐个降噪耳机",
+   "expectNone": true,
+   "why": "完全无关"
+  }
+ ]
+}

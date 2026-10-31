@@ -1,8 +1,8 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import type { EmotionState, MemoryNote, NoteDraft, ProfileEntry } from './types.ts';
-import { isSessionKey, isUserKey, normalizeProfileKey, sessionProfileKey } from './identity.ts';
+import type { EmotionState, MemoryNote, NoteDraft, ProfileEntry, SessionDigest } from './types.ts';
+import { isSessionKey, isUserKey, normalizeProfileKey, sessionProfileKey, splitActor, userProfileKey } from './identity.ts';
 
 /**
  * JSONL 追加式存储 + 定期快照压缩。
@@ -13,9 +13,11 @@ type Op =
   | { op: 'add'; note: MemoryNote }
   | { op: 'reinforce'; id: string; strength: number; hits: number; lastAccessAt: number }
   | { op: 'update'; id: string; patch: Partial<Pick<MemoryNote, 'content' | 'importance' | 'kind'>> }
+  | { op: 'embed'; id: string; vector: number[] }
   | { op: 'del'; id: string }
   | { op: 'emotion'; sessionId: string; state: EmotionState }
   | { op: 'profile'; sessionId: string; text: string; key?: string; name?: string; at?: number }
+  | { op: 'digest'; sessionId: string; text: string; uptoTurn?: number }
   | { op: 'persona'; text: string }
   | { op: 'reset' };
 
@@ -28,6 +30,8 @@ export interface BrainExport {
   emotions: Record<string, EmotionState>;
   /** 键为画像主键（u:/sess:）；值为完整条目，导入时兼容旧版字符串值 */
   profiles: Record<string, ProfileEntry | string>;
+  /** 会话滚动摘要（v1 备份可缺省） */
+  digests?: Record<string, SessionDigest>;
 }
 
 export interface ImportResult {
@@ -58,6 +62,7 @@ function sanitizeNote(raw: unknown, now: number): MemoryNote | undefined {
     strength: Math.max(0.5, num(n.strength, 3)),
     hits: Math.max(0, Math.round(num(n.hits, 0))),
     lastAccessAt: num(n.lastAccessAt, now),
+    embedding: Array.isArray(n.embedding) && n.embedding.length ? n.embedding : undefined,
   };
 }
 
@@ -79,6 +84,8 @@ export interface OpRecord { t: number; op: Op }
 export class BrainStore {
   private notes = new Map<string, MemoryNote>();
   private emotions = new Map<string, EmotionState>();
+  /** 会话滚动摘要 */
+  private digests = new Map<string, SessionDigest>();
   /** 画像按人存储：键 u:<openid>（发言人）或 sess:<sessionId>（兜底） */
   private profiles = new Map<string, ProfileEntry>();
   private personaText = '';
@@ -108,9 +115,11 @@ export class BrainStore {
         const snap = JSON.parse(readFileSync(this.snapshotFile, 'utf8')) as {
           notes: MemoryNote[]; emotions: Record<string, EmotionState>;
           profiles: Record<string, ProfileEntry | string>; persona: string;
+          digests?: Record<string, SessionDigest>;
         };
         for (const n of snap.notes ?? []) this.notes.set(n.id, n);
         for (const [k, v] of Object.entries(snap.emotions ?? {})) this.emotions.set(k, v);
+        for (const [k, v] of Object.entries(snap.digests ?? {})) this.digests.set(k, v);
         // 旧快照：键为裸 sessionId、值为字符串 → 迁移为 sess: 键 + 完整条目
         for (const [k, v] of Object.entries(snap.profiles ?? {})) {
           const key = normalizeProfileKey(k);
@@ -154,8 +163,20 @@ export class BrainStore {
         }
         break;
       }
+      case 'embed': {
+        const n = this.notes.get(op.id);
+        if (n) n.embedding = op.vector;
+        break;
+      }
       case 'del': this.notes.delete(op.id); break;
       case 'emotion': this.emotions.set(op.sessionId, op.state); break;
+      case 'digest':
+        this.digests.set(op.sessionId, {
+          text: op.text,
+          uptoTurn: op.uptoTurn ?? this.digests.get(op.sessionId)?.uptoTurn ?? 0,
+          updatedAt: Date.now(),
+        });
+        break;
       case 'profile': {
         // 旧 op 无 key → 按 sessionId 兜底为 sess: 键
         const key = op.key ? normalizeProfileKey(op.key) : sessionProfileKey(op.sessionId);
@@ -173,6 +194,7 @@ export class BrainStore {
         this.notes.clear();
         this.emotions.clear();
         this.profiles.clear();
+        this.digests.clear();
         this.personaText = '';
         break;
     }
@@ -203,6 +225,7 @@ export class BrainStore {
       notes: [...this.notes.values()],
       emotions: Object.fromEntries(this.emotions),
       profiles: Object.fromEntries(this.profiles),
+      digests: Object.fromEntries(this.digests),
       persona: this.personaText,
     };
     const tmp = this.snapshotFile + '.tmp';
@@ -245,6 +268,23 @@ export class BrainStore {
     return [...this.notes.values()];
   }
 
+  /** 写入/回填语义向量（不更新衰减字段） */
+  setEmbedding(id: string, vector: number[]): void {
+    if (!vector.length) return;
+    this.persist({ op: 'embed', id, vector });
+  }
+
+  // ── 会话滚动摘要 ──
+
+  setDigest(sessionId: string, text: string, uptoTurn: number): void {
+    if (!text.trim()) return;
+    this.persist({ op: 'digest', sessionId, text: text.trim(), uptoTurn });
+  }
+
+  digestOf(sessionId: string): SessionDigest | undefined {
+    return this.digests.get(sessionId);
+  }
+
   noteById(id: string): MemoryNote | undefined {
     return this.notes.get(id);
   }
@@ -282,6 +322,24 @@ export class BrainStore {
       profile: this.profiles.get(sessionProfileKey(sessionId))?.text ?? '',
       emotion: this.emotions.get(sessionId),
     }));
+  }
+
+  /**
+   * 已知发言人注册表：openid → 昵称。
+   * 来源：全部记忆的 actor（真实 tag）+ 已确认的 u: 画像键。
+   * 用途：校验蒸馏产出的画像身份——LLM 可能抄错/幻觉 openid，只认真实出现过的。
+   */
+  speakers(): Map<string, string> {
+    const reg = new Map<string, string>();
+    for (const n of this.notes.values()) {
+      if (!n.actor) continue;
+      const id = splitActor(n.actor);
+      if (id.openid) reg.set(id.openid, id.nick);
+    }
+    for (const [key, e] of this.profiles) {
+      if (isUserKey(key)) reg.set(key.slice(2), e.name || reg.get(key.slice(2)) || '');
+    }
+    return reg;
   }
 
   /** 画像卡片（脑图页）：按人（u:）在前、会话级（sess:）在后，按更新时间倒序 */
@@ -344,6 +402,27 @@ export class BrainStore {
     return this.profiles.get(id)?.text ?? this.profiles.get(sessionProfileKey(id))?.text ?? '';
   }
 
+  /**
+   * 读侧画像归并：QQ openid 按上下文不同，同一人可能散在多个 u: 键。
+   * 命中 openid 精确匹配或 name 完全相同的所有 u: 条目，按更新时间倒序
+   * 去重拼接（封顶 400 字）；无命中返回空串。
+   */
+  mergedUserProfile(opts: { openid?: string; nick?: string }): string {
+    const picks: ProfileEntry[] = [];
+    const seen = new Set<string>();
+    for (const [key, e] of this.profiles) {
+      if (!isUserKey(key)) continue;
+      const hit = (opts.openid && key === userProfileKey(opts.openid))
+        || (opts.nick && e.name && e.name === opts.nick);
+      if (hit && !seen.has(e.text)) {
+        seen.add(e.text);
+        picks.push(e);
+      }
+    }
+    picks.sort((a, b) => b.updatedAt - a.updatedAt);
+    return picks.map((e) => e.text.trim()).filter(Boolean).join(' ').slice(0, 400);
+  }
+
   setPersona(text: string): void {
     this.persist({ op: 'persona', text });
   }
@@ -362,6 +441,7 @@ export class BrainStore {
       notes: [...this.notes.values()],
       emotions: Object.fromEntries(this.emotions),
       profiles: Object.fromEntries(this.profiles),
+      digests: Object.fromEntries(this.digests),
     };
   }
 
@@ -406,6 +486,14 @@ export class BrainStore {
         if (!e) continue;
         this.persist({ op: 'emotion', sessionId: sid, state: e });
         res.emotions++;
+      }
+    }
+    if (data.digests && typeof data.digests === 'object') {
+      for (const [sid, d] of Object.entries(data.digests)) {
+        const text = (d as Partial<SessionDigest>)?.text;
+        if (typeof text === 'string' && text.trim()) {
+          this.persist({ op: 'digest', sessionId: sid, text, uptoTurn: (d as SessionDigest).uptoTurn });
+        }
       }
     }
     if (typeof data.persona === 'string' && data.persona.trim()) {

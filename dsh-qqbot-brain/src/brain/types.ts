@@ -32,6 +32,8 @@ export interface MemoryNote {
   hits: number;
   /** 最近一次被唤起 ms epoch（衰减从该时刻起算） */
   lastAccessAt: number;
+  /** 语义向量（embedding API 产出；无 key 时缺省，检索回退 lexical） */
+  embedding?: number[];
 }
 
 /** PAD 情绪状态：v 效价[-1,1] a 唤醒[0,1] d 支配[-1,1] */
@@ -95,12 +97,23 @@ export interface Turn {
   at: number;
 }
 
+/** 会话滚动摘要（digest）：transcript 与 note 之间的中间层 */
+export interface SessionDigest {
+  /** 摘要文本（滚动合并，非增量） */
+  text: string;
+  /** 覆盖到的最近一轮序号（Brain 内自增计数） */
+  uptoTurn: number;
+  updatedAt: number;
+}
+
 /** 注入 prompt 的组装产物 */
 export interface BrainContext {
   /** 人格内核 section 文本（可为空串表示未启用） */
   persona: string;
   /** 情绪态一行（可为空串） */
   emotion: string;
+  /** 会话脉络摘要（可为空串） */
+  digest: string;
   /** 记忆摘录行（已带时间标注），可为空数组 */
   memoryLines: string[];
   /** 态度立场行（kind=attitude 命中条目），可为空数组 */
@@ -112,7 +125,11 @@ export interface BrainContext {
 export interface BrainConfig {
   /** 检索 top-k */
   topK: number;
-  /** score = alpha*cos + beta*R + gamma*imp_norm */
+  /**
+   * score = alpha·rel·(1 + beta·R) + gamma·imp/5
+   * rel 为相关性（embedding 余弦或 lexical 余弦），是硬门槛项；
+   * R 只对相关命中做 boost，不再独立撑起排名。
+   */
   alpha: number;
   beta: number;
   gamma: number;
@@ -128,6 +145,14 @@ export interface BrainConfig {
   candidatePool: number;
   /** 检索相关性门槛：余弦低于该值的记忆不返回（0=不过滤） */
   minCosine: number;
+  /** 只有 rel >= 该阈值的命中才做唤起强化（保底/弱相关不刷 hits） */
+  reinforceMinCos: number;
+  /** embedding 相关性门槛（启用 embedding 时替代 minCosine） */
+  embedMinCos: number;
+  /** 会话滚动摘要：每累计该轮数触发一次（0=关闭） */
+  digestEveryTurns: number;
+  /** 滚动摘要输入的最近轮数上限 */
+  digestWindowTurns: number;
   /** 语义巩固：只汇总 age >= 该天数 的情景记忆 */
   consolidateMinAgeDays: number;
   /** 语义巩固：会话内情景记忆达到该数量才触发 */
@@ -138,8 +163,8 @@ export interface BrainConfig {
 
 export const DEFAULT_BRAIN_CONFIG: BrainConfig = {
   topK: 6,
-  alpha: 0.6,
-  beta: 0.4,
+  alpha: 1.0,
+  beta: 0.5,
   gamma: 0.2,
   reinforceStep: 1,
   strengthCap: 10,
@@ -147,6 +172,10 @@ export const DEFAULT_BRAIN_CONFIG: BrainConfig = {
   emotionDecayPerDay: 0.35,
   candidatePool: 200,
   minCosine: 0.04,
+  reinforceMinCos: 0.15,
+  embedMinCos: 0.25,
+  digestEveryTurns: 15,
+  digestWindowTurns: 40,
   consolidateMinAgeDays: 1,
   consolidateMinNotes: 4,
   evictAfterDays: 30,

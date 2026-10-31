@@ -67,10 +67,13 @@ npx @deepseek-ai/dsh --profile qqbot
 | `BRAIN_LLM_API_KEY` / `DEEPSEEK_API_KEY` | 蒸馏所用密钥；前者优先 |
 | `BRAIN_LLM_BASE_URL` | 兼容接口的基础地址，默认 `https://api.deepseek.com` |
 | `BRAIN_LLM_MODEL` | 蒸馏模型，默认 `deepseek-chat` |
+| `BRAIN_EMBED_API_KEY` | 语义向量密钥（OpenAI 兼容 `/embeddings`，如 SiliconFlow）；缺省自动回退字符 n-gram 检索 |
+| `BRAIN_EMBED_BASE_URL` | 向量接口地址，默认 `https://api.siliconflow.cn` |
+| `BRAIN_EMBED_MODEL` | 向量模型，默认 `BAAI/bge-m3` |
 | `BRAIN_DATA_DIR` | 记忆数据目录，默认 `~/brain-data` |
 | `BRAIN_PERSONA` | 没有 `persona.md`、已保存人格或官方 profile 中 `groupPrompt` / `directPrompt` 时，用于初始化人格的文本 |
 
-其余可配置项（如 `injectPersona`、`injectEmotion`、`injectMemory`、`injectSpeaker`、`llm`、`retrieval`、`consolidation`、`http` 和 `debug`）见 [`src/config.ts`](./dsh-qqbot-brain/src/config.ts)。环境变量中的 LLM 配置和数据目录优先于 patch 中的对应配置。
+其余可配置项（如 `injectPersona`、`injectEmotion`、`injectDigest`、`injectMemory`、`injectSpeaker`、`injectAttitude`、`llm`、`embed`、`retrieval`、`consolidation`、`digest`、`http` 和 `debug`）见 [`src/config.ts`](./dsh-qqbot-brain/src/config.ts)。环境变量中的 LLM 配置和数据目录优先于 patch 中的对应配置。
 
 ## 开发与排障
 

@@ -26,6 +26,28 @@ export interface RetrievalConfig {
   gamma: number;
   /** 相关性门槛：余弦低于该值的记忆不返回（0=不过滤） */
   minCosine: number;
+  /** 只有 rel >= 该阈值的命中才做唤起强化 */
+  reinforceMinCos: number;
+  /** embedding 相关性门槛 */
+  embedMinCos: number;
+}
+
+/** 语义向量（OpenAI 兼容 /embeddings；无 apiKey 自动关闭回退 lexical） */
+export interface EmbedConfig {
+  enabled: boolean;
+  baseUrl: string;
+  apiKey: string;
+  model: string;
+  timeoutMs: number;
+}
+
+/** 会话滚动摘要（会话脉络） */
+export interface DigestConfig {
+  enabled: boolean;
+  /** 每累计该轮数触发一次摘要更新 */
+  everyTurns: number;
+  /** 摘要输入的最近轮数上限 */
+  windowTurns: number;
 }
 
 export interface HttpConfig {
@@ -58,9 +80,10 @@ export interface BrainPluginConfig {
   personaCore: string;
   /** 记忆数据目录 */
   dataDir: string;
-  /** 情绪/记忆/画像/发言人注入开关 */
+  /** 情绪/记忆/画像/发言人/脉络注入开关 */
   injectPersona: boolean;
   injectEmotion: boolean;
+  injectDigest: boolean;
   injectMemory: boolean;
   /** 注入「当前立场」section（kind=attitude 态度记忆命中） */
   injectAttitude: boolean;
@@ -68,9 +91,13 @@ export interface BrainPluginConfig {
   injectSpeaker: boolean;
   /** 蒸馏用的 LLM 配置 */
   llm: LlmConfig;
+  /** 语义向量配置 */
+  embed: EmbedConfig;
   retrieval: RetrievalConfig;
   /** 语义巩固（episodic→semantic 周期性提炼） */
   consolidation: ConsolidationConfig;
+  /** 会话滚动摘要 */
+  digest: DigestConfig;
   http: HttpConfig;
   /** 每多少条写入做一次快照压缩 */
   compactEvery: number;
@@ -89,6 +116,7 @@ export const DEFAULT_CONFIG: BrainPluginConfig = {
   dataDir: join(homedir(), 'brain-data'),
   injectPersona: true,
   injectEmotion: true,
+  injectDigest: true,
   injectMemory: true,
   injectAttitude: true,
   injectSpeaker: true,
@@ -100,9 +128,18 @@ export const DEFAULT_CONFIG: BrainPluginConfig = {
     timeoutMs: 30_000,
     maxNotes: 5,
   },
-  retrieval: { topK: 6, alpha: 0.6, beta: 0.4, gamma: 0.2, minCosine: 0.04 },
+  embed: {
+    enabled: true,
+    baseUrl: 'https://api.siliconflow.cn',
+    apiKey: '',
+    model: 'BAAI/bge-m3',
+    timeoutMs: 10_000,
+  },
+  retrieval: { topK: 6, alpha: 1.0, beta: 0.5, gamma: 0.2, minCosine: 0.04, reinforceMinCos: 0.15, embedMinCos: 0.25 },
   /** 语义巩固：周期性把老情景记忆提炼为语义记忆/重写画像 */
   consolidation: { enabled: true, tickMinutes: 60, cooldownHours: 24, minAgeDays: 1, minNotes: 4 },
+  /** 会话滚动摘要：每 15 轮更新一次，输入最近 40 轮 */
+  digest: { enabled: true, everyTurns: 15, windowTurns: 40 },
   http: { enabled: true, port: 4099, host: '127.0.0.1', prefix: '/brain', token: '' },
   compactEvery: 200,
   debug: false,

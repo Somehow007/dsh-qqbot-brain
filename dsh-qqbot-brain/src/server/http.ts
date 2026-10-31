@@ -49,7 +49,7 @@ export class BrainHttpServer {
     this.onPersonaSet = onPersonaSet;
   }
 
-  private route(req: IncomingMessage, res: ServerResponse): void {
+  private async route(req: IncomingMessage, res: ServerResponse): Promise<void> {
     const url = new URL(req.url ?? '/', 'http://x');
     const p = url.pathname;
     const prefix = this.cfg.prefix.replace(/\/$/, '');
@@ -160,7 +160,7 @@ export class BrainHttpServer {
       const sessionId = url.searchParams.get('session') ?? undefined;
       const q = url.searchParams.get('q') ?? '';
       const now = Date.now();
-      const hits = this.brain.preview(sessionId, q).map((n) => ({
+      const hits = (await this.brain.preview(sessionId, q)).map((n) => ({
         id: n.id, content: n.content, importance: n.importance,
         retention: +retention(n, now).toFixed(3), hits: n.hits,
       }));
@@ -199,6 +199,11 @@ export class BrainHttpServer {
 
     if (!this.cfg.enabled) return 'disabled';
     this.server = createServer((req, res) => this.route(req, res));
+    // 端口被占等 listen 错误只降级为无页面，不能把宿主 dsh 带崩
+    this.server.on('error', (e) => {
+      this.log(`brain: 脑图服务启动失败（${this.cfg.host}:${this.cfg.port} ${String(e)}），bot 不受影响`);
+      this.server = undefined;
+    });
     this.server.listen(this.cfg.port, this.cfg.host, () => {
       this.log(`brain: 脑图页 http://${this.cfg.host}:${this.cfg.port}${this.cfg.prefix}`);
     });

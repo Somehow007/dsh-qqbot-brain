@@ -214,7 +214,7 @@ test('assemble: attitude 命中进 attitudeLines 而非 memoryLines', () => {
   assert.ok(!ctx.memoryLines.some((l) => l.includes('嫌弃')));
 });
 
-test('assemble: 发言人昵称保底唤起「对该人」的态度，且被强化', () => {
+test('assemble: 发言人昵称保底唤起「对该人」的态度，但不计入强化', () => {
   const { store } = tmpStore();
   // 6 条高分填充记忆把 topK=6 占满：无昵称时态度轮不上检索分
   for (let i = 0; i < 6; i++) {
@@ -225,10 +225,10 @@ test('assemble: 发言人昵称保底唤起「对该人」的态度，且被强�
   // 别人发言：态度进不了 topK
   const ctx0 = brain.assemble('g1', '今晚吃啥', '李四');
   assert.equal(ctx0.attitudeLines.length, 0);
-  // 张三发言：保底唤起且计入强化
+  // 张三发言：保底唤起进立场区，但恒驻上下文不刷 hits（防 R 锁死）
   const ctx = brain.assemble('g1', '今晚吃啥', '张三');
   assert.ok(ctx.attitudeLines.some((l) => l.includes('对张三')));
-  assert.equal(store.allNotes().find((n) => n.kind === 'attitude')!.hits, 1);
+  assert.equal(store.allNotes().find((n) => n.kind === 'attitude')!.hits, 0);
 });
 
 test('endOfTurn: merge 指向已有 attitude 条目时原位更新而非新增', async () => {
@@ -529,4 +529,201 @@ test('import/export: u:/sess: 键画像整包往返，旧格式字符串值兼�
   const r2 = target.importData(legacy, 'merge', NOW);
   assert.equal(r2.profiles, 1);
   assert.equal(target.profileOf('s9'), '旧画像');
+});
+
+test('buildDistillPrompt: 附现有画像供增量修订', () => {
+  const p = buildDistillPrompt(
+    [{ userText: '又来啦', assistantText: '咕嘟', actor: '张三 (OID123)', at: NOW }],
+    '大肥鱼', 5, undefined, undefined,
+    [{ text: '群整体很欢乐' }, { actor: '张三 (OID123)', text: '嘴甜会夸人' }],
+  );
+  assert.match(p, /现有画像/);
+  assert.match(p, /本会话：群整体很欢乐/);
+  assert.match(p, /张三 \(OID123\)：嘴甜会夸人/);
+});
+
+test('endOfTurn: LLM 幻觉的 openid 被校正到同昵称的真实发言人', async () => {
+  const { store } = tmpStore();
+  const brain = new Brain({
+    store, now,
+    distiller: mockDistiller({
+      memories: [{ content: '五笑又在钓鱼', importance: 3, actor: '花咲蝶舞（五笑）' }],
+      // LLM 抄错 openid：真实是 REAL_OID，它写了 FAKE_OID
+      profiles: [{ actor: '花咲蝶舞（五笑） (FEDCBA0987654321)', text: '爱整活的群友' }],
+    }),
+  });
+  brain.ingest('g1', { userText: '钓个鱼', assistantText: '咕嘟', actor: '花咲蝶舞（五笑） (ABCDEF1234567890)', at: NOW });
+  await brain.endOfTurn('g1');
+  const people = store.people().filter((p) => p.kind === 'person');
+  assert.equal(people.length, 1);
+  assert.equal(people[0]!.openid, 'ABCDEF1234567890'); // 落到真实 openid，不是幻觉值
+});
+
+test('endOfTurn: openid 与昵称都对不上 → 退化为会话级画像不造幽灵人', async () => {
+  const { store } = tmpStore();
+  const brain = new Brain({
+    store, now,
+    distiller: mockDistiller({
+      memories: [],
+      profiles: [{ actor: '不存在的路人 (1111AAAA2222BBBB)', text: '幻觉画像' }],
+    }),
+  });
+  brain.ingest('g1', { userText: 'hi', assistantText: '咕嘟', actor: '张三 (ABCDEF1234567890)', at: NOW });
+  await brain.endOfTurn('g1');
+  assert.equal(store.people().filter((p) => p.kind === 'person').length, 0);
+  assert.equal(store.profileOf('g1'), '幻觉画像'); // 落到 sess: 兜底
+});
+
+// ── 评分纠偏：相关性门控 ──
+test('retrieval: 热度不再撑起排名——无关高热记忆排在相关冷记忆之后且不被强化', () => {
+  const { store } = tmpStore();
+  // 高热但无关的记忆（与查询仅共享「家」unigram，cos 刚过门槛）
+  const hot = store.addNote('s1', { content: '大伙定的那家烧烤店今晚聚餐', importance: 5 }, NOW);
+  for (let i = 0; i < 9; i++) store.reinforceById(hot.id, 1, 10, NOW); // strength→cap, hits=9
+  store.addNote('s1', { content: '用户阿澈养了一只橘猫，名叫年糕', importance: 4 }, NOW - 20 * DAY);
+  const brain = new Brain({ store, distiller: mockDistiller({}), now });
+  const ctx = brain.assemble('s1', '我家猫叫什么');
+  // 相关命中排第一；高热无关记忆即便入围也排后
+  assert.match(ctx.hits[0]!.content, /年糕/);
+  // rel < reinforceMinCos 的命中不做强化：hits 停在 9 不再涨
+  const hotAfter = store.noteById(hot.id)!;
+  assert.equal(hotAfter.hits, 9);
+});
+
+// ── 跨会话召回 ──
+test('assemble: 发言人在其他会话的 attitude/semantic 被跨群召回，episodic 不外溢', () => {
+  const { store } = tmpStore();
+  store.addNote('s2', { content: '张三喜欢收集旧游戏机', importance: 4, kind: 'semantic', actor: '张三 (ABCDEF1234567890)' }, NOW);
+  store.addNote('s2', { content: '对张三：嘴上嫌弃其实信任', importance: 4, kind: 'attitude', actor: '张三 (ABCDEF1234567890)' }, NOW);
+  store.addNote('s2', { content: '张三昨天在群里发了个旧游戏机梗图', importance: 3, kind: 'episodic', actor: '张三 (ABCDEF1234567890)' }, NOW);
+  const brain = new Brain({ store, distiller: mockDistiller({}), now });
+  const ctx = brain.assemble('s1', '旧游戏机', { nick: '张三', openid: 'ABCDEF1234567890' });
+  const joined = ctx.memoryLines.join('\n');
+  assert.match(joined, /跨群/);
+  assert.match(joined, /张三喜欢收集旧游戏机/);
+  assert.ok(!/梗图/.test(joined)); // episodic 不跨群
+});
+
+// ── 画像同名归并 ──
+test('assemble: 同人多 openid 画像按 name 归并注入', () => {
+  const { store } = tmpStore();
+  store.setProfileEntry(userProfileKey('OID_A'), 'demo是群主人爱较真', { sessionId: 'g1', name: 'demo' });
+  store.setProfileEntry(userProfileKey('OID_B'), 'demo爱拿鲸鱼娘体型调侃', { sessionId: 'g2', name: 'demo' });
+  const brain = new Brain({ store, distiller: mockDistiller({}), now });
+  const ctx = brain.assemble('g1', 'hi', { nick: 'demo', openid: 'OID_B' });
+  const profileLine = ctx.memoryLines.find((l) => l.startsWith('- [画像]'))!;
+  assert.match(profileLine, /群主人/);
+  assert.match(profileLine, /体型调侃/);
+});
+
+// ── 语义向量：embedding 命中与回退 ──
+import { Embedder } from '../src/brain/embed.ts';
+import type { EmbedFetchLike } from '../src/brain/embed.ts';
+
+function mockEmbedder(vecs: number[][]) {
+  const f: EmbedFetchLike = async (_url, init) => ({
+    ok: true,
+    status: 200,
+    json: async () => ({ data: vecs.map((embedding, index) => ({ embedding, index })) }),
+  });
+  return new Embedder({ enabled: true, baseUrl: 'https://x.test', apiKey: 'k', model: 'm', timeoutMs: 1000 }, f);
+}
+
+test('embed op: 向量持久化，重载后仍在', () => {
+  const { dir, store } = tmpStore();
+  const n = store.addNote('s1', { content: '用户讨厌香菜', importance: 3 }, NOW);
+  store.setEmbedding(n.id, [0.1, 0.9, 0.2]);
+  const store2 = new BrainStore(dir);
+  assert.deepEqual(store2.noteById(n.id)!.embedding, [0.1, 0.9, 0.2]);
+});
+
+test('assemble: queryVec 命中带向量的记忆走语义余弦，正交向量被 embedMinCos 过滤', () => {
+  const { store } = tmpStore();
+  const a = store.addNote('s1', { content: '用户阿澈养了一只橘猫', importance: 3 }, NOW);
+  const b = store.addNote('s1', { content: '量子场论研讨纪要', importance: 5 }, NOW);
+  store.setEmbedding(a.id, [1, 0]);
+  store.setEmbedding(b.id, [0, 1]);
+  const brain = new Brain({ store, distiller: mockDistiller({}), now });
+  const ctx = brain.assemble('s1', '猫', undefined, [0.95, 0.05]);
+  assert.equal(ctx.hits.length, 1);
+  assert.match(ctx.hits[0]!.content, /橘猫/);
+});
+
+test('endOfTurn: embedder 启用时新记忆自动取向量，未启用不取', async () => {
+  const { store } = tmpStore();
+  const brain = new Brain({
+    store, now,
+    distiller: mockDistiller({ memories: [{ content: '用户决定晨跑', importance: 4 }] }),
+    embedder: mockEmbedder([[0.5, 0.5]]),
+  });
+  brain.ingest('s1', { userText: '我晨跑了', assistantText: '咕嘟', at: NOW });
+  await brain.endOfTurn('s1');
+  assert.deepEqual(store.allNotes()[0]!.embedding, [0.5, 0.5]);
+
+  const { store: s2 } = tmpStore();
+  const brain2 = new Brain({
+    store: s2, now,
+    distiller: mockDistiller({ memories: [{ content: '用户决定晨跑', importance: 4 }] }),
+    embedder: new Embedder({ enabled: true, baseUrl: '', apiKey: '', model: 'm', timeoutMs: 1000 }),
+  });
+  brain2.ingest('s1', { userText: '我晨跑了', assistantText: '咕嘟', at: NOW });
+  await brain2.endOfTurn('s1');
+  assert.equal(s2.allNotes()[0]!.embedding, undefined);
+});
+
+// ── 会话滚动摘要 ──
+function mockDigestDistiller(digestText: string, distillResult: object) {
+  return new Distiller(
+    { enabled: true, baseUrl: 'https://x.test', apiKey: 'k', model: 'm', timeoutMs: 1000, maxNotes: 5 },
+    async (_url, init) => ({
+      ok: true, status: 200,
+      json: async () => ({
+        choices: [{
+          message: {
+            content: init.body.includes('会话脉络整理模块') ? digestText : JSON.stringify(distillResult),
+          },
+        }],
+      }),
+    }),
+  );
+}
+
+test('digest: 累计轮数到阈值触发摘要，assemble 注入会话脉络', async () => {
+  const { store } = tmpStore();
+  const brain = new Brain({
+    store, now,
+    distiller: mockDigestDistiller('最近在聊山姆囤货和鲸鱼尾巴', { memories: [] }),
+    config: { digestEveryTurns: 2 },
+  });
+  brain.ingest('s1', { userText: '山姆买啥', assistantText: '咕嘟', at: NOW });
+  await brain.endOfTurn('s1');
+  assert.equal(store.digestOf('s1'), undefined); // 第 1 轮未达阈值
+  brain.ingest('s1', { userText: '尾巴好吃吗', assistantText: '咕嘟', at: NOW });
+  await brain.endOfTurn('s1');
+  assert.equal(store.digestOf('s1')!.text, '最近在聊山姆囤货和鲸鱼尾巴');
+  assert.equal(store.digestOf('s1')!.uptoTurn, 2);
+  const ctx = brain.assemble('s1', 'hi');
+  assert.match(ctx.digest, /山姆囤货/);
+});
+
+test('digest: digestEveryTurns=0 时不触发', async () => {
+  const { store } = tmpStore();
+  const brain = new Brain({
+    store, now,
+    distiller: mockDigestDistiller('摘要', { memories: [] }),
+    config: { digestEveryTurns: 0 },
+  });
+  for (let i = 0; i < 5; i++) {
+    brain.ingest('s1', { userText: 'hi', assistantText: '咕嘟', at: NOW });
+    await brain.endOfTurn('s1');
+  }
+  assert.equal(store.digestOf('s1'), undefined);
+});
+
+test('digest: 摘要随快照持久化', () => {
+  const { dir, store } = tmpStore();
+  store.setDigest('s1', '会话脉络文本', 15);
+  const store2 = new BrainStore(dir);
+  assert.equal(store2.digestOf('s1')!.text, '会话脉络文本');
+  assert.equal(store2.digestOf('s1')!.uptoTurn, 15);
 });

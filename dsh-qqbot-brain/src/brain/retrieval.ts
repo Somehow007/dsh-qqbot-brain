@@ -1,16 +1,31 @@
 import type { BrainConfig, MemoryNote } from './types.ts';
 import { retention } from './decay.ts';
+import { vecCosine } from './embed.ts';
 
 /**
- * 字符 n-gram TF-IDF 检索（中文免分词）。
- * score(m,q) = alpha*cos(E(q),E(m)) + beta*R(m) + gamma*imp(m)/5
+ * 字符 n-gram TF-IDF + 可选语义向量的混合检索（中文免分词）。
+ *
+ * 评分（相关性门控）：
+ *   rel   = 命中 embedding 时用 vecCosine(queryVec, note.embedding)，
+ *           否则用 char n-gram TF-IDF 余弦
+ *   score = alpha·rel·(1 + beta·R) + gamma·imp/5
+ * rel 是硬门槛（lex 用 minCosine、emb 用 embedMinCos），R 只对相关命中
+ * 做 boost——「够热但不相关」的记忆不再能靠 R+imp 基线分挤进 topK。
  *
  * 文本先归一化（小写化 + 去标点/符号，只留字母数字），否则「橘猫，名叫年糕」
  * 这类句子会产生 猫，名 等被标点切断的假 gram，查询永远对不上。
  * n 取 1-3：unigram 让单字查询（「猫」）与复述弱匹配（「跑步」→「晨跑」）可用，
- * 噪声由 minCosine 门槛兜底——余弦低于门槛的结果直接丢弃，
- * 不再让 R+importance 基线分凑满 topK。
+ * 噪声由 minCosine 门槛兜底。
  */
+
+/** 单条记忆的评分结果 */
+export interface ScoredNote {
+  note: MemoryNote;
+  /** 相关性分（0..1；用于 reinforce 阈值与评测） */
+  rel: number;
+  /** 综合分（排序用） */
+  score: number;
+}
 
 function normalize(text: string): string {
   return text.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
@@ -86,9 +101,11 @@ export class Retriever {
   }
 
   /**
-   * 按综合分返回 top-k；cos < minCosine 的先过滤，命中不足时不凑数（可为空）。
+   * 按综合分返回 top-k 的 ScoredNote；rel 低于各自门槛的先过滤，命中不足不凑数。
    * version 由 store 提供（任何写入后递增），索引自动失效重建。
-   * 不修改 notes（强化由调用方处理）。
+   * queryVec：有 embedding 时对带向量的条目用语义余弦（embedMinCos 门槛），
+   * 无向量的条目仍走 lexical 余弦（minCosine 门槛）。
+   * 不修改 notes（强化由调用方按 rel >= reinforceMinCos 处理）。
    */
   query(
     allNotes: MemoryNote[],
@@ -96,23 +113,36 @@ export class Retriever {
     text: string,
     now: number,
     version: number,
-  ): MemoryNote[] {
-    const pool = sessionId ? allNotes.filter((n) => n.sessionId === sessionId) : allNotes;
+    queryVec?: number[],
+    opts?: { pool?: MemoryNote[]; indexKey?: string },
+  ): ScoredNote[] {
+    const pool = opts?.pool
+      ?? (sessionId ? allNotes.filter((n) => n.sessionId === sessionId) : allNotes);
     if (pool.length === 0 || !text.trim()) return [];
-    const idx = this.indexFor(pool, sessionId ?? '__all__', version);
+    const idx = this.indexFor(pool, opts?.indexKey ?? sessionId ?? '__all__', version);
 
     const qc = new Map<string, number>();
     for (const g of ngrams(text)) qc.set(g, (qc.get(g) ?? 0) + 1);
     const qv = this.vectorize(qc, idx);
     const { alpha, beta, gamma, topK, candidatePool } = this.cfg;
 
-    const scored: { n: MemoryNote; s: number }[] = [];
+    const scored: ScoredNote[] = [];
     idx.docs.forEach((n, i) => {
-      const cos = this.cosine(this.vectorize(idx.tf[i] ?? new Map(), idx), qv);
-      if (cos < this.cfg.minCosine) return;
-      scored.push({ n, s: alpha * cos + beta * retention(n, now) + gamma * (n.importance / 5) });
+      let rel: number;
+      if (queryVec && n.embedding) {
+        rel = vecCosine(queryVec, n.embedding);
+        if (rel < this.cfg.embedMinCos) return;
+      } else {
+        rel = this.cosine(this.vectorize(idx.tf[i] ?? new Map(), idx), qv);
+        if (rel < this.cfg.minCosine) return;
+      }
+      scored.push({
+        note: n,
+        rel,
+        score: alpha * rel * (1 + beta * retention(n, now)) + gamma * (n.importance / 5),
+      });
     });
-    scored.sort((a, b) => b.s - a.s);
-    return scored.slice(0, Math.min(topK, candidatePool)).map((x) => x.n);
+    scored.sort((a, b) => b.score - a.score);
+    return scored.slice(0, Math.min(topK, candidatePool));
   }
 }

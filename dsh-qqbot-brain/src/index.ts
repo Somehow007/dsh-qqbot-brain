@@ -7,7 +7,7 @@
  *   ctx.webServer / node:http → /brain 脑图页 + JSON API
  */
 import { resolve } from 'node:path';
-import { Brain, BrainStore, Distiller } from './brain/index.ts';
+import { Brain, BrainStore, Distiller, Embedder } from './brain/index.ts';
 import { DEFAULT_CONFIG, type BrainPluginConfig } from './config.ts';
 import { PromptInjector } from './inject/prompt.ts';
 import { SessionCapture } from './capture/events.ts';
@@ -33,8 +33,10 @@ function mergeConfig(user: Partial<BrainPluginConfig> | undefined): BrainPluginC
     ...DEFAULT_CONFIG,
     ...u,
     llm: { ...DEFAULT_CONFIG.llm, ...(u.llm ?? {}) },
+    embed: { ...DEFAULT_CONFIG.embed, ...(u.embed ?? {}) },
     retrieval: { ...DEFAULT_CONFIG.retrieval, ...(u.retrieval ?? {}) },
     consolidation: { ...DEFAULT_CONFIG.consolidation, ...(u.consolidation ?? {}) },
+    digest: { ...DEFAULT_CONFIG.digest, ...(u.digest ?? {}) },
     http: { ...DEFAULT_CONFIG.http, ...(u.http ?? {}) },
     // 环境变量兜底
     dataDir: env('BRAIN_DATA_DIR') ?? u.dataDir ?? DEFAULT_CONFIG.dataDir,
@@ -47,6 +49,9 @@ export async function apply(ctx: unknown, config?: Partial<BrainPluginConfig>): 
   cfg.llm.apiKey = env('BRAIN_LLM_API_KEY') ?? env('DEEPSEEK_API_KEY') ?? cfg.llm.apiKey;
   cfg.llm.baseUrl = env('BRAIN_LLM_BASE_URL') ?? cfg.llm.baseUrl;
   cfg.llm.model = env('BRAIN_LLM_MODEL') ?? cfg.llm.model;
+  cfg.embed.apiKey = env('BRAIN_EMBED_API_KEY') ?? cfg.embed.apiKey;
+  cfg.embed.baseUrl = env('BRAIN_EMBED_BASE_URL') ?? cfg.embed.baseUrl;
+  cfg.embed.model = env('BRAIN_EMBED_MODEL') ?? cfg.embed.model;
 
   const logger = ((ctx as { logger?: { info(m: string): void } }).logger ?? console);
   const dataDir = resolve(cfg.dataDir);
@@ -69,15 +74,19 @@ export async function apply(ctx: unknown, config?: Partial<BrainPluginConfig>): 
     if (loaded.text) { persona = loaded.text; personaFrom = loaded.source; }
     else { persona = cfg.personaCore; personaFrom = 'config'; }
   }
+  const embedder = new Embedder(cfg.embed);
   const brain = new Brain({
     store,
     distiller,
+    embedder,
     defaultPersona: persona,
     config: {
       // 此前漏接：retrieval.* 配了不生效，现在并入 BrainConfig
       ...cfg.retrieval,
       consolidateMinAgeDays: cfg.consolidation.minAgeDays,
       consolidateMinNotes: cfg.consolidation.minNotes,
+      digestEveryTurns: cfg.digest.enabled ? cfg.digest.everyTurns : 0,
+      digestWindowTurns: cfg.digest.windowTurns,
     },
     log,
   });
@@ -108,13 +117,24 @@ export async function apply(ctx: unknown, config?: Partial<BrainPluginConfig>): 
     tick.unref();
   }
 
+  // ── embedding 回填：启动后分批给旧记忆补向量 ──
+  if (embedder.enabled) {
+    const refill = setInterval(async () => {
+      const n = await brain.backfillEmbeddings(5);
+      if (n > 0) log(`语义向量回填：${n} 条`);
+      if (n === 0) clearInterval(refill);
+    }, 30_000);
+    refill.unref();
+  }
+
   // ── 脑图服务 ──
   const http = new BrainHttpServer(brain, cfg.http, log,
     (text) => writePersonaFile(dataDir, text));
   const where = http.start(ctx);
 
   log(`已启动：人格内核(${personaFrom}) ${cfg.injectPersona ? 'on' : 'off'} / `
-    + `情绪 ${cfg.injectEmotion ? 'on' : 'off'} / 立场 ${cfg.injectAttitude ? 'on' : 'off'} / `
-    + `记忆 ${cfg.injectMemory ? 'on' : 'off'} / `
-    + `蒸馏 ${distiller.enabled ? 'on' : 'off(无apiKey)'} / 脑图 ${where} / 数据目录 ${dataDir}`);
+    + `情绪 ${cfg.injectEmotion ? 'on' : 'off'} / 脉络 ${cfg.injectDigest ? 'on' : 'off'} / `
+    + `立场 ${cfg.injectAttitude ? 'on' : 'off'} / 记忆 ${cfg.injectMemory ? 'on' : 'off'} / `
+    + `蒸馏 ${distiller.enabled ? 'on' : 'off(无apiKey)'} / `
+    + `向量 ${embedder.enabled ? 'on' : 'off(无apiKey)'} / 脑图 ${where} / 数据目录 ${dataDir}`);
 }

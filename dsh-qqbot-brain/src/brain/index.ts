@@ -1,17 +1,20 @@
 import { DEFAULT_BRAIN_CONFIG } from './types.ts';
 import type { BrainConfig, BrainContext, DistillResult, EmotionState, MemoryNote, NoteDraft, Turn } from './types.ts';
-import { splitActor, userProfileKey } from './identity.ts';
+import { isUserKey, splitActor, userProfileKey } from './identity.ts';
 import { ageInDays, retention } from './decay.ts';
 import { Retriever } from './retrieval.ts';
 import { EmotionEngine, NEUTRAL_EMOTION } from './emotion.ts';
 import { BrainStore } from './store.ts';
 import { Distiller } from './distill.ts';
+import type { Embedder } from './embed.ts';
 
 export * from './types.ts';
 export { Retriever } from './retrieval.ts';
+export type { ScoredNote } from './retrieval.ts';
 export { EmotionEngine, NEUTRAL_EMOTION } from './emotion.ts';
 export { BrainStore } from './store.ts';
 export { Distiller } from './distill.ts';
+export { Embedder } from './embed.ts';
 export { retention, ageInDays } from './decay.ts';
 export { splitActor, userProfileKey, sessionProfileKey } from './identity.ts';
 
@@ -19,6 +22,8 @@ export interface BrainOptions {
   config?: Partial<BrainConfig>;
   store: BrainStore;
   distiller: Distiller;
+  /** 语义向量（可选；缺省/无 key 时检索回退 lexical） */
+  embedder?: Embedder;
   /** 人格内核默认文本（store 中已存时优先用 store 的） */
   defaultPersona?: string;
   now?: () => number;
@@ -36,6 +41,7 @@ export class Brain {
   readonly cfg: BrainConfig;
   private readonly store: BrainStore;
   private readonly distiller: Distiller;
+  private readonly embedder?: Embedder;
   private readonly retriever: Retriever;
   private readonly emotion: EmotionEngine;
   private readonly defaultPersona: string;
@@ -43,11 +49,17 @@ export class Brain {
   private readonly log?: (msg: string) => void;
   private turnBuffer = new Map<string, Turn[]>();
   private distilling = new Set<string>();
+  /** 滚动摘要输入：最近对话轮次缓存（每会话封顶 60 条） */
+  private historyBuffer = new Map<string, Turn[]>();
+  /** 每会话已捕获轮数（驱动 digest 触发；重启后从 digest.uptoTurn 续算） */
+  private turnCounter = new Map<string, number>();
+  private digesting = new Set<string>();
 
   constructor(opts: BrainOptions) {
     this.cfg = { ...DEFAULT_BRAIN_CONFIG, ...(opts.config ?? {}) };
     this.store = opts.store;
     this.distiller = opts.distiller;
+    this.embedder = opts.embedder;
     this.retriever = new Retriever(this.cfg);
     this.emotion = new EmotionEngine(this.cfg);
     this.defaultPersona = opts.defaultPersona ?? '';
@@ -75,40 +87,84 @@ export class Brain {
   }
 
   /**
-   * 每轮组装注入上下文；对命中的记忆做唤起强化。
-   * speaker：当前发言人（群聊），可为昵称字符串或 {nick, openid}。「对该人」的态度是恒定的上下文，
-   * 含昵称的 attitude 条目跨会话保底唤起（补足到 3 条上限），不跟 topK 记忆池抢名额。
-   * 命中按 kind 拆分：attitude → attitudeLines（【当前立场】），其余 → memoryLines（【记忆库摘录】）。
-   * 画像：发言人带 openid 时优先注入其个人画像（u: 键），会话级画像（sess: 键）次之。
+   * 每轮组装注入上下文。
+   * speaker：当前发言人（群聊），可为昵称字符串或 {nick, openid}。
+   * 检索评分已做相关性门控（rel 主导、R 只 boost）；只对 rel >= reinforceMinCos
+   * 的真相关命中做唤起强化——发言人保底条目与弱相关凑数不再刷 hits/R 锁死。
+   * 「对该人」的态度是恒定上下文：含昵称的 attitude 条目跨会话保底唤起进
+   * 立场区（补足到 3 条上限），不占 topK、不参与强化计数。
+   * 跨会话召回：发言人在其他会话留下的 attitude/semantic 条目按 rel 取 ≤2 条，
+   * 标 [跨群] 前缀（episodic 流水不跨群）。
+   * 画像：发言人个人画像（openid 精确 + 同名 u: 条目归并）优先，会话画像次之。
+   * queryVec：可选查询向量（有 embedding 时 rel 走语义余弦）。
    */
-  assemble(sessionId: string, queryText: string, speaker?: string | { nick?: string; openid?: string }): BrainContext {
+  assemble(
+    sessionId: string,
+    queryText: string,
+    speaker?: string | { nick?: string; openid?: string },
+    queryVec?: number[],
+  ): BrainContext {
     const now = this.now();
     const sp = typeof speaker === 'string' ? { nick: speaker } : speaker;
-    const hits = this.retriever.query(this.store.allNotes(), sessionId, queryText, now, this.store.version);
-    const hitIds = new Set(hits.map((n) => n.id));
-    if (sp?.nick) {
-      const extra = this.store.allNotes()
-        .filter((n) => n.kind === 'attitude'
-          && !hitIds.has(n.id) && n.content.includes(sp.nick!))
-        .sort((a, b) => retention(b, now) - retention(a, now));
-      const room = Math.max(0, 3 - hits.filter((n) => n.kind === 'attitude').length);
-      hits.push(...extra.slice(0, room));
+    const scored = this.retriever.query(
+      this.store.allNotes(), sessionId, queryText, now, this.store.version, queryVec,
+    );
+    for (const s of scored) {
+      if (s.rel >= this.cfg.reinforceMinCos) {
+        this.store.reinforce(s.note, this.cfg.reinforceStep, this.cfg.strengthCap, now);
+      }
     }
-    for (const n of hits) this.store.reinforce(n, this.cfg.reinforceStep, this.cfg.strengthCap, now);
+    const hits = scored.map((s) => s.note);
 
     const attitudeLines: string[] = [];
     const memoryLines: string[] = [];
+    const attitudeHitIds = new Set<string>();
     for (const n of hits) {
       if (n.kind === 'attitude') {
         attitudeLines.push(`- ${n.content}`);
+        attitudeHitIds.add(n.id);
         continue;
       }
       const d = Math.floor(ageInDays(n, now));
       const when = d <= 0 ? '今天' : `${d}天前`;
       memoryLines.push(`- [${when}记] ${n.actor ? `[${n.actor}] ` : ''}${n.content}`);
     }
-    // 个人画像优先，会话级画像次之；仅会话画像时维持「[画像]」标签（私聊即本人画像）
-    const personProfile = sp?.openid ? this.store.profileOf(userProfileKey(sp.openid)) : '';
+    if (sp?.nick) {
+      const extra = this.store.allNotes()
+        .filter((n) => n.kind === 'attitude'
+          && !attitudeHitIds.has(n.id) && n.content.includes(sp.nick!))
+        .sort((a, b) => retention(b, now) - retention(a, now));
+      const room = Math.max(0, 3 - attitudeLines.length);
+      for (const n of extra.slice(0, room)) attitudeLines.push(`- ${n.content}`);
+    }
+    if (sp && (sp.openid || sp.nick)) {
+      const xpool = this.store.allNotes().filter((n) => {
+        if (n.sessionId === sessionId) return false;
+        if (n.kind !== 'attitude' && n.kind !== 'semantic') return false;
+        if (!n.actor) return false;
+        const id = splitActor(n.actor);
+        return (sp.openid && id.openid === sp.openid) || (sp.nick && id.nick === sp.nick);
+      });
+      if (xpool.length) {
+        const xhits = this.retriever.query(
+          xpool, undefined, queryText || sp.nick || '', now, this.store.version, queryVec,
+          { pool: xpool, indexKey: `__x__${sessionId}` },
+        );
+        for (const s of xhits.slice(0, 2)) {
+          const n = s.note;
+          const d = Math.floor(ageInDays(n, now));
+          const when = d <= 0 ? '今天' : `${d}天前`;
+          memoryLines.push(`- [跨群·${when}记] ${n.actor ? `[${n.actor}] ` : ''}${n.content}`);
+          if (s.rel >= this.cfg.reinforceMinCos) {
+            this.store.reinforce(n, this.cfg.reinforceStep, this.cfg.strengthCap, now);
+          }
+        }
+      }
+    }
+    // 个人画像（同名归并）优先，会话级画像次之；仅会话画像时维持「[画像]」标签
+    const personProfile = (sp?.openid || sp?.nick)
+      ? this.store.mergedUserProfile({ openid: sp?.openid, nick: sp?.nick })
+      : '';
     const sessProfile = this.store.profileOf(sessionId);
     if (sessProfile) memoryLines.unshift(`- ${personProfile ? '[会话画像]' : '[画像]'} ${sessProfile}`);
     if (personProfile) memoryLines.unshift(`- [画像] ${personProfile}`);
@@ -116,17 +172,27 @@ export class Brain {
     return {
       persona: this.persona(),
       emotion: this.emotion.describe(sessionId, now),
+      digest: this.store.digestOf(sessionId)?.text ?? '',
       memoryLines,
       attitudeLines,
       hits,
     };
   }
 
-  /** 捕获一轮完整对话（不立即蒸馏，攒到 endOfTurn） */
+  /** 捕获一轮完整对话（不立即蒸馏，攒到 endOfTurn）；同步滚动摘要输入与轮数 */
   ingest(sessionId: string, turn: Turn): void {
     const buf = this.turnBuffer.get(sessionId) ?? [];
     buf.push(turn);
     this.turnBuffer.set(sessionId, buf);
+    const hb = this.historyBuffer.get(sessionId) ?? [];
+    hb.push(turn);
+    if (hb.length > 60) hb.splice(0, hb.length - 60);
+    this.historyBuffer.set(sessionId, hb);
+    // 重启后从已存 digest 的 uptoTurn 续算，避免计数倒退导致永不再触发
+    this.turnCounter.set(
+      sessionId,
+      (this.turnCounter.get(sessionId) ?? this.store.digestOf(sessionId)?.uptoTurn ?? 0) + 1,
+    );
   }
 
   /**
@@ -144,21 +210,25 @@ export class Brain {
       const queryText = turns.map((t) => t.userText).join(' ');
       const existing = this.retriever
         .query(this.store.allNotes(), sessionId, queryText, now, this.store.version)
-        .slice(0, 8);
+        .slice(0, 8)
+        .map((s) => s.note);
       const result = await this.distiller.distill(
         turns, this.persona(), existing, this.emotion.get(sessionId, now),
+        this.existingProfiles(sessionId, turns.map((t) => t.actor)),
       );
       this.log?.(
         `蒸馏 ${sessionId.slice(0, 8)}…：记忆 ${result.memories.length} 条 / `
         + `情绪 ${result.emotion?.label ?? '（未变）'} / 画像 ${result.profile || result.profiles?.length ? '更新' : '（未变）'}`,
       );
+      const touched: MemoryNote[] = [];
       for (const m of result.memories) {
         const target = m.mergeIndex != null ? existing[m.mergeIndex] : undefined;
         if (target) {
           this.store.updateNote(target.id, { content: m.content, importance: m.importance, kind: m.kind });
           this.store.reinforceById(target.id, this.cfg.reinforceStep, this.cfg.strengthCap, now);
+          touched.push(target);
         } else {
-          this.store.addNote(sessionId, m, now);
+          touched.push(this.store.addNote(sessionId, m, now));
         }
       }
       // 意图级遗忘：编号指回附带列表 / 子串精确匹配（限本会话，防误删）
@@ -176,19 +246,88 @@ export class Brain {
         const s = this.emotion.apply(sessionId, result.emotion, now);
         this.store.setEmotion(sessionId, s);
       }
-      this.writeProfiles(sessionId, result);
+      this.writeProfiles(sessionId, result, turns.map((t) => t.actor));
+      // 新/改记忆补语义向量（失败静默，检索回退 lexical）
+      await this.embedNotes(touched);
+      // 滚动摘要：累计轮数到阈值则更新「会话脉络」
+      await this.maybeDigest(sessionId);
     } finally {
       this.distilling.delete(sessionId);
     }
   }
 
-  /** 画像落盘：actor 带 openid → u: 键按人存；无 actor/无法解析 → sess: 键会话级 */
-  private writeProfiles(sessionId: string, result: DistillResult): void {
+  /** 给一批记忆取向量并落盘（embedder 未启用/调用失败时 no-op） */
+  private async embedNotes(notes: MemoryNote[]): Promise<void> {
+    const targets = notes.filter((n) => n.content.trim());
+    if (!this.embedder?.enabled || targets.length === 0) return;
+    const vecs = await this.embedder.embed(targets.map((n) => n.content));
+    if (!vecs) return;
+    for (let i = 0; i < targets.length; i++) this.store.setEmbedding(targets[i]!.id, vecs[i]!);
+  }
+
+  /** 会话滚动摘要：turnCounter 距上次 uptoTurn 满 digestEveryTurns 则触发 */
+  private async maybeDigest(sessionId: string): Promise<void> {
+    const every = this.cfg.digestEveryTurns;
+    if (!every || !this.distiller.enabled || this.digesting.has(sessionId)) return;
+    const count = this.turnCounter.get(sessionId) ?? 0;
+    const upto = this.store.digestOf(sessionId)?.uptoTurn ?? 0;
+    if (count - upto < every) return;
+    const buf = this.historyBuffer.get(sessionId) ?? [];
+    if (buf.length === 0) return;
+    this.digesting.add(sessionId);
+    try {
+      const recent = buf.slice(-this.cfg.digestWindowTurns);
+      const text = await this.distiller.digest(
+        recent, this.store.digestOf(sessionId)?.text ?? '', this.persona(),
+      );
+      if (text) {
+        this.store.setDigest(sessionId, text, count);
+        this.log?.(`会话脉络 ${sessionId.slice(0, 8)}…：摘要更新（${count} 轮）`);
+      }
+    } finally {
+      this.digesting.delete(sessionId);
+    }
+  }
+
+  /** 收集「现有画像」供蒸馏增量修订：会话级画像 + 涉及发言人（带 openid）的个人画像 */
+  private existingProfiles(sessionId: string, actors: (string | undefined)[]): { actor?: string; text: string }[] {
+    const out: { actor?: string; text: string }[] = [];
+    const sessProfile = this.store.profileOf(sessionId);
+    if (sessProfile) out.push({ text: sessProfile });
+    for (const actor of new Set(actors.filter((a): a is string => !!a))) {
+      const id = splitActor(actor);
+      if (!id.openid) continue;
+      const text = this.store.profileOf(userProfileKey(id.openid));
+      if (text) out.push({ actor, text });
+    }
+    return out;
+  }
+
+  /**
+   * 画像落盘：身份键经真实发言人记录校验，不信任 LLM 输出的 openid。
+   * - actor 的 openid 在已知发言人中（记忆 actor / 已有 u: 画像键 / 本轮 actor）→ u: 键
+   * - openid 不可信但昵称唯一匹配已知发言人 → 校正为该发言人真实 openid
+   * - 无法确认到具体的人 → 退化为 sess: 会话级画像，不制造幽灵人物
+   */
+  private writeProfiles(sessionId: string, result: DistillResult, actors: (string | undefined)[]): void {
     if (result.profile) this.store.setProfile(sessionId, result.profile);
+    const speakers = this.store.speakers();
+    for (const a of actors) {
+      if (!a) continue;
+      const id = splitActor(a);
+      if (id.openid) speakers.set(id.openid, id.nick);
+    }
     for (const p of result.profiles ?? []) {
       const id = p.actor ? splitActor(p.actor) : undefined;
-      if (id?.openid) {
+      if (id?.openid && speakers.has(id.openid)) {
         this.store.setProfileEntry(userProfileKey(id.openid), p.text, { sessionId, name: id.nick });
+        continue;
+      }
+      const candidates = id?.nick ? [...speakers].filter(([, n]) => n === id.nick) : [];
+      if (candidates.length === 1) {
+        const [openid, nick] = candidates[0]!;
+        this.log?.(`画像身份校正：${p.actor ?? ''} → u:${openid.slice(0, 8)}…（LLM 输出的 openid 与真实发言人不符）`);
+        this.store.setProfileEntry(userProfileKey(openid), p.text, { sessionId, name: nick });
       } else {
         this.store.setProfile(sessionId, p.text);
       }
@@ -206,9 +345,14 @@ export class Brain {
         && ageInDays(n, now) >= this.cfg.consolidateMinAgeDays,
     );
     if (eps.length < this.cfg.consolidateMinNotes) return 0;
-    const result = await this.distiller.consolidate(eps, this.store.profileOf(sessionId), this.persona());
-    for (const m of result.memories) this.store.addNote(sessionId, { ...m, kind: 'semantic' }, now);
-    this.writeProfiles(sessionId, result);
+    // 现有画像（会话级 + 涉及发言人的个人画像）一并喂入，巩固在旧画像上修订
+    const profileText = this.existingProfiles(sessionId, eps.map((n) => n.actor))
+      .map((p) => `${p.actor ?? '会话整体'}：${p.text}`)
+      .join('\n');
+    const result = await this.distiller.consolidate(eps, profileText, this.persona());
+    const added = result.memories.map((m) => this.store.addNote(sessionId, { ...m, kind: 'semantic' }, now));
+    this.writeProfiles(sessionId, result, eps.map((n) => n.actor));
+    void this.embedNotes(added);
     return result.memories.length;
   }
 
@@ -234,11 +378,18 @@ export class Brain {
   // ── 脑图页编辑入口 ──
 
   addNote(sessionId: string, draft: NoteDraft): MemoryNote {
-    return this.store.addNote(sessionId || 'manual', draft, this.now());
+    const n = this.store.addNote(sessionId || 'manual', draft, this.now());
+    void this.embedNotes([n]);
+    return n;
   }
 
   updateNote(id: string, patch: Parameters<BrainStore['updateNote']>[1]): boolean {
-    return this.store.updateNote(id, patch);
+    const ok = this.store.updateNote(id, patch);
+    if (ok && patch.content != null) {
+      const n = this.store.noteById(id);
+      if (n) void this.embedNotes([n]);
+    }
+    return ok;
   }
 
   deleteNote(id: string): boolean {
@@ -306,6 +457,7 @@ export class Brain {
     return {
       persona: this.persona(),
       emotion: emo?.state ?? NEUTRAL_EMOTION,
+      digest: sessionId ? (this.store.digestOf(sessionId)?.text ?? '') : '',
       /** emotion 归属的会话（全局视图下标识来源；无记录时为 undefined） */
       emotionSession: emo?.sessionId,
       notes,
@@ -314,9 +466,28 @@ export class Brain {
     };
   }
 
-  /** 检索预览（脑图页"检索模拟器"） */
-  preview(sessionId: string | undefined, query: string): MemoryNote[] {
-    return this.retriever.query(this.store.allNotes(), sessionId, query, this.now(), this.store.version);
+  /** 检索预览（脑图页"检索模拟器"）；有 embedder 时顺带取向量走语义路径 */
+  async preview(sessionId: string | undefined, query: string): Promise<MemoryNote[]> {
+    const qv = (await this.queryEmbedding(query)) ?? undefined;
+    return this.retriever
+      .query(this.store.allNotes(), sessionId, query, this.now(), this.store.version, qv)
+      .map((s) => s.note);
+  }
+
+  /** 供注入层取查询向量；无 embedder 时返回 null（调用方回退 lexical） */
+  async queryEmbedding(text: string): Promise<number[] | null> {
+    return this.embedder?.enabled ? this.embedder.embedOne(text) : null;
+  }
+
+  /** 启动/周期回填：给缺向量的旧记忆补 embedding，返回处理条数 */
+  async backfillEmbeddings(limit = 5): Promise<number> {
+    if (!this.embedder?.enabled) return 0;
+    const targets = this.store.allNotes().filter((n) => !n.embedding).slice(0, limit);
+    if (targets.length === 0) return 0;
+    const vecs = await this.embedder.embed(targets.map((n) => n.content));
+    if (!vecs) return 0;
+    for (let i = 0; i < targets.length; i++) this.store.setEmbedding(targets[i]!.id, vecs[i]!);
+    return targets.length;
   }
 
   flush(): void {

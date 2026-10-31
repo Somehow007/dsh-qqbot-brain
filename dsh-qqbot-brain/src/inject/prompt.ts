@@ -3,11 +3,12 @@ import { splitActor } from '../brain/identity.ts';
 import type { BrainPluginConfig } from '../config.ts';
 
 /**
- * 通过 system-prompt/assemble waterfall 注入五块 section：
+ * 通过 system-prompt/assemble waterfall 注入六块 section：
  *   brain:persona (order 80) 人格内核 · 最稳定锚点
+ *   brain:digest  (order 81) 会话脉络 · 滚动摘要
  *   brain:emotion (order 82) 情绪态一行
  *   brain:attitude(order 83) 态度立场（对人/事/话题的当前看法，慢变量）
- *   brain:memory  (order 84) top-k 记忆摘录
+ *   brain:memory  (order 84) top-k 记忆摘录（含 [跨群] 召回与画像行）
  *   brain:speaker (order 86) 当前发言人（群聊）
  * 官方 qqbot:scope-prompt 为 order 90，我们的内核更早、更难被稀释。
  *
@@ -78,12 +79,17 @@ export class PromptInjector {
 
       const query = this.lastUserText.get(sessionId) ?? '';
       const actor = this.lastActor.get(sessionId);
+      // 有 embedder 时取查询向量走语义检索；失败静默回退 lexical
+      const queryVec = (await this.brain.queryEmbedding(query).catch(() => null)) ?? undefined;
       // actor 形如「昵称 (openid)」（昵称本身可能含括号），拆出昵称与 openid 供画像/态度按人取
-      const brain = this.brain.assemble(sessionId, query, actor ? splitActor(actor) : undefined);
+      const brain = this.brain.assemble(sessionId, query, actor ? splitActor(actor) : undefined, queryVec);
 
       const sections = [...(assembled.sections ?? [])];
       if (this.config.injectPersona && brain.persona) {
         sections.push({ name: 'brain:persona', order: 80, text: `【人格内核】${brain.persona}` });
+      }
+      if (this.config.injectDigest && brain.digest) {
+        sections.push({ name: 'brain:digest', order: 81, text: `【会话脉络】${brain.digest}` });
       }
       if (this.config.injectEmotion && brain.emotion) {
         sections.push({ name: 'brain:emotion', order: 82, text: `【情绪态】${brain.emotion}` });

@@ -4,6 +4,7 @@
 #
 # 环境变量：
 #   DEEPSEEK_API_KEY / BRAIN_LLM_API_KEY - 蒸馏用（缺省自动关闭蒸馏）
+#   BRAIN_EMBED_API_KEY / BRAIN_EMBED_BASE_URL / BRAIN_EMBED_MODEL - 语义向量（缺省自动回退 lexical 检索）
 #   BRAIN_DATA_DIR - 记忆数据目录（可选，默认 ./brain-data）
 
 - insert:
