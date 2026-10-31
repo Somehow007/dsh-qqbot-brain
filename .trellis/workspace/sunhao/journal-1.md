@@ -175,3 +175,25 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 9: WorkBuddy 接入可行性调研
+<!-- trellis-session: v=2 fp=a5c48fbbe979d585 -->
+
+**Date**: 2026-10-31
+**Task**: WorkBuddy 接入可行性调研
+**Branch**: `main`
+
+### Summary
+
+用户给出 workbuddy QQ 接入文档要求评估 → 查 QQ-Guide/连接器/记忆文档确认：WorkBuddy 为腾讯 CodeBuddy 闭源桌面 agent，QQ 集成是 App 内置功能（AppID/AppSecret 直连 QQ 平台 WS/URL 回调），定位远程任务派发（群聊@触发），无 prompt hook/事件流/插件 API；可用扩展点仅自定义连接器（文档明确 MCP+CLI 标准化协议）与 Skills 指令包；其自带记忆功能与 brain 重叠但无分人归因/情绪/人格/衰减 → 落档第 3 档：Cordis 插件不可跑，brain 可 MCP 化 sidecar 经连接器接入+Skill 约定驱动，代价为记忆退化为按需调用；建议若要多 harness 复用优先做 src/mcp 入口（recall/ingest/assemble）+发言人格式参数化，但 WorkBuddy 场景撑不起群聊陪伴 bot 定位；调研结论已补进 archive/2026-10/10-31-harness-portability/prd.md Addendum
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1bc466c` | chore(task): harness-portability 补充 WorkBuddy 调研结论 |
+
+### Status
+
+[OK] **Completed**
