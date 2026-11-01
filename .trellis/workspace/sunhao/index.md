@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 21
+- **Total Sessions**: 22
 - **Last Active**: 2026-11-01
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~457 | Active |
+| `journal-1.md` | ~480 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 22 | 2026-11-01 | 脑图概念图重设计三版（①鲸脑皮层 ②心智咖啡馆 ③海马回廊） | `aaa9c41`, `fda6e82` | `main` |
 | 21 | 2026-11-01 | 脑图中attitude的表现形式确认 | - | `main` |
 | 20 | 2026-11-01 | 人格/记忆架构图说明 | - | `main` |
 | 19 | 2026-11-01 | 类脑架构注入/蒸馏链路确认 | - | `main` |

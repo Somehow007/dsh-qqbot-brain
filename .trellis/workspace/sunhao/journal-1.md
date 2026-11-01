@@ -455,3 +455,26 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 22: 脑图概念图重设计三版（①鲸脑皮层 ②心智咖啡馆 ③海马回廊）
+<!-- trellis-session: v=2 fp=5ccc694b9712144e -->
+
+**Date**: 2026-11-01
+**Task**: 脑图概念图重设计三版（①鲸脑皮层 ②心智咖啡馆 ③海马回廊）
+**Branch**: `main`
+
+### Summary
+
+问题：前几轮脑图 UI（A/B/C 概念及基于 B 的产品页实现）用户不满意——杂乱拥挤、节点乱漂、缺乏类脑结构、情绪人格未进入关联网络。排查：上几轮都在旧骨架上换皮，没有从'类脑+跨层关联+大肥鱼风格'出发设计。方案：重做三版独立概念——①大脑侧剖面按脑区分层、信号脉冲沿关联流动；②大肥鱼头像为人格内核的三层环；③时间轴+情绪潮汐+巩固弧线；节点固定、跨层连线选中才显示。验证：headless Chrome 截图自查默认/选中态并修正布局问题，三版存档于仓库根 mockup-mind-*。后续：用户选定①为重构基准，新建 brain-ui-cortex 任务制定实施计划；②③留作个性化皮肤。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `aaa9c41` | docs(mockup): save three brain mind-map concepts (cortex / cafe / tide) |
+| `fda6e82` | docs(mockup): add persona reference images used by mind concepts |
+
+### Status
+
+[OK] **Completed**
