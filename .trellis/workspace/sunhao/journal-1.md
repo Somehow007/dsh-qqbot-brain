@@ -395,3 +395,23 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 19: 类脑架构注入/蒸馏链路确认
+<!-- trellis-session: v=2 fp=8337961c427bbc76 -->
+
+**Date**: 2026-11-01
+**Task**: 类脑架构注入/蒸馏链路确认
+**Branch**: `main`
+
+### Summary
+
+问题：用户确认类脑架构是否为人格内核+记忆/情绪/画像注入、回复后蒸馏写记忆。排查：核对 src/inject/prompt.ts、src/capture/events.ts、src/brain/index.ts、src/brain/distill.ts。结论：方向正确，但注入实为最多 6 块 section（persona/digest/emotion/attitude/memory/speaker），画像挂在 memory 摘录头部而非独立块；轮末一次蒸馏同产记忆+情绪增量+画像草稿，画像另过 reviewProfiles 审核落盘；另有语义巩固定时器与 embedding 回填。无代码变更，建 11-01-brain-arch-confirm 留痕并归档。
+
+### Git Commits
+
+(No commits - planning session)
+
+### Status
+
+[OK] **Completed**
