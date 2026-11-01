@@ -6,11 +6,25 @@ import { runInNewContext, Script } from 'node:vm';
 
 const page = readFileSync(join(import.meta.dirname, '../src/server/page.html'), 'utf8');
 const script = page.match(/<script>([\s\S]*?)<\/script>/)?.[1] ?? '';
-const helpers = script.match(/const cleanText=[\s\S]*?(?=function bindMapNode)/)?.[0] ?? '';
-const { cleanText, nodeLabel, previewText } = runInNewContext(`${helpers}; ({cleanText,nodeLabel,previewText})`) as {
+const helpers = script.match(/const ngrams=[\s\S]*?(?=function bindMapNode)/)?.[0] ?? '';
+type Pad = { v: number; a: number; d?: number; label?: string };
+type EmoOp = { t: number; op: { op: string; sessionId?: string; state?: Pad } };
+type Facet = { id: string; title: string; heading: string; body: string };
+type Box = [number, number, number, number];
+const { cleanText, nodeLabel, mapLabel, previewText, computeRelations, relationWhy, emotionBucket, emotionOps, matchEmotion, personaFacets, matchFacet, layoutSlots, companionLine } = runInNewContext(`${helpers}; ({cleanText,nodeLabel,mapLabel,previewText,computeRelations,relationWhy,emotionBucket,emotionOps,matchEmotion,personaFacets,matchFacet,layoutSlots,companionLine})`) as {
   cleanText: (text: string) => string;
   nodeLabel: (note: { id: string; content: string }, notes: { id: string; content: string }[]) => string;
+  mapLabel: (note: { id: string; content: string }, notes: { id: string; content: string }[]) => string;
   previewText: (note: { id: string; content: string }, notes: { id: string; content: string }[]) => string;
+  computeRelations: (notes: { id: string; content: string; sessionId: string; actor?: string }[]) => { a: string; b: string; reasons: string[]; score: number; primary: string }[];
+  relationWhy: (rel: { reasons: string[] }, other: { actor?: string }) => string;
+  emotionBucket: (state: Pad | undefined) => string;
+  emotionOps: (ops: EmoOp[]) => { t: number; sessionId: string; state: Pad }[];
+  matchEmotion: (note: { sessionId: string; createdAt: number }, emos: { t: number; sessionId: string; state: Pad }[]) => { bucket: string; label: string; t: number } | null;
+  personaFacets: (text: string) => Facet[];
+  matchFacet: (note: { content: string }, facets: Facet[]) => { facet: string; score: number; words: string[] } | null;
+  layoutSlots: (zone: { cx: number; cy: number; rx: number; ry: number }, n: number, box: (x: number, y: number) => Box, inside: (x: number, y: number) => boolean, taken: Box[]) => { x: number; y: number }[];
+  companionLine: (kind: string | null, count: number, name?: string) => string;
 };
 
 test('页面脚本语法有效', () => {
@@ -85,4 +99,114 @@ test('卡片摘要保留开头，并突出长共同前缀之后的区别', () =>
   assert.match(previewText(notes[0]!, notes), /^用户在今天的聊天/);
   assert.match(previewText(notes[0]!, notes), /青岛/);
   assert.match(previewText(notes[1]!, notes), /杭州/);
+});
+
+test('关系推断区分相似话题、同一会话、同一发言人', () => {
+  const notes = [
+    { id: 'a', content: '用户周末喜欢出门散步', sessionId: 's1', actor: '张三' },
+    { id: 'b', content: '用户周末经常出门散步', sessionId: 's1', actor: '张三' },
+    { id: 'c', content: '完全不同的记录内容', sessionId: 's1' },
+    { id: 'd', content: '另一条毫无关联的笔记', sessionId: 's2', actor: '李四' },
+  ];
+  const rels = computeRelations(notes);
+  const ab = rels.find(r => r.a === 'a' && r.b === 'b');
+  assert.ok(ab, 'a/b 应有推断关系');
+  assert.equal(ab!.reasons.join(','), 'topic,session,actor');
+  assert.equal(ab!.primary, 'topic');
+  const ac = rels.find(r => r.a === 'a' && r.b === 'c');
+  assert.equal(ac!.reasons.join(','), 'session', '仅同会话时只有 session 理由');
+  assert.equal(ac!.primary, 'session');
+  assert.equal(rels.find(r => r.a === 'a' && r.b === 'd'), undefined, '无关记忆不连线');
+  assert.equal(rels.find(r => r.a === 'c' && r.b === 'd'), undefined, '会话与发言人都不同也不连');
+});
+
+test('关系理由文案明示推断来源', () => {
+  const why = relationWhy({ reasons: ['topic', 'actor'] }, { actor: '张三' });
+  assert.equal(why, '相似话题 · 同一发言人 张三');
+  assert.equal(relationWhy({ reasons: ['session'] }, {}), '同一会话');
+});
+
+test('关系按强度排序，弱关系排在强关系之后', () => {
+  const notes = [
+    { id: 'a', content: '用户周末喜欢出门散步', sessionId: 's1', actor: '张三' },
+    { id: 'b', content: '用户周末经常出门散步', sessionId: 's1', actor: '张三' },
+    { id: 'c', content: '完全不同的记录内容', sessionId: 's1' },
+  ];
+  const rels = computeRelations(notes);
+  assert.ok(rels[0]!.score >= rels[1]!.score, '按 score 降序');
+  assert.equal(rels[0]!.primary, 'topic');
+});
+
+test('情绪桶按 PAD 推断：效价定正负，唤醒定强弱', () => {
+  assert.equal(emotionBucket({ v: .6, a: .7 }), 'emo:joy');
+  assert.equal(emotionBucket({ v: .4, a: .2 }), 'emo:calm');
+  assert.equal(emotionBucket({ v: 0, a: .8 }), 'emo:curious');
+  assert.equal(emotionBucket({ v: 0, a: .1 }), 'emo:calm');
+  assert.equal(emotionBucket({ v: -.5, a: .2 }), 'emo:pout');
+  assert.equal(emotionBucket({ v: -.6, a: .9 }), 'emo:huff');
+  assert.equal(emotionBucket(undefined), 'emo:calm');
+});
+
+test('记忆的形成时情绪：同会话、形成后 10 分钟内最近的一条', () => {
+  const t0 = 1_700_000_000_000;
+  const emos = emotionOps([
+    { t: t0 + 30e3, op: { op: 'emotion', sessionId: 's1', state: { v: .6, a: .7, label: '雀跃' } } },
+    { t: t0 + 5 * 60e3, op: { op: 'emotion', sessionId: 's1', state: { v: -.6, a: .9, label: '炸毛' } } },
+    { t: t0 + 10e3, op: { op: 'emotion', sessionId: 's2', state: { v: -.5, a: .2 } } },
+    { t: t0, op: { op: 'add' } },
+  ]);
+  assert.equal(emos.length, 3, '只取 emotion 记录');
+  const hit = matchEmotion({ sessionId: 's1', createdAt: t0 }, emos);
+  assert.equal(hit?.bucket, 'emo:joy');
+  assert.equal(hit?.label, '雀跃');
+  assert.equal(matchEmotion({ sessionId: 's1', createdAt: t0 - 11 * 60e3 }, emos), null, '超过 10 分钟不匹配');
+  assert.equal(matchEmotion({ sessionId: 's1', createdAt: t0 + 6 * 60e3 }, emos), null, '情绪早于记忆不匹配');
+  assert.equal(matchEmotion({ sessionId: 's3', createdAt: t0 }, emos), null, '跨会话不匹配');
+});
+
+test('人设按 ## 小节拆成特质；无小节时退化为单个人格内核', () => {
+  const facets = personaFacets('# 标题\n导语\n## 身份与底色：蓝发鲸鱼娘\n穿女仆装\n## 群聊与称呼\n被叫大肥鱼会抗议\n');
+  assert.equal(facets.length, 2);
+  assert.equal(facets[0]!.title, '身份与底色');
+  assert.equal(facets[0]!.heading, '身份与底色：蓝发鲸鱼娘');
+  assert.equal(facets[1]!.body, '被叫大肥鱼会抗议');
+  const single = personaFacets('温和的蓝鲸助手');
+  assert.equal(single.length, 1);
+  assert.equal(single[0]!.title, '人格内核');
+  assert.equal(personaFacets('').length, 0);
+  assert.equal(personaFacets(Array.from({ length: 9 }, (_, i) => `## 节${i}\n内容`).join('\n')).length, 6, '最多 6 个特质');
+});
+
+test('记忆与人格小节靠区分性共同词连线，低于阈值不连', () => {
+  const facets = personaFacets('## 身份\n蓝发鲸鱼娘，穿女仆装\n## 称呼\n群友叫她大肥鱼时会嘴硬抗议\n## 说话\n语气温柔偶尔傲娇');
+  const hit = matchFacet({ content: '群友又叫她大肥鱼，她嘴硬说不胖' }, facets);
+  assert.equal(hit?.facet, 'facet:1');
+  assert.ok(hit!.words.length >= 2);
+  assert.equal(matchFacet({ content: '用户喜欢吃火锅' }, facets), null);
+  assert.equal(matchFacet({ content: '大肥鱼' }, []), null);
+});
+
+test('脑区槽位：标签框互不重叠、不越出轮廓，结果确定', () => {
+  const zone = { cx: 200, cy: 100, rx: 120, ry: 60 };
+  const box = (x: number, y: number): Box => [x - 14, y - 14, x + 80, y + 14];
+  const inside = (x: number, y: number) => x >= 60 && x <= 360 && y >= 30 && y <= 170;
+  const taken: Box[] = [];
+  const slots = layoutSlots(zone, 8, box, inside, taken);
+  assert.ok(slots.length >= 4 && slots.length <= 8);
+  for (let i = 0; i < taken.length; i++) for (let j = i + 1; j < taken.length; j++) {
+    const a = taken[i]!, b = taken[j]!;
+    assert.ok(!(a[0] < b[2] && a[2] > b[0] && a[1] < b[3] && a[3] > b[1]), '框不重叠');
+  }
+  taken.forEach(b => assert.ok(inside(b[0], b[1]) && inside(b[2], b[3])));
+  assert.equal(JSON.stringify(layoutSlots(zone, 8, box, inside, [])), JSON.stringify(slots), '同输入同输出');
+  assert.equal(layoutSlots(zone, 3, box, () => false, []).length, 0, '放不下时返回空');
+});
+
+test('节点短标签去掉公共主语，陪伴文案随类型变化', () => {
+  const notes = [{ id: 'a', content: '用户喜欢下雨天的声音' }];
+  assert.match(mapLabel(notes[0]!, notes), /^喜欢下雨天/);
+  assert.match(companionLine('facet', 2, '说话风格'), /说话风格.*2 段记忆/);
+  assert.match(companionLine('emotion', 0, '炸毛'), /没在「炸毛」/);
+  assert.match(companionLine('memory', 1), /1 个邻居/);
+  assert.ok(companionLine(null, 0).length > 0);
 });

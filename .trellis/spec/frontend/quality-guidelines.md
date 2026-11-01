@@ -31,6 +31,17 @@ detail.querySelector('.quote').textContent = note.content;
 
 Keep the full memory library as a path to notes omitted from the capped SVG overview. Node and search-hit selection should lead to the same full-text detail. Page tests live at `dsh-qqbot-brain/test/page.test.ts` and run via `npm test`; they cover the inline script syntax and shared-prefix previews. When changing page interaction, also check the 15-second refresh path, long text, empty data and narrow layout.
 
+### Brain page: cortex map contract (2026-11-01)
+
+The main map is a fixed-layout brain cross-section (concept `mockup-mind-cortex.html`). Regions map to layers: prefrontal = persona facets, neocortex = semantic, parietal = attitude, hippocampus = episodic, amygdala = emotion buckets. Positions come from `layoutSlots()` (center-out greedy packing inside a region ellipse, label boxes must stay inside the brain outline and not overlap) — never reintroduce force simulation or drifting nodes. Per-region caps live in `CAP`; overflow shows a "+N" link into the library filtered by kind.
+
+Cross-layer links are **frontend inferences** and must be labelled as such in the UI:
+
+- Emotion: `emotionOps(OPS)` → `matchEmotion(note, emos)` picks the same-session `op:'emotion'` record within `[createdAt-5s, createdAt+10min]`; `emotionBucket(PAD)` maps it to one of five fixed buckets. `load()` fetches `/ops?limit=500` for this; the ops tab only renders the first 150.
+- Persona: `personaFacets(text)` splits the active persona on `^## ` (≤6, whole text when no headings); `matchFacet(note, facets)` requires ≥`FACET_MIN` shared letter/number bigrams that appear in fewer than half of the sections.
+
+Pure helpers (`ngrams` … before `function bindMapNode`) are extracted by `test/page.test.ts`; keep new pure functions inside that range and free of DOM access.
+
 The persona editor reads `GET /api/personas` and keeps local `editingPersonaId` and `personaBaseline`. A 15-second `load()` must update the list/active indicator without replacing unsaved name or text. Switch or new-entry actions prompt before discarding drafts; saving a non-active entry must not change the active bot persona. The backup button should download the full `/api/export` payload, not synthesize a backup from `/api/state` (which omits version history and digest metadata).
 
 ---

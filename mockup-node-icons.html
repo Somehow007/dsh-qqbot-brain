@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>节点尺寸概念 · node-icon concepts</title>
+<style>
+  :root{--bg:#030b17;--line:#163350;--ink:#d8ecff;--muted:#6d8db0;--cyan:#5fe0ff;--mono:ui-monospace,monospace;--sans:system-ui,sans-serif;
+    --persona:#8fb4ff;--episodic:#8f9aff;--semantic:#5fe0ff;--attitude:#e09cff}
+  body{margin:0;background:radial-gradient(1100px 720px at 34% 30%,#0c2c4d 0%,#06162a 46%,#020812 100%) fixed,var(--bg);color:var(--ink);font:14px/1.5 var(--sans)}
+  main{max-width:1120px;margin:0 auto;padding:28px 30px 60px}
+  h1{font-size:20px;margin:0 0 4px}
+  .sub{color:var(--muted);font-size:12px;margin-bottom:26px}
+  .variant{margin-bottom:30px}
+  .variant h2{font:11px var(--mono);letter-spacing:.14em;color:var(--cyan);margin:0 0 2px}
+  .variant .note{color:var(--muted);font-size:12px;margin:0 0 10px}
+  .stage{position:relative;background:radial-gradient(ellipse 58% 60% at 50% 50%,#0d2f55 0%,#081d36 48%,#040e1c 100%);border:1px solid var(--line);overflow:hidden}
+  .stage svg{display:block;width:100%;height:auto}
+  /* 与 page.html 一致的节点样式（字号/描边随方案缩放） */
+  .halo{opacity:0;filter:url(#soft)}.node.sel .halo{opacity:.35}
+  .ring{stroke-width:1.2;stroke-opacity:.55}
+  .mem.k-episodic .ring{stroke:var(--episodic);fill:var(--episodic);fill-opacity:.1}
+  .mem.k-episodic .core,.mem.k-episodic .halo{fill:var(--episodic)}
+  .mem.k-semantic .ring{stroke:var(--semantic);fill:var(--semantic);fill-opacity:.1}
+  .mem.k-semantic .core,.mem.k-semantic .halo{fill:var(--semantic)}
+  .mem.k-attitude .ring{stroke:var(--attitude);fill:var(--attitude);fill-opacity:.1}
+  .mem.k-attitude .core,.mem.k-attitude .halo{fill:var(--attitude)}
+  .facet .ring{fill:var(--persona);fill-opacity:.08;stroke:var(--persona);stroke-opacity:.6}
+  .facet .core,.facet .halo{fill:var(--persona)}
+  .cap{fill:#bcd6ee;paint-order:stroke;stroke:#04101e;stroke-width:3.5px;stroke-linejoin:round;pointer-events:none}
+  .facet .cap{fill:#e2eeff;font-weight:600}
+  .dim .node{opacity:.22}
+  .sel .cap{fill:#fff}
+  .edge{fill:none;stroke:#62b8ea;stroke-opacity:.18;stroke-width:1;stroke-dasharray:3 4}
+  .edge.lit{stroke-opacity:.9;stroke-width:1.4}
+</style>
+</head>
+<body>
+<main>
+  <h1>节点图标尺寸概念</h1>
+  <p class="sub">等比 1:1 还原 /brain 渲染 · 同一批节点三种尺寸方案 · 含选中态对比</p>
+  <div id="variants"></div>
+</main>
+<script>
+const $=(s,r=document)=>r.querySelector(s);
+const NS='http://www.w3.org/2000/svg';
+const svgEl=(t,a={},tx)=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);if(tx!=null)e.textContent=tx;return e;};
+const hex=r=>Array.from({length:6},(_,i)=>{const a=Math.PI/6+i*Math.PI/3;return (Math.cos(a)*r).toFixed(1)+','+(Math.sin(a)*r).toFixed(1);}).join(' ');
+
+// 与真实页面同构的数据
+const MEM=[
+  {k:'semantic',imp:1,t:'云南旅行攻略…'},
+  {k:'semantic',imp:3,t:'说火锅首选牛…'},
+  {k:'semantic',imp:2,t:'下雨天猫也会…'},
+  {k:'semantic',imp:4,t:'跑步装备刚买…'},
+  {k:'semantic',imp:5,t:'楼下的橘猫又…'},
+  {k:'attitude',imp:2,t:'上周吃火锅点…'},
+  {k:'attitude',imp:3,t:'花生过敏这事…'},
+  {k:'episodic',imp:4,t:'加班到十点之…'},
+  {k:'episodic',imp:1,t:'最近在跑步，…'},
+];
+const PTS=[[170,55],[310,75],[120,135],[255,145],[395,50],[545,85],[520,155],[415,180],[210,215]];
+const SEL=4; // 选中第 5 个节点演示高亮
+
+function buildVariant(v){
+  const sec=document.createElement('section');sec.className='variant';
+  sec.innerHTML=`<h2>${v.name}</h2><p class="note">${v.note}</p>`;
+  const W=840,H=240,vb=[0,0,W,H].join(' ');
+  const svg=svgEl('svg',{viewBox:vb});
+  svg.innerHTML=`<defs><filter id="soft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3"/></filter></defs>`;
+  // 背景碎点（模拟星点氛围）
+  let seed=9;const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
+  for(let i=0;i<140;i++)svg.append(svgEl('circle',{cx:rnd()*W,cy:rnd()*H,r:(.4+rnd()*.8).toFixed(2),fill:'#a8deff',opacity:.16}));
+  // 关联线
+  const edges=[[0,1],[1,3],[2,3],[3,4],[5,7],[6,7],[7,8],[0,4]];
+  edges.forEach(([a,b])=>{
+    const [x1,y1]=PTS[a],[x2,y2]=PTS[b],mx=(x1+x2)/2,my=(y1+y2)/2,dx=x2-x1,dy=y2-y1;
+    svg.append(svgEl('path',{class:'edge'+((a===SEL||b===SEL)?' lit':''),d:`M${x1},${y1} Q${(mx-dy*.2).toFixed(1)},${(my+dx*.2).toFixed(1)} ${x2},${y2}`}));
+  });
+  // 人格六边形 + 情绪点
+  const mk=(x,y,build)=>{const g=svgEl('g',{transform:`translate(${x} ${y})`,class:'node'});build(g);svg.append(g);return g;};
+  const fr=v.facet(3);
+  mk(75,110,g=>{
+    g.append(svgEl('circle',{class:'halo',r:fr+10,fill:'var(--persona)'}));
+    g.append(svgEl('polygon',{class:'ring',points:hex(fr)}));
+    g.append(svgEl('polygon',{class:'core',points:hex(fr*.52),opacity:.9,fill:'var(--persona)'}));
+    g.append(svgEl('text',{class:'cap facet-cap',y:fr+v.capDy,textAnchor:'middle'},'说话风格'));
+  });
+  const er=v.emo(4);
+  mk(115,212,g=>{
+    g.append(svgEl('circle',{class:'halo',r:er+8,fill:'#5fdcc8'}));
+    g.append(svgEl('circle',{r:er,fill:'#5fdcc8',opacity:.9}));
+    g.append(svgEl('text',{class:'cap emo-cap',y:er+v.capDy,textAnchor:'middle'},'平静'));
+  });
+  MEM.forEach((m,i)=>{
+    const [x,y]=PTS[i],r=v.mem(m.imp),g=mk(x,y,gg=>{
+      gg.append(svgEl('circle',{class:'halo',r:r+v.haloPad}));
+      gg.append(svgEl('circle',{class:'ring',r}));
+      gg.append(svgEl('circle',{class:'core',r:(r*v.coreR).toFixed(1)}));
+      gg.append(svgEl('text',{class:'cap mem-cap',x:r+v.capDx,y:v.capY},m.t));
+    });
+    g.setAttribute('class','node mem k-'+m.k+(i===SEL?' sel':''));
+    if(i!==SEL)g.classList.add('dimx');
+  });
+  svg.querySelectorAll('.dimx').forEach(g=>g.style.opacity=.55);
+  svg.querySelector('.sel').style.opacity=1;
+  svg.querySelectorAll('.cap').forEach(t=>t.style.fontSize=v.font+'px');
+  const box=document.createElement('div');box.className='stage';box.append(svg);sec.append(box);
+  return sec;
+}
+
+const variants=[
+  {name:'现状 CURRENT · 记忆 ⌀20–32px · 人格 ⌀34px',note:'r = 7 + 重要度×1.2，环 1.2px，字号 11.5',
+   mem:i=>7+i*1.2,facet:c=>11+c*.9,emo:c=>5+c*.75,coreR:.45,haloPad:10,capDx:6,capDy:15,capY:4,font:11.5},
+  {name:'方案 A · 整体 −35% · 记忆 ⌀14–21px · 人格 ⌀24px',note:'r = 5 + 重要度×0.8，环 1.1px，字号 10.5 · 标签更靠近节点',
+   mem:i=>5+i*.8,facet:c=>8.5+c*.6,emo:c=>3.5+c*.5,coreR:.45,haloPad:8,capDx:5,capDy:13,capY:3.5,font:10.5},
+  {name:'方案 B · 整体 −55% · 记忆 ⌀10–16px · 人格 ⌀19px',note:'r = 3.6 + 重要度×0.55，环 1px，字号 10 · 最小可读档',
+   mem:i=>3.6+i*.55,facet:c=>7+c*.5,emo:c=>3+c*.45,coreR:.5,haloPad:7,capDx:4,capDy:11,capY:3,font:10},
+];
+variants.forEach(v=>document.getElementById('variants').append(buildVariant(v)));
+</script>
+</body>
+</html>
