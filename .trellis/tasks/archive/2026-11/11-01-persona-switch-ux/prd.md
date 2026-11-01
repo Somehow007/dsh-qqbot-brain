@@ -40,7 +40,7 @@
 
 ## Out of Scope
 
-- 不部署到云服务器（部署另行确认）；不改默认/启动优先级语义；不支持远程 URL 导入或人设商店。
+- ~~不部署到云服务器（部署另行确认）~~ 已应用户要求同日部署；不改默认/启动优先级语义；不支持远程 URL 导入或人设商店。
 
 ## Resolution（2026-11-01）
 
@@ -50,3 +50,10 @@
 - **什么时候干的**：2026-11-01。
 - **Key Decisions**：删除走持久化 op（persona-delete），重放/快照一致；当前人设必须先切走才能删，保证永远有可用人设；激活确认框展示目标名称防止误触。
 - **验证结论**：73/73 测试通过（新增 store 删除持久化 + http DELETE 400/404/200 + 旧接口 JSON 校验 + 页面控件补齐），typecheck/build/diff-check 全绿；后端 spec 已补 DELETE 契约。
+
+## Deployment Record（2026-11-01）
+
+- 远端备份：`plugin-before-20261101T020546Z-persona-ux-e2396cd.tgz` 与 `brain-before-...`（tar 校验通过）。
+- 上传 `dist` + `package.json` → `rsync -acn` 无差异；`cordis.patch.yml` 哈希 `22f1ef29...` 未变；服务重启后 active。
+- 验证：`/api/personas` 返回 `legacy` + `whale-gentle`；页面含 personaFile/personaDup/personaDel 新控件；`persona.md`（`6907af6f...`，与 whale-gentle 内容一致）= 活动人设文本。
+- 注意：两次部署之间线上活动人设已被切换为 `whale-gentle`（用户侧的合法切换写入，非本次上传改动）。
