@@ -478,3 +478,25 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 23: 脑图重构：鲸脑皮层（概念①）落地
+<!-- trellis-session: v=2 fp=41dd51db273fe8e2 -->
+
+**Date**: 2026-11-01
+**Task**: 脑图重构：鲸脑皮层（概念①）落地
+**Branch**: `main`
+
+### Summary
+
+问题：/brain 脑图被反复反馈杂而乱、不像类脑、无美感。方案：按概念①（鲸脑皮层侧剖面）整页重构——脑区分层固定槽位（前额叶=人格、杏仁核=情绪、新皮层=语义、顶叶=态度、海马体=情景）；情绪/人格关联纯前端推断（同会话±10min情绪op→5桶；##小节→bigram匹配）并明示非因果；交互含选中聚焦+两跳脉冲+分组关联检查器；动效为粒子+节点微漂+信号脉冲（统一开关、reduced-motion默认关）；节点改淡晕细胞球并按方案A缩35%；立绘换用户供图（裁字+压色）；修复立绘拉伸/图表过宽/搜索遮挡/溢出标签压图例。验证：82/82测试、typecheck、build、dist同步；jsdom冒烟33+空库5全过；5种宽度截图走查无溢出无报错。归档：archive/2026-11/11-01-brain-ui-cortex。后续：真实数据下若情绪/人格边稀疏另开后端任务；概念②③留作皮肤。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `d08288c` | feat(brain): rebuild /brain as whale-cortex side-section map |
+
+### Status
+
+[OK] **Completed**
