@@ -1,7 +1,7 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import type { EmotionState, MemoryNote, NoteDraft, ProfileEntry, SessionDigest } from './types.ts';
+import type { EmotionState, MemoryNote, NoteDraft, NoteEmotion, ProfileEntry, SessionDigest } from './types.ts';
 import { isSessionKey, isUserKey, normalizeProfileKey, sessionProfileKey, splitActor, userProfileKey } from './identity.ts';
 
 /**
@@ -54,6 +54,17 @@ function num(v: unknown, d: number): number {
 }
 
 /** 导入时按入库规范清洗一条记忆；结构不合法返回 undefined */
+function sanitizeNoteEmotion(raw: unknown): NoteEmotion | undefined {
+  const e = raw as Partial<NoteEmotion> | undefined;
+  if (!e || typeof e !== 'object') return undefined;
+  return {
+    v: Math.min(1, Math.max(-1, num(e.v, 0))),
+    a: Math.min(1, Math.max(0, num(e.a, 0))),
+    d: Math.min(1, Math.max(-1, num(e.d, 0))),
+    label: typeof e.label === 'string' ? e.label : '',
+  };
+}
+
 function sanitizeNote(raw: unknown, now: number): MemoryNote | undefined {
   const n = raw as Partial<MemoryNote> | undefined;
   if (!n || typeof n.id !== 'string' || !n.id) return undefined;
@@ -72,6 +83,10 @@ function sanitizeNote(raw: unknown, now: number): MemoryNote | undefined {
     embedding: (Array.isArray(n.embedding) && n.embedding.length)
       ? n.embedding
       : decodeVec((n as { e?: string }).e),
+    emotion: sanitizeNoteEmotion(n.emotion),
+    sourceIds: Array.isArray(n.sourceIds) && n.sourceIds.length
+      ? n.sourceIds.filter((id): id is string => typeof id === 'string' && !!id)
+      : undefined,
   };
 }
 
@@ -323,6 +338,8 @@ export class BrainStore {
       strength: Math.min(5, Math.max(1, Math.round(draft.importance ?? 3))),
       hits: 0,
       lastAccessAt: now,
+      emotion: draft.emotion ? sanitizeNoteEmotion(draft.emotion) : undefined,
+      sourceIds: draft.sourceIds?.length ? [...draft.sourceIds] : undefined,
     };
     if (!note.content) return note;
     this.persist({ op: 'add', note });

@@ -78,6 +78,8 @@
 
     /* ── SVG：边 / 节点 / 脉冲 ── */
     .edge{fill:none;stroke:#62b8ea;stroke-opacity:.18;stroke-width:1;stroke-dasharray:3 4;transition:stroke-opacity .15s}
+    .edge.rel-semantic{stroke:#62b8ea;stroke-dasharray:3 4}
+    .edge.rel-derived{stroke:#5fdcc8;stroke-dasharray:none;stroke-opacity:.2}
     .edge.rel-session{stroke:#4f7fb0;stroke-dasharray:none;stroke-opacity:.12}
     .edge.rel-actor{stroke:#9b85d6;stroke-dasharray:1 4}
     .edge.cross{stroke-opacity:0}
@@ -274,10 +276,11 @@
             <span><svg width="14" height="14"><polygon points="7,1 12.5,4 12.5,10 7,13 1.5,10 1.5,4" fill="#081a30" stroke="#8fb4ff"/></svg>人格</span>
             <span><svg width="12" height="12"><circle cx="6" cy="6" r="5" fill="#ffc95c"/></svg>情绪</span>
             <span><svg width="14" height="14"><circle cx="7" cy="7" r="5.5" fill="#061426" stroke="#8f9aff" stroke-width="1.5"/></svg>记忆</span>
-            <span><svg width="26" height="8"><line x1="0" y1="4" x2="26" y2="4" stroke="#62b8ea" stroke-dasharray="3 4"/></svg>相似话题</span>
+            <span><svg width="26" height="8"><line x1="0" y1="4" x2="26" y2="4" stroke="#5fdcc8"/></svg>沉淀巩固</span>
+            <span><svg width="26" height="8"><line x1="0" y1="4" x2="26" y2="4" stroke="#62b8ea" stroke-dasharray="3 4"/></svg>语义/话题相似</span>
             <span><svg width="26" height="8"><line x1="0" y1="4" x2="26" y2="4" stroke="#4f7fb0"/></svg>同一会话</span>
             <span><svg width="26" height="8"><line x1="0" y1="4" x2="26" y2="4" stroke="#9b85d6" stroke-dasharray="1 4"/></svg>同一发言人</span>
-            <span>· 全部为推断，非因果</span>
+            <span>· 沉淀巩固为实录，其余为相似度推导</span>
           </div>
         </div>
         <div class="ctrls">
@@ -417,23 +420,40 @@ function previewText(note,notes,start=distinctStart(note,notes)){
   const text=cleanText(note.content);
   return start>=24?text.slice(0,12)+' … '+text.slice(start):text;
 }
-// ── 记忆关系推断：相似话题（ngram 重合）/ 同一会话 / 同一发言人 ──
-const REL_LABEL={topic:'相似话题',session:'同一会话',actor:'同一发言人'};
-function computeRelations(notes){
-  const grams=notes.map(n=>new Set(ngrams(n.content))),out=[];
+// ── 记忆关系：后端语义边（向量余弦，STATE.edges）为骨架；ngram/同会话/同发言人作本地附加理由；无后端边时回退纯 ngram 推断 ──
+const REL_LABEL={derived:'沉淀巩固',semantic:'语义相似',topic:'相似话题',session:'同一会话',actor:'同一发言人'};
+const REL_ORDER=['derived','semantic','topic','session','actor'];
+function buildRelations(notes,edges){
+  const map=new Map(),byId=new Set(notes.map(n=>n.id));
+  const put=(a,b,reason,w,cos)=>{
+    const k=a<b?a+'|'+b:b+'|'+a;
+    let r=map.get(k);
+    if(!r){r={a,b,reasons:[],score:0,cos:0,primary:reason};map.set(k,r);}
+    if(!r.reasons.includes(reason))r.reasons.push(reason);
+    r.score+=w;if(cos)r.cos=cos;
+    r.primary=r.reasons.reduce((x,y)=>REL_ORDER.indexOf(x)<=REL_ORDER.indexOf(y)?x:y);
+  };
+  (edges||[]).forEach(e=>{
+    if(e.kind==='semantic'&&byId.has(e.a)&&byId.has(e.b))put(e.a,e.b,'semantic',Math.round(e.score*20),e.score);
+    if(e.kind==='derived'&&byId.has(e.a)&&byId.has(e.b))put(e.a,e.b,'derived',22);
+  });
+  const grams=notes.map(n=>new Set(ngrams(n.content)));
   for(let i=0;i<notes.length;i++)for(let j=i+1;j<notes.length;j++){
-    const a=notes[i],b=notes[j],reasons=[];
+    const a=notes[i],b=notes[j];
     let c=0;for(const x of grams[j])if(grams[i].has(x))c++;
-    let score=0;
-    if(c>=3){reasons.push('topic');score+=Math.min(c,12);}
-    if(a.sessionId===b.sessionId){reasons.push('session');score+=2;}
-    if(a.actor&&a.actor===b.actor){reasons.push('actor');score+=2;}
-    if(reasons.length)out.push({a:a.id,b:b.id,reasons,score,primary:reasons[0]});
+    if(c>=3)put(a.id,b.id,'topic',Math.min(c,12));
+    if(a.sessionId===b.sessionId)put(a.id,b.id,'session',2);
+    if(a.actor&&a.actor===b.actor)put(a.id,b.id,'actor',2);
   }
-  return out.sort((x,y)=>y.score-x.score);
+  return [...map.values()].sort((x,y)=>y.score-x.score);
 }
 function relationWhy(rel,other){
-  return rel.reasons.map(t=>t==='actor'&&other.actor?`同一发言人 ${other.actor}`:REL_LABEL[t]).join(' · ');
+  return rel.reasons.map(t=>{
+    if(t==='actor'&&other.actor)return `同一发言人 ${other.actor}`;
+    if(t==='semantic'&&rel.cos)return `语义相似 ${Math.round(rel.cos*100)}%`;
+    if(t==='derived')return other.kind==='semantic'?'沉淀为这条语义记忆':'巩固自这条情景记忆';
+    return REL_LABEL[t];
+  }).join(' · ');
 }
 // ── 情绪层推断：PAD → 5 个情绪桶；记忆取同会话、形成后 10 分钟内最近的一次情绪记录 ──
 const EMO_BUCKETS=[
@@ -557,8 +577,17 @@ function colorOf(k){
 }
 function buildCortex(state,ops,personaText){
   const notes=state.notes,emos=emotionOps(ops),facets=personaFacets(personaText);
+  // 服务端人格边：note → facet:<i>（向量匹配）；缺边条目回退字面共同词推断
+  const srvFacet=new Map();(state.edges||[]).forEach(e=>{if(e.kind==='facet')srvFacet.set(e.a,{facet:e.b,cos:e.score});});
   const emoOf=new Map(),facetOf=new Map();
-  notes.forEach(n=>{const e=matchEmotion(n,emos);if(e)emoOf.set(n.id,e);const f=matchFacet(n,facets);if(f)facetOf.set(n.id,f);});
+  notes.forEach(n=>{
+    // 形成时情绪：新数据直接读记忆上的快照；老数据回退 ops 流水 ±10min 推断
+    const e=n.emotion?{bucket:emotionBucket(n.emotion),label:n.emotion.label||'',t:n.createdAt}:matchEmotion(n,emos);
+    if(e)emoOf.set(n.id,e);
+    const sf=srvFacet.get(n.id);
+    const f=sf?{facet:sf.facet,words:null,cos:sf.cos}:matchFacet(n,facets);
+    if(f)facetOf.set(n.id,f);
+  });
   const shown=[],overflow={};
   for(const k of Object.keys(CAP)){
     const all=notes.filter(n=>(KIND[n.kind]?n.kind:'episodic')===k).sort((a,b)=>b.retention-a.retention||b.importance-a.importance);
@@ -574,12 +603,12 @@ function neighbors(key){
   if(!C||!key)return out;
   const t=keyKind(key);
   if(t==='emotion'){C.notes.forEach(n=>{const e=C.emoOf.get(n.id);if(e&&e.bucket===key)out.push({id:n.id,why:'形成时情绪'+(e.label?` · ${e.label}`:'')});});return out;}
-  if(t==='facet'){C.notes.forEach(n=>{const f=C.facetOf.get(n.id);if(f&&f.facet===key)out.push({id:n.id,why:'共同词 · '+f.words.join('、')});});return out;}
+  if(t==='facet'){C.notes.forEach(n=>{const f=C.facetOf.get(n.id);if(f&&f.facet===key)out.push({id:n.id,why:f.words?.length?'共同词 · '+f.words.join('、'):`语义相似 ${Math.round((f.cos||0)*100)}%`});});return out;}
   REL.filter(r=>r.a===key||r.b===key).slice(0,8).forEach(r=>{
     const o=r.a===key?r.b:r.a,other=C.notes.find(x=>x.id===o);
     if(other)out.push({id:o,why:relationWhy(r,other)});});
   const e=C.emoOf.get(key);if(e)out.push({id:e.bucket,why:'形成时情绪'+(e.label?` · ${e.label}`:'')});
-  const f=C.facetOf.get(key);if(f)out.push({id:f.facet,why:'共同词 · '+f.words.join('、')});
+  const f=C.facetOf.get(key);if(f)out.push({id:f.facet,why:f.words?.length?'共同词 · '+f.words.join('、'):`语义相似 ${Math.round((f.cos||0)*100)}%`});
   return out;
 }
 
@@ -592,7 +621,7 @@ async function load(){
     fapi(API+'/personas').then(r=>r.ok?r.json():null).catch(()=>null),
   ]);
   STATE=st; OPS=ops.ops; SESS=sess.sessions; PEERS=prof.profiles||[];
-  REL=computeRelations(STATE.notes);
+  REL=buildRelations(STATE.notes,STATE.edges);
   if(personas)showPersonas(personas);
   CORTEX=buildCortex(STATE,OPS,STATE.persona);
   render(); renderLibrary(); renderSessions(); renderOps();

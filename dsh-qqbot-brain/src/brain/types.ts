@@ -10,6 +10,14 @@
  * 人格内核 persona core 为只读文本，不走可写记忆。
  */
 
+/** 记忆写入时钉上的情绪快照（不带 updatedAt；缺失=老数据/未记录） */
+export interface NoteEmotion {
+  v: number;
+  a: number;
+  d: number;
+  label: string;
+}
+
 /** 一条长期记忆（蒸馏笔记） */
 export interface MemoryNote {
   /** 稳定 id */
@@ -34,6 +42,10 @@ export interface MemoryNote {
   lastAccessAt: number;
   /** 语义向量（embedding API 产出；无 key 时缺省，检索回退 lexical） */
   embedding?: number[];
+  /** 形成时的情绪快照：op 流水会 compact，直接存记忆上才是可靠的「形成时情绪」 */
+  emotion?: NoteEmotion;
+  /** 派生来源：巩固（consolidate）时喂入的情景记忆 id（真实的「沉淀自」关系，非推断） */
+  sourceIds?: string[];
 }
 
 /** PAD 情绪状态：v 效价[-1,1] a 唤醒[0,1] d 支配[-1,1] */
@@ -54,6 +66,10 @@ export interface NoteDraft {
   kind?: 'episodic' | 'semantic' | 'attitude';
   /** 判重：若为对已有记忆（distill 时附带的编号列表）的更新/合并，为对应下标 */
   mergeIndex?: number;
+  /** 写入时钉上的情绪快照（由 Brain 层注入） */
+  emotion?: NoteEmotion;
+  /** 派生来源（巩固路径注入）：喂出这条语义记忆的情景记忆 id */
+  sourceIds?: string[];
 }
 
 /**
@@ -159,6 +175,8 @@ export interface BrainConfig {
   consolidateMinAgeDays: number;
   /** 语义巩固：会话内情景记忆达到该数量才触发 */
   consolidateMinNotes: number;
+  /** 写入判重：新记忆与既有记忆向量余弦 ≥ 该值时强化旧记忆而非新增（0=关闭） */
+  dedupeEmbedCos: number;
   /** 物理遗忘：快照时删除 hits=0 且低于遗忘阈值 且 age>=该天数 的记忆（0=不物理删除） */
   evictAfterDays: number;
 }
@@ -181,6 +199,7 @@ export const DEFAULT_BRAIN_CONFIG: BrainConfig = {
   digestWindowTurns: 40,
   consolidateMinAgeDays: 1,
   consolidateMinNotes: 4,
+  dedupeEmbedCos: 0.9,
   evictAfterDays: 30,
 };
 

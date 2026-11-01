@@ -351,15 +351,15 @@ test('emotion: 应用增量后随时间向中性回归', () => {
   assert.equal(later.label, '平静');
 });
 
-test('emotion: 持久化状态在 Brain 构造时恢复，graph 无 session 显示最新', () => {
+test('emotion: 持久化状态在 Brain 构造时恢复，graph 无 session 显示最新', async () => {
   const { store } = tmpStore();
   store.setEmotion('s1', { v: 0.7, a: 0.8, d: 0.3, label: '得意', updatedAt: NOW });
   store.setEmotion('s2', { v: -0.5, a: 0.4, d: -0.2, label: '委屈', updatedAt: NOW + 1000 });
   const brain = new Brain({ store, distiller: mockDistiller({}), now });
   // 无 session 的全局视图回退到最近更新的情绪（s2），并标注来源会话
-  assert.equal(brain.graph().emotion.label, '委屈');
-  assert.equal(brain.graph().emotionSession, 's2');
-  assert.equal(brain.graph('s1').emotion.label, '得意');
+  assert.equal((await brain.graph()).emotion.label, '委屈');
+  assert.equal((await brain.graph()).emotionSession, 's2');
+  assert.equal((await brain.graph('s1')).emotion.label, '得意');
   // 注入路径同样能拿到恢复的情绪
   assert.match(brain.assemble('s1', 'hi').emotion, /得意/);
 });
@@ -473,14 +473,97 @@ test('assemble: 记忆行带发言人前缀', () => {
 });
 
 // ── 可视化数据 ──
-test('graph: 返回节点统计与遗忘标记', () => {
+test('graph: 返回节点统计与遗忘标记', async () => {
   const { store } = tmpStore();
   store.addNote('s1', { content: '老记忆', importance: 1 }, NOW - 30 * DAY);
   store.addNote('s1', { content: '新记忆', importance: 5 }, NOW);
   const brain = new Brain({ store, distiller: mockDistiller({}), now });
-  const g = brain.graph('s1');
+  const g = await brain.graph('s1');
   assert.equal(g.stats.total, 2);
   assert.equal(g.stats.fading >= 1, true);
+});
+
+test('graph: 记忆写入时钉上情绪快照', async () => {
+  const { store } = tmpStore();
+  store.setEmotion('s1', { v: 0.7, a: 0.8, d: 0.3, label: '得意', updatedAt: NOW });
+  const brain = new Brain({ store, distiller: mockDistiller({}), now });
+  const n = brain.addNote('s1', { content: '手写记忆', importance: 3 });
+  assert.ok(n.emotion, '写入时应带情绪快照');
+  assert.equal(n.emotion!.label, '得意');
+  assert.equal((await brain.graph('s1')).notes[0]!.emotion!.label, '得意');
+});
+
+test('graph edges: 语义边取向量余弦 top-k，近重复不连', async () => {
+  const { store } = tmpStore();
+  const a = store.addNote('s1', { content: 'a', importance: 3 }, NOW);
+  const b = store.addNote('s1', { content: 'b', importance: 3 }, NOW);
+  const c = store.addNote('s1', { content: 'c', importance: 3 }, NOW);
+  const d = store.addNote('s1', { content: 'd', importance: 3 }, NOW);
+  const brain = new Brain({ store, distiller: mockDistiller({}), now });
+  // a-b cos≈0.89（边）、a-c cos≈1.0（近重复不连）、其他对 cos<0.65（低于门槛）
+  store.setEmbedding(a.id, [1, 0, 0, 0]);
+  store.setEmbedding(b.id, [0.8, 0.4, 0, 0]);
+  store.setEmbedding(c.id, [0.99, 0.05, 0, 0]);
+  store.setEmbedding(d.id, [0, 0.9, 0.5, 0]);
+  const g = await brain.graph('s1');
+  const sem = g.edges!.filter((e) => e.kind === 'semantic');
+  assert.equal(sem.length, 1);
+  assert.deepEqual([sem[0]!.a, sem[0]!.b].sort(), [a.id, b.id].sort());
+  assert.ok(sem[0]!.score >= 0.65 && sem[0]!.score < 0.9);
+});
+
+test('graph edges: sourceIds 产出 derived 边，指向不存在节点被过滤', async () => {
+  const { store } = tmpStore();
+  const e = store.addNote('s1', { content: '情景记忆', importance: 3 }, NOW);
+  const s = store.addNote('s1', { content: '语义记忆', kind: 'semantic', sourceIds: [e.id, 'ghost'] }, NOW);
+  const brain = new Brain({ store, distiller: mockDistiller({}), now });
+  const g = await brain.graph('s1');
+  const de = g.edges!.filter((x) => x.kind === 'derived');
+  assert.equal(de.length, 1);
+  assert.equal(de[0]!.a, s.id);
+  assert.equal(de[0]!.b, e.id);
+});
+
+test('distill 写入判重：cos≥0.9 的新记忆强化旧记忆而非新增', async () => {
+  const { store } = tmpStore();
+  const old = store.addNote('s1', { content: '用户喜欢猫', importance: 3 }, NOW);
+  store.setEmbedding(old.id, [1, 0, 0]);
+  const fake = {
+    enabled: true,
+    embed: async (texts: string[]) => texts.map(() => [0.99, 0.05, 0]),
+    embedOne: async () => null,
+  };
+  const brain = new Brain({
+    store,
+    distiller: mockDistiller({ memories: [{ content: '用户其实很喜欢猫咪', importance: 3 }] }),
+    embedder: fake as never,
+    now,
+  });
+  brain.ingest('s1', { userText: 'hi', assistantText: 'yo', at: NOW });
+  await brain.endOfTurn('s1');
+  assert.equal(store.allNotes().length, 1, '近重复应合并而非新增');
+  assert.equal(store.noteById(old.id)!.hits, 1, '旧记忆应被强化命中');
+});
+
+test('graph edges: 无向量时为空数组，facet 边经 embedder 匹配', async () => {
+  const { store } = tmpStore();
+  store.addNote('s1', { content: '没向量的记忆', importance: 3 }, NOW);
+  const brain = new Brain({ store, distiller: mockDistiller({}), now });
+  assert.deepEqual((await brain.graph('s1')).edges, []);
+  // 有 embedder 时人格小节向量与记忆向量匹配出 facet 边
+  const fake = {
+    enabled: true,
+    embed: async (texts: string[]) => texts.map((t) => (t.includes('风格') ? [0, 0, 1] : [1, 0, 0])),
+    embedOne: async () => null,
+  };
+  store.setPersona('## 身份\n是大肥鱼\n## 说话风格\n嘴硬傲娇');
+  const n2 = store.addNote('s1', { content: '她说了一句口是心非的话', importance: 3 }, NOW);
+  store.setEmbedding(n2.id, [0, 0.05, 0.99]);
+  const brain2 = new Brain({ store, distiller: mockDistiller({}), embedder: fake as never, now });
+  const g2 = await brain2.graph('s1');
+  const fe = g2.edges!.filter((e) => e.kind === 'facet');
+  assert.equal(fe.length, 1);
+  assert.equal(fe[0]!.b, 'facet:1');
 });
 
 // ── 画像按人建模 ──

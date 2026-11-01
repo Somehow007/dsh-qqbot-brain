@@ -62,7 +62,7 @@ export class BrainHttpServer {
 
     if (p === `${prefix}/api/state`) {
       const sessionId = url.searchParams.get('session') ?? undefined;
-      return json(res, this.brain.graph(sessionId));
+      return json(res, await this.brain.graph(sessionId));
     }
     if (p === `${prefix}/api/persona`) {
       if (req.method === 'GET') return json(res, { text: this.brain.persona() });

@@ -11,12 +11,12 @@ type Pad = { v: number; a: number; d?: number; label?: string };
 type EmoOp = { t: number; op: { op: string; sessionId?: string; state?: Pad } };
 type Facet = { id: string; title: string; heading: string; body: string };
 type Box = [number, number, number, number];
-const { cleanText, nodeLabel, mapLabel, previewText, computeRelations, relationWhy, emotionBucket, emotionOps, matchEmotion, personaFacets, matchFacet, layoutSlots, companionLine } = runInNewContext(`${helpers}; ({cleanText,nodeLabel,mapLabel,previewText,computeRelations,relationWhy,emotionBucket,emotionOps,matchEmotion,personaFacets,matchFacet,layoutSlots,companionLine})`) as {
+const { cleanText, nodeLabel, mapLabel, previewText, buildRelations, relationWhy, emotionBucket, emotionOps, matchEmotion, personaFacets, matchFacet, layoutSlots, companionLine } = runInNewContext(`${helpers}; ({cleanText,nodeLabel,mapLabel,previewText,buildRelations,relationWhy,emotionBucket,emotionOps,matchEmotion,personaFacets,matchFacet,layoutSlots,companionLine})`) as {
   cleanText: (text: string) => string;
   nodeLabel: (note: { id: string; content: string }, notes: { id: string; content: string }[]) => string;
   mapLabel: (note: { id: string; content: string }, notes: { id: string; content: string }[]) => string;
   previewText: (note: { id: string; content: string }, notes: { id: string; content: string }[]) => string;
-  computeRelations: (notes: { id: string; content: string; sessionId: string; actor?: string }[]) => { a: string; b: string; reasons: string[]; score: number; primary: string }[];
+  buildRelations: (notes: { id: string; content: string; sessionId: string; actor?: string }[], edges?: { a: string; b: string; kind: string; score: number }[]) => { a: string; b: string; reasons: string[]; score: number; cos: number; primary: string }[];
   relationWhy: (rel: { reasons: string[] }, other: { actor?: string }) => string;
   emotionBucket: (state: Pad | undefined) => string;
   emotionOps: (ops: EmoOp[]) => { t: number; sessionId: string; state: Pad }[];
@@ -108,7 +108,7 @@ test('关系推断区分相似话题、同一会话、同一发言人', () => {
     { id: 'c', content: '完全不同的记录内容', sessionId: 's1' },
     { id: 'd', content: '另一条毫无关联的笔记', sessionId: 's2', actor: '李四' },
   ];
-  const rels = computeRelations(notes);
+  const rels = buildRelations(notes);
   const ab = rels.find(r => r.a === 'a' && r.b === 'b');
   assert.ok(ab, 'a/b 应有推断关系');
   assert.equal(ab!.reasons.join(','), 'topic,session,actor');
@@ -132,9 +132,46 @@ test('关系按强度排序，弱关系排在强关系之后', () => {
     { id: 'b', content: '用户周末经常出门散步', sessionId: 's1', actor: '张三' },
     { id: 'c', content: '完全不同的记录内容', sessionId: 's1' },
   ];
-  const rels = computeRelations(notes);
+  const rels = buildRelations(notes);
   assert.ok(rels[0]!.score >= rels[1]!.score, '按 score 降序');
   assert.equal(rels[0]!.primary, 'topic');
+});
+
+test('服务端语义边优先展示并保留本地附加理由', () => {
+  const notes = [
+    { id: 'a', content: '猫很胖', sessionId: 's1', actor: '张三' },
+    { id: 'b', content: '狗很可爱', sessionId: 's1', actor: '张三' },
+    { id: 'c', content: '完全不同的记录内容', sessionId: 's2', kind: 'semantic' },
+  ];
+  const edges = [
+    { a: 'a', b: 'b', kind: 'semantic', score: 0.78 },
+    { a: 'a', b: 'ghost', kind: 'semantic', score: 0.9 },
+    { a: 'a', b: 'c', kind: 'facet', score: 0.6 },
+    { a: 'c', b: 'a', kind: 'derived', score: 1 },
+  ];
+  const rels = buildRelations(notes, edges);
+  const ab = rels.find(r => r.a === 'a' && r.b === 'b');
+  assert.ok(ab, '语义边应保留');
+  assert.equal(ab!.primary, 'semantic');
+  assert.equal(ab!.cos, 0.78);
+  assert.equal(ab!.reasons.join(','), 'semantic,session,actor', '语义主因 + 本地同会话/同发言人附加');
+  assert.equal(rels.find(r => r.b === 'ghost'), undefined, '指向不存在节点的边被过滤');
+  assert.equal(relationWhy(ab!, { actor: '张三' }), '语义相似 78% · 同一会话 · 同一发言人 张三');
+  const ac = rels.find(r => (r.a === 'c' && r.b === 'a'));
+  assert.ok(ac, 'derived 边应保留');
+  assert.equal(ac!.primary, 'derived');
+  assert.equal(relationWhy(ac!, { kind: 'semantic' }), '沉淀为这条语义记忆');
+  assert.equal(relationWhy(ac!, { kind: 'episodic' }), '巩固自这条情景记忆');
+});
+
+test('无服务端边时本地推断行为不变', () => {
+  const notes = [
+    { id: 'a', content: '用户周末喜欢出门散步', sessionId: 's1' },
+    { id: 'b', content: '用户周末经常出门散步', sessionId: 's1' },
+  ];
+  const rels = buildRelations(notes, []);
+  const ab = rels.find(r => r.a === 'a' && r.b === 'b');
+  assert.equal(ab!.reasons.join(','), 'topic,session');
 });
 
 test('情绪桶按 PAD 推断：效价定正负，唤醒定强弱', () => {

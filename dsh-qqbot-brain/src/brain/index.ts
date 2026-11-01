@@ -1,5 +1,5 @@
 import { DEFAULT_BRAIN_CONFIG } from './types.ts';
-import type { BrainConfig, BrainContext, DistillResult, EmotionState, MemoryNote, NoteDraft, Turn } from './types.ts';
+import type { BrainConfig, BrainContext, DistillResult, EmotionState, MemoryNote, NoteDraft, NoteEmotion, Turn } from './types.ts';
 import { isUserKey, splitActor, userProfileKey } from './identity.ts';
 import { ageInDays, retention } from './decay.ts';
 import { Retriever } from './retrieval.ts';
@@ -8,6 +8,7 @@ import { BrainStore, PROFILE_TEXT_CAP } from './store.ts';
 import { Distiller } from './distill.ts';
 import type { ProfileReviewItem } from './distill.ts';
 import type { Embedder } from './embed.ts';
+import { vecCosine } from './embed.ts';
 
 export * from './types.ts';
 export { Retriever } from './retrieval.ts';
@@ -245,16 +246,38 @@ export class Brain {
         `蒸馏 ${sessionId.slice(0, 8)}…：记忆 ${result.memories.length} 条 / `
         + `情绪 ${result.emotion?.label ?? '（未变）'} / 画像 ${result.profile || result.profiles?.length ? '更新' : '（未变）'}`,
       );
+      // 先落本轮情绪：新写出的记忆以「产生它们的这次对话」的情绪盖章
+      if (result.emotion) {
+        const s = this.emotion.apply(sessionId, result.emotion, now);
+        this.store.setEmotion(sessionId, s);
+      }
+      const stamp = this.emotionStamp(sessionId, now);
       const touched: MemoryNote[] = [];
+      // 新增草稿先取向量做写入判重：cos≥dedupeEmbedCos 视为同一事实，强化旧记忆而非再写一条
+      const freshVecs = this.embedder?.enabled
+        ? await this.embedder.embed(
+            result.memories.filter((m) => m.mergeIndex == null || !existing[m.mergeIndex]).map((m) => m.content))
+        : null;
+      let fi = 0;
       for (const m of result.memories) {
         const target = m.mergeIndex != null ? existing[m.mergeIndex] : undefined;
         if (target) {
           this.store.updateNote(target.id, { content: m.content, importance: m.importance, kind: m.kind });
           this.store.reinforceById(target.id, this.cfg.reinforceStep, this.cfg.strengthCap, now);
           touched.push(target);
-        } else {
-          touched.push(this.store.addNote(sessionId, m, now));
+          continue;
         }
+        const vec = freshVecs?.[fi++] ?? null;
+        const dup = vec ? this.findNearDup(vec) : undefined;
+        if (dup) {
+          this.store.reinforce(dup.note, this.cfg.reinforceStep, this.cfg.strengthCap, now);
+          this.log?.(`判重合并：与「${dup.note.content.slice(0, 20)}」余弦 ${dup.cos.toFixed(2)}，强化旧记忆`);
+          touched.push(dup.note);
+          continue;
+        }
+        const n = this.store.addNote(sessionId, { ...m, emotion: stamp }, now);
+        if (vec) this.store.setEmbedding(n.id, vec);
+        touched.push(n);
       }
       // 意图级遗忘：编号指回附带列表 / 子串精确匹配（限本会话，防误删）
       for (const f of result.forget ?? []) {
@@ -266,10 +289,6 @@ export class Brain {
             if (n.sessionId === sessionId && n.content.includes(f)) this.store.deleteNote(n.id);
           }
         }
-      }
-      if (result.emotion) {
-        const s = this.emotion.apply(sessionId, result.emotion, now);
-        this.store.setEmotion(sessionId, s);
       }
       await this.reviewAndWriteProfiles(sessionId, result, turns.map((t) => t.actor));
       // 新/改记忆补语义向量（失败静默，检索回退 lexical）
@@ -413,7 +432,11 @@ export class Brain {
       .map((p) => `${p.actor ?? '会话整体'}：${p.text}`)
       .join('\n');
     const result = await this.distiller.consolidate(eps, profileText, this.persona());
-    const added = result.memories.map((m) => this.store.addNote(sessionId, { ...m, kind: 'semantic' }, now));
+    const stamp = this.emotionStamp(sessionId, now);
+    const sourceIds = eps.map((e) => e.id);
+    const added = result.memories.map((m) => this.store.addNote(
+      sessionId, { ...m, kind: 'semantic', emotion: stamp, sourceIds }, now,
+    ));
     await this.reviewAndWriteProfiles(sessionId, result, eps.map((n) => n.actor));
     void this.embedNotes(added);
     return result.memories.length;
@@ -438,10 +461,29 @@ export class Brain {
     return this.emotion.get(sessionId, this.now());
   }
 
+  /** 当前会话情绪快照（写入记忆时钉上；op 流水会 compact，快照存记忆上才可靠） */
+  private emotionStamp(sessionId: string, now: number): NoteEmotion {
+    const e = this.emotion.get(sessionId, now);
+    return { v: e.v, a: e.a, d: e.d, label: e.label };
+  }
+
+  /** 写入判重：全库找与新记忆向量余弦最高的既有记忆，≥dedupeEmbedCos 判为同一事实 */
+  private findNearDup(vec: number[]): { note: MemoryNote; cos: number } | undefined {
+    if (this.cfg.dedupeEmbedCos <= 0) return undefined;
+    let best: MemoryNote | undefined, bc = 0;
+    for (const n of this.store.allNotes()) {
+      if (!n.embedding?.length) continue;
+      const c = vecCosine(vec, n.embedding);
+      if (c > bc) { bc = c; best = n; }
+    }
+    return best && bc >= this.cfg.dedupeEmbedCos ? { note: best, cos: bc } : undefined;
+  }
+
   // ── 脑图页编辑入口 ──
 
   addNote(sessionId: string, draft: NoteDraft): MemoryNote {
-    const n = this.store.addNote(sessionId || 'manual', draft, this.now());
+    const now = this.now();
+    const n = this.store.addNote(sessionId || 'manual', { ...draft, emotion: this.emotionStamp(sessionId || 'manual', now) }, now);
     void this.embedNotes([n]);
     return n;
   }
@@ -486,26 +528,28 @@ export class Brain {
     return this.store.recentOps(limit);
   }
 
-  /** 可视化数据：节点 + 边 + 情绪 + 统计 */
-  graph(sessionId?: string) {
+  /** 可视化数据：节点 + 关联边 + 情绪 + 统计 */
+  async graph(sessionId?: string) {
     const now = this.now();
-    const notes = this.store.allNotes()
-      .filter((n) => !sessionId || n.sessionId === sessionId)
-      .map((n) => ({
-        id: n.id,
-        content: n.content,
-        importance: n.importance,
-        kind: n.kind,
-        actor: n.actor,
-        sessionId: n.sessionId,
-        createdAt: n.createdAt,
-        strength: n.strength,
-        lastAccessAt: n.lastAccessAt,
-        ageDays: Math.floor(ageInDays(n, now)),
-        retention: +retention(n, now).toFixed(3),
-        hits: n.hits,
-        fading: retention(n, now) < this.cfg.forgetThreshold,
-      }));
+    const raw = this.store.allNotes()
+      .filter((n) => !sessionId || n.sessionId === sessionId);
+    const notes = raw.map((n) => ({
+      id: n.id,
+      content: n.content,
+      importance: n.importance,
+      kind: n.kind,
+      actor: n.actor,
+      sessionId: n.sessionId,
+      createdAt: n.createdAt,
+      strength: n.strength,
+      lastAccessAt: n.lastAccessAt,
+      ageDays: Math.floor(ageInDays(n, now)),
+      retention: +retention(n, now).toFixed(3),
+      hits: n.hits,
+      fading: retention(n, now) < this.cfg.forgetThreshold,
+      emotion: n.emotion,
+    }));
+    const { edges, nearDup } = await this.graphEdges(raw);
     const stats = {
       total: notes.length,
       avgRetention: notes.length
@@ -513,6 +557,8 @@ export class Brain {
         : 0,
       fading: notes.filter((n) => n.fading).length,
       sessions: new Set(notes.map((n) => n.sessionId)).size,
+      /** 向量余弦 ≥0.9 的近重复记忆对数（判重质量观测指标） */
+      nearDup,
     };
     const emo = sessionId
       ? { sessionId, state: this.emotion.get(sessionId, now) }
@@ -525,8 +571,75 @@ export class Brain {
       emotionSession: emo?.sessionId,
       notes,
       stats,
+      edges,
       config: { forgetThreshold: this.cfg.forgetThreshold, topK: this.cfg.topK },
     };
+  }
+
+  /**
+   * 图谱关联边（实时推导，不落库——存了反而会在记忆/人设变化后变陈旧）。
+   * - semantic：向量余弦 ∈ [0.65, 0.9) 的每节点 top-3；≥0.9 判为近重复不连（判重是独立问题）
+   * - facet：记忆向量与人格小节（页面前端同款 ## 拆分）最大余弦 ≥0.55
+   * 向量缺失/embedding 未启用时相应边集为空，页面自行回退 ngram/字面推断。
+   */
+  private async graphEdges(notes: MemoryNote[]): Promise<{ edges: { a: string; b: string; kind: 'semantic' | 'facet' | 'derived'; score: number }[]; nearDup: number }> {
+    const edges: { a: string; b: string; kind: 'semantic' | 'facet' | 'derived'; score: number }[] = [];
+    const present = new Set(notes.map((n) => n.id));
+    for (const n of notes) {
+      for (const s of n.sourceIds ?? []) {
+        if (present.has(s)) edges.push({ a: n.id, b: s, kind: 'derived', score: 1 });
+      }
+    }
+    const vecs = notes.filter((n) => n.embedding?.length);
+    let nearDup = 0;
+    if (vecs.length >= 2) {
+      const best = new Map<string, { a: string; b: string; score: number }>();
+      const dups = new Set<string>();
+      for (const n of vecs) {
+        const sims: { m: MemoryNote; c: number }[] = [];
+        for (const m of vecs) {
+          if (m.id === n.id) continue;
+          const c = vecCosine(n.embedding!, m.embedding!);
+          if (c >= 0.9) {
+            const [a, b] = n.id < m.id ? [n.id, m.id] : [m.id, n.id];
+            dups.add(`${a}|${b}`);
+          } else if (c >= 0.65) sims.push({ m, c });
+        }
+        for (const { m, c } of sims.sort((x, y) => y.c - x.c).slice(0, 3)) {
+          const [a, b] = n.id < m.id ? [n.id, m.id] : [m.id, n.id];
+          const cur = best.get(`${a}|${b}`);
+          if (!cur || c > cur.score) best.set(`${a}|${b}`, { a, b, score: +c.toFixed(3) });
+        }
+      }
+      nearDup = dups.size;
+      edges.push(...[...best.values()].sort((x, y) => y.score - x.score).slice(0, 400)
+        .map((e) => ({ ...e, kind: 'semantic' as const })));
+    }
+    const fvecs = await this.facetVectors();
+    if (fvecs) {
+      for (const n of vecs) {
+        let bi = -1, bc = 0;
+        fvecs.forEach((fv, i) => {
+          const c = vecCosine(n.embedding!, fv);
+          if (c > bc) { bc = c; bi = i; }
+        });
+        if (bi >= 0 && bc >= 0.55) edges.push({ a: n.id, b: `facet:${bi}`, kind: 'facet', score: +bc.toFixed(3) });
+      }
+    }
+    return { edges, nearDup };
+  }
+
+  /** 人格小节向量缓存：key=当前人设文本；人设不变则 /api/state 轮询零成本 */
+  private facetVecCache: { key: string; vecs: number[][] | null } = { key: '', vecs: null };
+
+  private async facetVectors(): Promise<number[][] | null> {
+    if (!this.embedder?.enabled) return null;
+    const persona = this.persona();
+    if (this.facetVecCache.key !== persona) {
+      const texts = personaFacetTexts(persona);
+      this.facetVecCache = { key: persona, vecs: texts.length ? await this.embedder.embed(texts) : null };
+    }
+    return this.facetVecCache.vecs;
   }
 
   /** 检索预览（脑图页"检索模拟器"）；有 embedder 时顺带取向量走语义路径 */
@@ -556,4 +669,19 @@ export class Brain {
   flush(): void {
     this.store.flush();
   }
+}
+
+/**
+ * 人设按「## 小节」拆成特质文本（与 page.html personaFacets 同款规则：
+ * 无小节时整篇作一节，最多 6 节，facet id 为 facet:<下标>——两边必须一致）。
+ */
+function personaFacetTexts(text: string): string[] {
+  const t = (text ?? '').trim();
+  if (!t) return [];
+  const parts = t.split(/^##\s+/m).slice(1);
+  if (!parts.length) return [t];
+  return parts.slice(0, 6).map((p) => {
+    const nl = p.indexOf('\n');
+    return ((nl < 0 ? p : p.slice(0, nl)).trim() + ' ' + (nl < 0 ? '' : p.slice(nl + 1)).trim()).trim();
+  });
 }
