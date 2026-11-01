@@ -372,3 +372,26 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 18: 人设切换体验优化与云端再部署
+<!-- trellis-session: v=2 fp=a48d691349b2a6e7 -->
+
+**Date**: 2026-11-01
+**Task**: 人设切换体验优化与云端再部署
+**Branch**: `main`
+
+### Summary
+
+问题：用户视角走查人设切换发现六项缺陷——旧 POST /api/persona 会把缺 text 的 JSON 原文当人设写入；/api/personas 单接口失败拖垮整页刷新；切换无确认一点即改全局人格；人设只能增不能删；.md 人设文件只能复制粘贴导入；字数提示丢失。方案：收紧旧接口 JSON 校验为 400；personas 接口改容错加载；切换加带目标名的确认框；新增 persona-delete op + DELETE /api/personas?id=（当前人设拒绝删除）；页面加从文件导入/另存副本/删除按钮并恢复字数显示。验证：73/73 测试 + typecheck + build 全绿；随后备份远端插件与数据、rsync 上传 dist+package.json、重启 dsh-qqbot 验证 /api/personas 与新控件就位，cordis.patch.yml 未变；发现线上活动人设已被用户自行切换为 whale-gentle，persona.md 同步一致。后续：部署已确认线上最新，真实 QQ 对话回归可另行观察。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `e2396cd` | feat(brain): harden persona editor UX and deletion |
+| `5eef267` | chore: record persona cloud rollout |
+
+### Status
+
+[OK] **Completed**
