@@ -415,3 +415,23 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 20: 人格/记忆架构图说明
+<!-- trellis-session: v=2 fp=f5a17cec0d48391b -->
+
+**Date**: 2026-11-01
+**Task**: 人格/记忆架构图说明
+**Branch**: `main`
+
+### Summary
+
+需求：把当前人格与记忆架构画图说明。做法：核对 brain/types.ts 与 store.ts 数据结构后输出两张 ASCII 图——存储层（BrainStore：personas 多版本、notes 三 kind、profiles u:/sess:、emotions PAD、digests；落 persona.md/jsonl/snapshot）+ 运行时链路（assemble 6 section 读路径；endOfTurn 蒸馏写路径含画像二次审核；后台巩固与回填）。易错点：人格只读 attitude 是慢变量、画像挂 memory 内、每轮末最多 3 次 LLM。无代码变更，建 11-01-brain-arch-diagram 归档（commit 7323dd4）。
+
+### Git Commits
+
+(No commits - planning session)
+
+### Status
+
+[OK] **Completed**
