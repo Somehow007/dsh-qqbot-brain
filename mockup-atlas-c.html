@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>概念 C · 蓝潮记忆航行</title>
+<style>
+:root{--blue:#2463c8;--dark:#143276;--ink:#172e62;--sky:#6eacec}
+*{box-sizing:border-box}body{margin:0;background:#f0f5ff;color:var(--ink);font:14px/1.5 -apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;background-image:radial-gradient(circle at 85% 0,#d4e6ff,transparent 40%),radial-gradient(circle at 0 78%,#e3f9fa,transparent 45%)}
+button,input{font:inherit}button{cursor:pointer}
+.page{max-width:1700px;margin:auto;min-height:100vh;padding:20px clamp(14px,3.5vw,54px) 35px}
+.header{display:flex;justify-content:space-between;align-items:center;gap:10px}.logo{display:flex;gap:10px;align-items:center}.whale{width:40px;height:40px;border-radius:13px;background:#266bcf;display:grid;place-items:center;box-shadow:0 7px 17px #347be443}.whale svg{width:29px;fill:white}.logo strong{font-size:15px;letter-spacing:.07em}.logo small{display:block;color:#8095bd;font:10px monospace;letter-spacing:.16em}
+.toplinks{display:flex;gap:8px}.toplinks a{border:1px solid #c9d8f4;padding:7px 11px;text-decoration:none;color:#4369a0;border-radius:9px;font-size:11px;background:#ffffffb8}.toplinks a:hover{background:#e5efff}
+.hero{display:grid;grid-template-columns:1fr 300px;gap:28px;align-items:center;margin:20px 0 17px;min-height:130px}
+.kicker{font:700 10px monospace;letter-spacing:.2em;color:#3989c9}.hero h1{font-size:clamp(27px,3.5vw,46px);line-height:1.18;margin:7px 0 9px;letter-spacing:-.04em;color:#172e6a}.hero h1 em{font-style:normal;color:#2877df}.hero p{font-size:12px;color:#617daa;margin:0}
+.status{background:#ffffffb8;border:1px solid #d4e2fa;border-radius:18px;padding:16px;box-shadow:0 12px 30px #4f81d113}.status small{display:block;font-size:10px;color:#839dc0;letter-spacing:.1em}.status strong{display:block;font-size:16px;color:#224c93;margin:4px 0}.status span{font-size:11px;color:#6886b2}
+.content{display:grid;grid-template-columns:minmax(0,1fr) 344px;gap:16px}
+.map-card,.inspector{border:1px solid #d4e3fa;background:white;border-radius:23px;overflow:hidden;box-shadow:0 16px 45px #2e6eb017}
+.map-card{min-width:0}.map-top{padding:19px 22px 11px;display:flex;justify-content:space-between;gap:10px;align-items:center}.map-top strong{font-size:16px}.map-top span{color:#7892bd;font-size:11px}
+.tools{padding:3px 22px 15px;display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.filter,.control{background:#f4f8ff;color:#627fae;border:1px solid #d9e6f8;border-radius:99px;padding:7px 13px;font-size:11px}.filter.active,.filter:hover{background:#266bca;border-color:#266bca;color:white}.control:hover{background:#dcecff}
+.search{margin-left:auto;display:flex;align-items:center;gap:6px;background:#f4f8ff;border:1px solid #d9e6f8;border-radius:99px;padding:7px 12px;color:#6389bb;min-width:200px}.search input{background:none;border:0;outline:0;width:100%;color:#244d88;font-size:11px}
+.viewport{height:clamp(460px,48vw,600px);position:relative;overflow:hidden;background:radial-gradient(ellipse at 43% 45%,#f7fcff 0,#e9f5ff 46%,#d9eafb 100%)}
+.viewport:before{content:"";position:absolute;width:520px;height:520px;border:1px solid #a3d4f658;box-shadow:0 0 0 75px #bee3fa1a,0 0 0 150px #9ccaf313;border-radius:50%;top:51%;left:50%;transform:translate(-50%,-50%)}
+.viewport:after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent 0 33px,#7babe609 34px);pointer-events:none}
+#particles{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}#graph{position:relative;z-index:2;width:100%;height:100%;touch-action:none;cursor:grab}
+.core-mark{opacity:.42}.core-ring{fill:none;stroke:#80afe5;stroke-dasharray:3 8}.core-label{fill:#3c81bb;font:10px monospace;text-anchor:middle;letter-spacing:.17em}
+.edge{fill:none;stroke:#5a94d3;stroke-width:1.5;stroke-dasharray:5 6;opacity:.47;transition:opacity .2s,stroke .2s}.edge.active{stroke:#257acf;stroke-width:2.7;opacity:1;filter:drop-shadow(0 0 3px #5192dd)}.edge.muted{opacity:.06}
+.memory{cursor:pointer;outline:none;transition:opacity .2s}.memory.muted{opacity:.22}.memory .glow{fill:#5196df;opacity:.09}.memory .ring{fill:#3489bd;stroke:#367dd2;stroke-width:2}.memory[data-kind=episodic] .ring{fill:#8374c3;stroke:#7765ba}.memory[data-kind=attitude] .ring{fill:#e286a5;stroke:#d36b95}.memory.active .ring,.memory:hover .ring,.memory:focus-visible .ring{stroke:#184993;stroke-width:3;filter:drop-shadow(0 4px 6px #4885dc83)}.memory.active .glow{opacity:.3}
+.glyph{fill:white;text-anchor:middle;font-size:14px;pointer-events:none}.label{fill:#204f84;font-size:13px;text-anchor:middle;pointer-events:none;font-weight:600;paint-order:stroke;stroke:#effaff;stroke-width:5px;stroke-linejoin:round}.meta{fill:#6a8fb3;font-size:10px;text-anchor:middle;pointer-events:none}
+#graphEmpty{position:absolute;inset:45% 0 auto;text-align:center;color:#718dae}
+.map-bottom{padding:13px 22px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;background:#f9fbff}
+.map-legend{display:flex;gap:15px;flex-wrap:wrap;color:#6a88ae;font-size:11px}.map-legend i{display:inline-block;width:20px;border-top:2px dashed #5486ca;vertical-align:middle;margin-right:5px}.map-controls{display:flex;gap:5px}.control{padding:5px 9px;border-radius:7px}
+.inspector{display:flex;flex-direction:column}.character{height:217px;background:linear-gradient(100deg,#f5faff 0%,#f5faff 22%,#f5faff80 51%,transparent 100%),url('mockup-atlas-persona-chibi.png') 95% 45%/auto 155% no-repeat,#f8fbff;position:relative;border-bottom:1px solid #e3edfc}
+.character:after{content:"";position:absolute;inset:0;background:linear-gradient(0deg,#f8fbff,transparent 50%);pointer-events:none}.character-text{position:absolute;z-index:1;top:21px;left:20px;max-width:170px}.character-text small{display:block;color:#5d91d4;font:700 10px monospace;letter-spacing:.16em}.character-text strong{display:block;font-size:20px;line-height:1.25;color:#1f4386;margin:8px 0}.character-text span{display:block;font-size:11px;color:#6b88ad;line-height:1.6}
+.inner{padding:18px 20px;display:flex;flex-direction:column;flex:1}.section{font:700 10px monospace;letter-spacing:.15em;color:#4c90d4}.inner h2{font-size:21px;margin:13px 0 7px;color:#1b3770}.type{color:#408ac3;font-size:11px}.quote{padding:14px;border-radius:12px;background:#f2f7ff;color:#38557f;font-size:12px;line-height:1.8;margin:16px 0 10px}.stats{font-size:11px;color:#7990b4}.links-title{border-top:1px solid #e5ecf7;margin:20px 0 12px;padding-top:14px;font-size:11px;font-weight:700;color:#718bb0}.link-card{display:block;width:100%;text-align:left;border:1px solid #e1eaf8;border-radius:10px;background:#fff;padding:10px;margin-bottom:7px;color:#244c80}.link-card:hover{background:#f5f9ff;border-color:#7fb6ed}.link-card strong{font-size:12px;display:block}.link-card small{display:block;color:#7990ad;font-size:10px;margin-top:2px}.link-empty{color:#7894af;font-size:11px}
+.disclaimer{font-size:10px;color:#92a0b9;margin-top:auto;padding-top:12px;border-top:1px solid #ebf0f9}
+.bottom{display:grid;grid-template-columns:repeat(3,1fr);gap:11px;margin-top:15px}.small-card{padding:15px;border:1px solid #d7e6f7;background:#ffffffb5;border-radius:13px}.small-card b{font-size:11px;color:#2d6fca}.small-card p{font-size:11px;color:#7890b0;margin:6px 0 0}
+@media(max-width:1000px){.content{grid-template-columns:1fr}.inspector{display:grid;grid-template-columns:260px 1fr}.character{height:auto}.inner{min-height:400px}}
+@media(max-width:640px){.header{align-items:flex-start}.toplinks{flex-direction:column;gap:4px}.hero{grid-template-columns:1fr}.status{display:none}.viewport{height:460px}.search{margin-left:0;width:100%}.inspector{display:block}.character{height:190px}.bottom{grid-template-columns:1fr}.inner{min-height:0}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body data-theme="tide">
+<div class="page">
+  <header class="header"><div class="logo"><div class="whale"><svg viewBox="0 0 50 50" aria-hidden="true"><path d="M7 22c6-8 20-9 29-3 4-3 8-3 12-1-4 3-5 7-4 11-4-1-7-2-9-5-4 11-19 15-28 7-3-2-5-4-6-7 2-1 4-1 6-2zM24 17c-4-6-2-10 1-12 0 4 3 5 5 7-2 1-4 3-6 5z"/></svg></div><div><strong>大肥鱼的记忆海域</strong><small>DAFEIYU / MEMORY TIDE</small></div></div><div class="toplinks"><a href="/">A 关系探索</a><a href="/v2.html">B 深海神经舱 ↗</a></div></header>
+  <div class="hero"><div><div class="kicker">CONCEPT C / BLUE TIDE EXPERIENCE</div><h1>每一段记忆，<em>都在海里相遇。</em></h1><p>蓝白明亮界面 · 轻粒子潮汐 · 大肥鱼角色陪伴 · 关系探索依旧是主线</p></div><div class="status"><small>PERSONA HEARTBEAT · 示例状态</small><strong>大肥鱼正在倾听</strong><span>情绪：平静　｜　记忆关系：推断展示</span></div></div>
+  <div class="content">
+    <section class="map-card"><div class="map-top"><strong>◈ 记忆航海图</strong><span id="count"></span></div>
+      <div class="tools"><button class="filter active" data-filter="all">全部</button><button class="filter" data-filter="episodic">情景</button><button class="filter" data-filter="semantic">语义</button><button class="filter" data-filter="attitude">态度</button><label class="search">⌕ <input id="query" placeholder="寻找一个话题…" aria-label="搜索记忆"></label></div>
+      <div class="viewport"><canvas id="particles" aria-hidden="true"></canvas><svg id="graph" viewBox="0 0 900 570" role="group" aria-label="可交互的记忆关联图">
+        <g class="core-mark"><circle class="core-ring" cx="444" cy="270" r="130"/><circle class="core-ring" cx="444" cy="270" r="90"/>
+          <path d="M408 234 Q438 221 458 244 Q476 228 491 222 Q485 245 484 271 Q480 301 447 300 Q415 295 408 270 Q402 251 408 234Z" fill="#55a4db" fill-opacity=".12" stroke="#438dcb"/>
+          <path d="M406 254 Q390 239 380 241 Q384 257 380 273 Q394 271 406 265" fill="#55a4db" fill-opacity=".12" stroke="#438dcb"/>
+          <text class="core-label" x="444" y="326">大肥鱼 · 人格内核</text></g>
+        <g id="graphTransform"><g id="edges"></g><g id="nodes"></g></g>
+      </svg><div id="graphEmpty" hidden>没有匹配记忆 · 换个词试试</div></div>
+      <div class="map-bottom"><div class="map-legend"><span><i></i>仅为推断关联</span><span id="relationCount"></span><span>点选节点可查看关联依据</span></div><div class="map-controls"><button class="control" id="particleToggle" aria-pressed="true">动态粒子 · 开</button><button class="control" id="zoomOut" aria-label="缩小">−</button><button class="control" id="zoomReset">复位</button><button class="control" id="zoomIn" aria-label="放大">＋</button></div></div>
+    </section>
+    <aside class="inspector"><div class="character"><div class="character-text"><small>THE FISH / PERSONA</small><strong>嗨，我是<br>大肥鱼。</strong><span>记忆会褪色，<br>关心不会缺席。</span></div></div>
+      <div class="inner"><div class="section">正在查看 / MEMORY DETAIL</div><h2 id="detailTitle"></h2><span class="type" id="detailType"></span><div class="quote" id="detailText"></div><div class="stats" id="detailStats"></div><div class="links-title">和它相连的记忆 · 点击继续探索</div><div id="detailLinks"></div><div class="disclaimer">角色参考图由你提供，仅用于概念展示。记忆、关系与分数均为示例数据，正式版不会把推断当事实。</div></div>
+    </aside>
+  </div>
+  <div class="bottom"><div class="small-card"><b>01 · 看见关系</b><p>点选一条记忆，高亮相邻路径、淡出无关节点。</p></div><div class="small-card"><b>02 · 保持呼吸感</b><p>轻量粒子与蓝潮氛围；支持关闭动态效果。</p></div><div class="small-card"><b>03 · 带着人格探索</b><p>角色形象与情绪是入口，不干扰记忆之间的关系。</p></div></div>
+</div>
+<script src="mockup-atlas-engine.js"></script>
+</body>
+</html>

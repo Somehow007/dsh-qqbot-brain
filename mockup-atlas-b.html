@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>概念 B · 深海全息神经舱</title>
+<style>
+:root{color-scheme:dark;--line:#224c65;--soft:#78b8d0;--ink:#e1f6ff}
+*{box-sizing:border-box}body{margin:0;background:#040c18;color:var(--ink);font:14px/1.5 -apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;background-image:radial-gradient(ellipse at 50% -10%,#173768 0,transparent 48%)}
+button,input{font:inherit}button{cursor:pointer}
+.shell{max-width:1740px;margin:auto;min-height:100vh;padding:20px clamp(14px,2.7vw,45px) 28px}
+.header{height:59px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #2a4d69;gap:10px}
+.identity{display:flex;align-items:center;gap:13px}.symbol{color:#9be8ff;width:34px;height:34px;border-radius:9px;border:1px solid #5a9ab3;box-shadow:0 0 18px #32afe653;display:grid;place-items:center;font-size:19px}
+.brand{font-size:15px;letter-spacing:.16em;font-weight:700}.brand small{display:block;font-size:9px;letter-spacing:.21em;color:#80b5c8;font-weight:400;margin-top:2px}
+.header-right{display:flex;align-items:center;gap:12px;color:#8bb8c6;font:11px monospace}.dot{width:6px;height:6px;background:#5ff1c2;box-shadow:0 0 13px #5ff1c2;border-radius:50%}
+.version{padding:6px 10px;border:1px solid #37617b;border-radius:3px;color:#b4e0ed;text-decoration:none}.version:hover{background:#143d57}
+.subhead{display:flex;justify-content:space-between;align-items:end;gap:15px;margin:24px 0 20px}.eyebrow{font:10px monospace;letter-spacing:.22em;color:#55d6e6}
+h1{font-size:clamp(26px,3vw,40px);line-height:1.15;margin:7px 0 5px;letter-spacing:.02em}.subhead p{color:#8eb3c4;font-size:12px;margin:0}.tag{color:#7ca6b8;border:1px solid #2e5372;padding:6px 10px;font:10px monospace}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:15px}.main,.side,.feature{border:1px solid #2b516a;background:#071a2ada;box-shadow:inset 0 0 60px #14537b13,0 20px 60px #010d1b5e}
+.main{min-width:0;overflow:hidden;position:relative}.main:before,.side:before{content:"";position:absolute;top:0;left:0;width:52px;border-top:2px solid #6cdbf1}.main-top{padding:17px 22px;display:flex;align-items:center;justify-content:space-between;gap:8px;border-bottom:1px solid #214158}
+.main-top strong{font-size:12px;letter-spacing:.13em}.main-top span{font:10px monospace;color:#78acc0}.toolbar{padding:14px 20px;display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.filter,.control{border:1px solid #2f5770;background:#0e2b3b;color:#8cbccd;padding:7px 12px;font-size:11px}.filter:hover,.filter.active,.control:hover{border-color:#82d9ef;color:#e5faff;background:#15506a;box-shadow:inset 0 0 14px #5bd5f32d}
+.search{margin-left:auto;background:#0c2839;border:1px solid #2b516b;color:#83b5c7;display:flex;align-items:center;padding:6px 10px;gap:5px;min-width:190px}
+.search input{border:0;background:none;color:#d7f6ff;outline:0;font-size:11px;width:100%}.search input::placeholder{color:#80a8b6}
+.viewport{height:clamp(460px,51vw,630px);position:relative;background:radial-gradient(ellipse at 50% 53%,#124664a6,#081e31 46%,#061422 82%);overflow:hidden}
+.viewport:before{content:"";position:absolute;inset:0;background:linear-gradient(#6ca0ba10 1px,transparent 1px),linear-gradient(90deg,#6ca0ba10 1px,transparent 1px);background-size:34px 34px}
+.viewport:after{content:"";position:absolute;inset:4% 14%;border:1px solid #3284ae26;border-radius:50%;box-shadow:0 0 0 75px #3681a008,0 0 0 151px #3c9fc506;pointer-events:none}
+#particles{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}#graph{position:relative;width:100%;height:100%;touch-action:none;cursor:grab;z-index:2}
+.core-mark{opacity:.33}.core-ring{fill:none;stroke:#4e9dbb;stroke-width:1;stroke-dasharray:2 8}.core-label{font:9px monospace;fill:#6eacbd;letter-spacing:.2em;text-anchor:middle}
+.edge{fill:none;stroke:#5bbdd2;stroke-width:1.4;stroke-dasharray:4 7;opacity:.43;transition:opacity .22s,stroke .22s}.edge.active{stroke:#a4ecff;stroke-width:2.7;opacity:1;filter:drop-shadow(0 0 5px #7be3ff)}.edge.muted{opacity:.06}
+.memory{cursor:pointer;outline:none;transition:opacity .2s}.memory.muted{opacity:.19}.memory .glow{fill:#51d9fb;opacity:.07;filter:drop-shadow(0 0 14px #28c5fc)}.memory .ring{fill:#144b66;stroke:#77dbf3;stroke-width:2}.memory[data-kind=episodic] .ring{fill:#48386e;stroke:#bbaaff}.memory[data-kind=attitude] .ring{fill:#573864;stroke:#f19bcf}.memory.active .ring,.memory:hover .ring,.memory:focus-visible .ring{stroke:white;stroke-width:3;filter:drop-shadow(0 0 12px #65e5ff)}.memory.active .glow{opacity:.29}
+.glyph{fill:#f1faff;text-anchor:middle;font-size:14px;font-weight:600;pointer-events:none}.label{fill:#deeff6;font-size:13px;text-anchor:middle;pointer-events:none;paint-order:stroke;stroke:#092438;stroke-width:4px}.meta{fill:#83b2c1;font-size:10px;text-anchor:middle;pointer-events:none}
+#graphEmpty{position:absolute;inset:45% 0 auto;text-align:center;color:#a7c8d6}
+.map-foot{border-top:1px solid #214159;padding:13px 20px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;color:#8db0c0;font-size:11px}
+.rule{display:flex;gap:14px;align-items:center}.rule i{display:inline-block;width:22px;border-top:2px dashed #7ce3e9;vertical-align:middle;margin-right:5px}.actions{display:flex;gap:5px}.control{padding:5px 8px}
+.side{position:relative;display:flex;flex-direction:column}.portrait{height:195px;position:relative;background:linear-gradient(90deg,#112945 5%,#11294530),url('mockup-atlas-persona-smile.png') 78% 30%/cover;overflow:hidden}
+.portrait:after{content:"";position:absolute;inset:0;background:linear-gradient(0deg,#081c2e,transparent 62%)}
+.portrait-title{position:absolute;z-index:1;left:18px;bottom:12px}.portrait-title span{display:block;color:#96d4e5;font:10px monospace;letter-spacing:.2em}.portrait-title strong{font-size:19px;letter-spacing:.08em}
+.panel{padding:20px;min-height:415px;display:flex;flex-direction:column}.panel-heading{font:10px monospace;letter-spacing:.18em;color:#56d8e2}.panel h2{font-size:20px;margin:13px 0 7px;line-height:1.3}.type{font-size:10px;color:#8ee6db}.quote{margin:17px 0 10px;padding:13px;background:#103349;border-left:2px solid #62d6e5;color:#c4e3ec;font-size:12px;line-height:1.75}
+.stats{color:#78b5c8;font:11px monospace;margin-bottom:20px}.section{border-top:1px solid #264b61;padding-top:14px;margin-bottom:10px;font:10px monospace;color:#8bbacb;letter-spacing:.14em}
+.link-card{width:100%;background:#102b3d;border:1px solid #2e556e;color:#d4eefa;text-align:left;padding:10px;margin-bottom:7px}.link-card:hover{border-color:#7acfe6;background:#153b50}.link-card strong{display:block;font-size:11px}.link-card small{display:block;color:#8bbacc;margin-top:4px;font-size:10px}.link-empty{color:#799faf;font-size:11px}.note{margin-top:auto;color:#789aac;font-size:10px;line-height:1.6;border-top:1px solid #244961;padding-top:13px}
+.features{margin-top:14px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.feature{padding:14px 16px}.feature b{font:11px monospace;color:#79e0e8}.feature p{color:#a4c3d0;font-size:11px;margin:6px 0 0;line-height:1.7}
+@media(max-width:1000px){.layout{grid-template-columns:1fr}.side{display:grid;grid-template-columns:260px 1fr}.portrait{height:auto}.panel{min-height:0}}
+@media(max-width:640px){.subhead{display:block}.tag{display:inline-block;margin-top:12px}.header-right{font-size:9px}.header-right .dot{display:none}.viewport{height:450px}.search{margin-left:0;width:100%}.side{display:block}.portrait{height:165px}.features{grid-template-columns:1fr}.panel{padding:16px}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body data-theme="abyss">
+<div class="shell">
+  <header class="header"><div class="identity"><div class="symbol">◈</div><div class="brand">DAFEIYU <span style="color:#5ad1f0">/</span> MIND CORE<small>PERSONA-DRIVEN MEMORY SYSTEM</small></div></div><div class="header-right"><span class="dot"></span> SYSTEM ONLINE <a class="version" href="/">A 关系探索</a><a class="version" href="/v3.html">C 蓝潮界面 ↗</a></div></header>
+  <div class="subhead"><div><div class="eyebrow">CONCEPT B / DEEP-SEA NEURAL OBSERVATORY</div><h1>深海神经舱</h1><p>霓蓝波谱 × 漂浮粒子 × 大肥鱼人格标识 · 一眼看清记忆的关联脉络</p></div><span class="tag">示例数据 / 非真实脑图</span></div>
+  <div class="layout"><section class="main">
+    <div class="main-top"><strong>◎ 记忆关系扫描</strong><span>FOCUS MODE · <span id="count"></span> · <span id="relationCount"></span></span></div>
+    <div class="toolbar"><button class="filter active" data-filter="all">全部</button><button class="filter" data-filter="episodic">情景</button><button class="filter" data-filter="semantic">语义</button><button class="filter" data-filter="attitude">态度</button><label class="search">⌕ <input id="query" placeholder="搜索记忆…" aria-label="搜索记忆"></label></div>
+    <div class="viewport"><canvas id="particles" aria-hidden="true"></canvas><svg id="graph" viewBox="0 0 900 570" role="group" aria-label="可交互的记忆关联图">
+      <g class="core-mark"><circle class="core-ring" cx="445" cy="270" r="140"/><circle class="core-ring" cx="445" cy="270" r="92"/>
+        <path d="M408 235 Q438 220 459 244 Q482 225 488 224 Q482 256 482 270 Q479 299 447 301 Q417 298 408 270 Q402 251 408 235Z" fill="#4aa4bd" fill-opacity=".09" stroke="#73cce0" stroke-opacity=".45"/>
+        <path d="M406 254 Q390 236 379 238 Q384 254 378 274 Q391 270 406 267" fill="#62adbd" fill-opacity=".16" stroke="#73cce0" stroke-opacity=".45"/>
+        <text class="core-label" x="445" y="330">DA FEI YU / PERSONA</text></g>
+      <g id="graphTransform"><g id="edges"></g><g id="nodes"></g></g>
+    </svg><div id="graphEmpty" hidden>暂无匹配记忆 · 试试其他条件</div></div>
+    <div class="map-foot"><div class="rule"><span><i></i>虚线＝文本推断，非因果</span><span>光晕＝焦点记忆</span></div><div class="actions"><button class="control" id="particleToggle" aria-pressed="true">动态粒子 · 开</button><button class="control" id="zoomOut" aria-label="缩小">−</button><button class="control" id="zoomReset">复位</button><button class="control" id="zoomIn" aria-label="放大">＋</button></div></div>
+  </section><aside class="side"><div class="portrait"><div class="portrait-title"><span>PERSONA / 大肥鱼</span><strong>记忆有迹，情绪有光。</strong></div></div><div class="panel"><div class="panel-heading">MEMORY INSPECTOR · 01</div><h2 id="detailTitle"></h2><span class="type" id="detailType"></span><div class="quote" id="detailText"></div><div class="stats" id="detailStats"></div><div class="section">LINKED MEMORIES / 推断依据</div><div id="detailLinks"></div><div class="note">人物参考图由你提供，仅用于此概念预览。所有记忆、关联、分值为示例；正式版需接真实 API。</div></div></aside></div>
+  <div class="features"><div class="feature"><b>01 · 深海粒子</b><p>粒子慢速漂移，仅作氛围，不挡节点；可关，系统减少动态时默认关闭。</p></div><div class="feature"><b>02 · 可解释关系</b><p>点击节点高亮邻接线；关系明示为推断，右侧展示共同话题和置信度。</p></div><div class="feature"><b>03 · 大肥鱼人格</b><p>借用参考色系与角色形象做视觉锚点；人格内核不伪装成记忆节点。</p></div></div>
+</div>
+<script src="mockup-atlas-engine.js"></script>
+</body>
+</html>
