@@ -435,3 +435,23 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 21: 脑图中attitude的表现形式确认
+<!-- trellis-session: v=2 fp=0d5dfecfcd4d2e9a -->
+
+**Date**: 2026-11-01
+**Task**: 脑图中attitude的表现形式确认
+**Branch**: `main`
+
+### Summary
+
+问题：attitude 在 /brain 脑图页具体如何呈现。结论：非独立板块，是记忆第三种 kind 复用展示管线——脑图有专属「态度立场/STANCES」脑区（态字节点、随保持率变暗）、详情面板提示「人格不变立场会被塑造」且可改 kind、记忆库有紫色态度 badge/筛选/手写入口、检索模拟命中同样列出；人格内核 tab 与画像 tab 均不含，事件流水走通用 op。无代码变更，建 11-01-attitude-in-brainmap 归档。
+
+### Git Commits
+
+(No commits - planning session)
+
+### Status
+
+[OK] **Completed**

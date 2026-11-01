@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 20
+- **Total Sessions**: 21
 - **Last Active**: 2026-11-01
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~437 | Active |
+| `journal-1.md` | ~457 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 21 | 2026-11-01 | 脑图中attitude的表现形式确认 | - | `main` |
 | 20 | 2026-11-01 | 人格/记忆架构图说明 | - | `main` |
 | 19 | 2026-11-01 | 类脑架构注入/蒸馏链路确认 | - | `main` |
 | 18 | 2026-11-01 | 人设切换体验优化与云端再部署 | `e2396cd`, `5eef267` | `main` |
