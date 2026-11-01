@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>③ 海马回廊 · 大肥鱼心智图谱</title>
+<style>
+:root{--ink:#1b2758;--mute:#7c88b2;--line:#dfe5f4;--blue:#3a64d8;--episodic:#4f6df0;--semantic:#25a6d9;--attitude:#9a6cf0}
+*{box-sizing:border-box;margin:0;padding:0}
+body{min-height:100vh;overflow:hidden;color:var(--ink);font:14px/1.5 "PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  background:radial-gradient(900px 600px at 20% 0%,#ffffff 0%,#eef2fc 50%,#e3e9f8 100%)}
+.mono{font-family:"SF Mono",Menlo,Consolas,monospace;letter-spacing:.14em}
+.wrap{display:grid;grid-template-columns:1fr 380px;height:100vh;min-height:680px}
+main{position:relative;padding:26px 30px 18px 34px;display:flex;flex-direction:column;min-width:0}
+.head{display:flex;align-items:flex-end;gap:20px}
+.eyebrow{font-size:10px;color:var(--blue)}
+h1{font-size:28px;font-weight:700;letter-spacing:.04em;margin-top:4px}
+.sub{color:var(--mute);font-size:12px;margin-top:4px;max-width:560px}
+.stats{margin-left:auto;display:flex;gap:22px;font-size:10px;color:var(--mute);text-align:right}
+.stats b{display:block;font:600 20px "Helvetica Neue",Arial,sans-serif;color:var(--ink);letter-spacing:0}
+.board{position:relative;flex:1;margin-top:16px;background:#ffffffb8;border:1px solid #fff;border-radius:22px;box-shadow:0 20px 50px #2a3f8a14,inset 0 0 0 1px #e6ebf7;overflow:hidden}
+#tide{position:absolute;inset:0;width:100%;height:100%}
+.legend{position:absolute;right:20px;bottom:14px;display:flex;gap:16px;font-size:11px;color:var(--mute)}
+.legend i{display:inline-block;width:18px;height:0;border-top:1.5px solid var(--blue);vertical-align:3px;margin-right:6px}
+.legend i.d{border-top-style:dashed}
+aside{position:relative;background:linear-gradient(#f7f9ff,#edf1fb);border-left:1px solid #fff;box-shadow:-10px 0 40px #2a3f8a10;display:flex;flex-direction:column;overflow:auto}
+.portrait{position:relative;height:430px;flex:none;background:url(mockup-mind-persona-full.jpg) 50% 0/100% auto no-repeat}
+.portrait:after{content:"";position:absolute;inset:auto 0 0 0;height:140px;background:linear-gradient(#f7f9ff00,#f5f7fe)}
+.bubble{position:absolute;left:16px;top:262px;z-index:1;max-width:190px;background:#fff;color:var(--ink);border-radius:16px 16px 16px 4px;padding:10px 14px;font-size:13px;font-weight:500;box-shadow:0 10px 28px #2a3f8a26;border:1.5px solid #cdd8f4}
+.bubble small{display:block;font-size:10px;color:var(--mute);font-weight:400}
+.name{position:absolute;right:16px;bottom:18px;z-index:1;text-align:right}
+.name b{display:block;font-size:20px}
+.name small{font-size:10px;color:var(--mute)}
+#panel{padding:0 18px 20px;display:flex;flex-direction:column;gap:12px;margin-top:-6px;position:relative;z-index:1}
+.card{background:#fff;border-radius:16px;padding:16px 18px;box-shadow:0 8px 24px #2a3f8a12}
+.card h4{font-size:10px;color:var(--mute);font-weight:500;margin-bottom:8px}
+.chip{display:inline-block;font-size:10px;padding:1px 9px;border-radius:9px;color:#fff;letter-spacing:.1em}
+.title{font-size:18px;font-weight:700;margin:8px 0 4px}
+.text{color:#4a5784;font-size:13px}
+.meta{display:flex;gap:14px;font-size:11px;color:var(--mute);margin-top:8px}
+.rel{display:flex;gap:10px;padding:8px 0;border-top:1px solid #eef1f9;cursor:pointer;align-items:flex-start}
+.rel:first-of-type{border-top:0}
+.rel:hover b{color:var(--blue)}
+.rel>i{flex:none;width:8px;height:8px;border-radius:50%;margin-top:7px}
+.rel b{display:block;font-size:13px;font-weight:600}
+.rel small{color:var(--mute);font-size:11px}
+.rel em{margin-left:auto;font-style:normal;font-size:10px;color:var(--mute);white-space:nowrap;padding-top:3px}
+/* svg */
+.lane{fill:#f3f6fd}
+.lane-t{font-size:13px;font-weight:700;fill:var(--ink)}
+.lane-s{font:9px "SF Mono",Menlo,monospace;letter-spacing:.16em;fill:var(--mute)}
+.tick{stroke:#e3e8f5}
+.tick-t{font:10px "SF Mono",Menlo,monospace;fill:#a2acca}
+.wave{fill:url(#waveFill)}
+.wave-line{fill:none;stroke:var(--blue);stroke-width:2;stroke-linecap:round}
+.wave-ghost{fill:none;stroke:#7fa8f0;stroke-width:1;opacity:.5}
+.edge{fill:none;stroke:#8297d8;stroke-opacity:.45;stroke-width:1.2;stroke-dasharray:4 4;transition:stroke-opacity .15s}
+.edge.k-consolidate{stroke-dasharray:none;stroke:#3a64d8;stroke-opacity:.5;marker-end:url(#arr)}
+.edge.hidden{stroke-opacity:0}
+.dim .edge{stroke-opacity:.08}
+.dim .edge.hidden{stroke-opacity:0}
+.edge.lit,.dim .edge.lit{stroke-opacity:.95;stroke-width:1.8}
+.node{cursor:pointer;transition:opacity .15s}
+.dim .node:not(.lit){opacity:.22}
+.node text{font-size:12px;fill:var(--ink);font-weight:500;paint-order:stroke;stroke:#fff;stroke-width:4px;stroke-linejoin:round}
+.node .hl{fill:none;stroke-width:2;opacity:0;transition:opacity .15s}
+.node:hover .hl,.node.sel .hl{opacity:.6}
+.trait text{font-size:13px;font-weight:700}
+.trait .val{font:10px "SF Mono",Menlo,monospace;fill:var(--mute);font-weight:400}
+.beam{fill:url(#beamFill);opacity:0;transition:opacity .2s,transform .35s cubic-bezier(.3,.7,.2,1)}
+.now{stroke:var(--blue);stroke-width:1;stroke-dasharray:2 3}
+.now-dot{fill:var(--blue);animation:beat 2.4s ease-out infinite;transform-box:fill-box;transform-origin:center}
+@keyframes beat{0%{transform:scale(1);opacity:.9}100%{transform:scale(3);opacity:0}}
+.bub{fill:none;stroke:#9db6f0;opacity:0;animation:rise linear infinite}
+@keyframes rise{0%{transform:translateY(0);opacity:0}20%{opacity:.6}100%{transform:translateY(-560px);opacity:0}}
+@media (prefers-reduced-motion:reduce){.now-dot,.bub{animation:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <main>
+    <div class="head">
+      <div>
+        <div class="eyebrow mono">CONCEPT ③ · HIPPOCAMPAL TIDE</div>
+        <h1>大肥鱼的记忆回廊</h1>
+        <p class="sub">海马体先记下经历，再巩固进新皮层成为知识、沉淀到前额叶变成态度；杏仁核给每段记忆染上情绪，最终汇成她的人格。</p>
+      </div>
+      <div class="stats mono"><span><b id="sM"></b>记忆</span><span><b id="sC"></b>巩固</span><span><b id="sMood"></b>此刻</span></div>
+    </div>
+    <div class="board">
+      <svg id="tide" viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid meet">
+        <defs>
+          <linearGradient id="waveFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6f95f5" stop-opacity=".35"/><stop offset="1" stop-color="#6f95f5" stop-opacity="0"/></linearGradient>
+          <linearGradient id="beamFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a64d8" stop-opacity=".0"/><stop offset=".5" stop-color="#3a64d8" stop-opacity=".09"/><stop offset="1" stop-color="#3a64d8" stop-opacity="0"/></linearGradient>
+          <marker id="arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L8,4 L0,8z" fill="#3a64d8"/></marker>
+          <filter id="sh" x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#2a3f8a" flood-opacity=".18"/></filter>
+        </defs>
+        <g id="bg"></g>
+        <rect id="beam" class="beam" x="-24" y="20" width="48" height="560"/>
+        <g id="wave"></g>
+        <g id="edges"></g>
+        <g id="nodes"></g>
+      </svg>
+      <div class="legend"><span><i></i>巩固沉淀</span><span><i class="d"></i>推断关联</span><span>点选后显示 情绪 / 人格 连线</span></div>
+    </div>
+  </main>
+  <aside>
+    <div class="portrait">
+      <div class="bubble"><small>大肥鱼</small><span id="sayText"></span></div>
+      <div class="name"><b>大肥鱼</b><small class="mono">WHALE MAID · 记忆回廊</small></div>
+    </div>
+    <div id="panel"></div>
+  </aside>
+</div>
+<script src="mockup-mind-data.js"></script>
+<script>
+const M = MIND, NS = 'http://www.w3.org/2000/svg', $ = s => document.querySelector(s);
+const el = (tag, a, p) => { const e = document.createElementNS(NS, tag); for (const k in a) e.setAttribute(k, a[k]); p && p.appendChild(e); return e; };
+const X = d => 948 - d * (800 / 13);
+const LANE = { semantic: { y: 238, t: '语义', s: 'NEOCORTEX · 新皮层' }, attitude: { y: 330, t: '态度', s: 'PREFRONTAL · 前额叶' }, episodic: { y: 422, t: '情景', s: 'HIPPOCAMPUS · 海马体' } };
+const WAVE = { top: 40, base: 150 };
+const TRAIT_Y = 532;
+const COLOR = id => { const k = M.kindOf(id), n = M.byId[id]; return k === 'emotion' ? n.color : k === 'trait' ? '#3a64d8' : getComputedStyle(document.documentElement).getPropertyValue('--' + n.type).trim(); };
+const POS = {};
+M.memories.forEach(m => (POS[m.id] = [X(m.day), LANE[m.type].y]));
+M.traits.forEach((t, i) => (POS[t.id] = [190 + i * 172, TRAIT_Y]));
+
+// ── 背景：泳道、时间刻度、泡泡 ──
+const bg = $('#bg');
+Object.values(LANE).forEach(l => {
+  el('rect', { x: 20, y: l.y - 38, width: 960, height: 76, rx: 16, class: 'lane' }, bg);
+  el('text', { x: 40, y: l.y - 2, class: 'lane-t' }, bg).textContent = l.t;
+  el('text', { x: 40, y: l.y + 14, class: 'lane-s' }, bg).textContent = l.s;
+});
+el('text', { x: 40, y: 64, class: 'lane-t' }, bg).textContent = '情绪潮汐';
+el('text', { x: 40, y: 80, class: 'lane-s' }, bg).textContent = 'AMYGDALA · 杏仁核';
+el('text', { x: 40, y: TRAIT_Y - 2, class: 'lane-t' }, bg).textContent = '人格';
+el('text', { x: 40, y: TRAIT_Y + 14, class: 'lane-s' }, bg).textContent = 'PERSONA';
+[13, 10, 7, 4, 1, 0].forEach(d => {
+  el('line', { x1: X(d), x2: X(d), y1: 30, y2: 470, class: 'tick' }, bg);
+  el('text', { x: X(d), y: 488, 'text-anchor': 'middle', class: 'tick-t' }, bg).textContent = d ? d + ' 天前' : '今天';
+});
+el('line', { x1: X(0), x2: X(0), y1: 30, y2: 470, class: 'now' }, bg);
+el('circle', { cx: X(0), cy: 30, r: 3.5, class: 'now-dot' }, bg);
+for (let i = 0; i < 14; i++) { const c = el('circle', { cx: 120 + Math.random() * 860, cy: 590, r: 2 + Math.random() * 4, class: 'bub' }, bg); c.style.animationDuration = 10 + Math.random() * 10 + 's'; c.style.animationDelay = -Math.random() * 20 + 's'; }
+
+// ── 情绪潮汐：按记忆的情绪效价平滑成波 ──
+const pts = M.memories.map(m => [X(m.day), M.byId[m.emo].val]);
+function valAt(x) { let w = 0, s = 0; pts.forEach(([px, v]) => { const k = Math.exp(-((x - px) ** 2) / (2 * 38 ** 2)); w += k; s += k * v; }); return w ? s / w : .5; }
+const wg = $('#wave');
+const area = el('path', { class: 'wave' }, wg), ghost = el('path', { class: 'wave-ghost' }, wg), line = el('path', { class: 'wave-line' }, wg);
+function waveD(ph, amp, close) {
+  let d = '';
+  for (let x = 120; x <= 960; x += 8) { const y = WAVE.base - valAt(x) * (WAVE.base - WAVE.top) + Math.sin(x / 46 + ph) * amp; d += (d ? 'L' : 'M') + x + ',' + y.toFixed(1); }
+  return close ? d + `L960,${WAVE.base + 14}L120,${WAVE.base + 14}Z` : d;
+}
+const EMODOT = {};
+M.memories.forEach(m => { const x = X(m.day); EMODOT[m.id] = el('circle', { cx: x, cy: WAVE.base - valAt(x) * (WAVE.base - WAVE.top), r: 4.5, fill: M.byId[m.emo].color, stroke: '#fff', 'stroke-width': 2, filter: 'url(#sh)' }, wg); });
+let ph = 0; const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+function drawWave() {
+  area.setAttribute('d', waveD(ph, 2.2, true)); line.setAttribute('d', waveD(ph, 2.2)); ghost.setAttribute('d', waveD(ph * 1.6 + 2, 5));
+  M.memories.forEach(m => { const x = X(m.day); EMODOT[m.id].setAttribute('cy', (WAVE.base - valAt(x) * (WAVE.base - WAVE.top) + Math.sin(x / 46 + ph) * 2.2).toFixed(1)); });
+}
+drawWave();
+if (!still) (function loop() { if (!document.hidden) { ph += .012; drawWave(); } requestAnimationFrame(loop); })();
+const emoY = id => +EMODOT[id].getAttribute('cy');
+
+// ── 边 ──
+const EDGES = [], eg = $('#edges');
+M.links.forEach(([a, b, kind]) => {
+  const [x1, y1] = POS[a], [x2, y2] = POS[b];
+  let d;
+  if (y1 === y2) { const h = Math.min(60, 18 + Math.abs(x2 - x1) * .18); d = `M${x1},${y1 - 12} C${x1},${y1 - 12 - h} ${x2},${y2 - 12 - h} ${x2},${y2 - 12}`; }
+  else { const [sx, sy, tx, ty] = y1 > y2 ? [x1, y1, x2, y2] : [x2, y2, x1, y1]; d = `M${sx},${sy - 12} C${sx},${(sy + ty) / 2} ${tx},${(sy + ty) / 2} ${tx},${ty + 13}`; }
+  EDGES.push({ a, b, kind, path: el('path', { d, class: 'edge k-' + kind }, eg) });
+});
+M.memories.forEach(m => {
+  const [x, y] = POS[m.id], [tx, ty] = POS[m.trait];
+  EDGES.push({ a: m.id, b: m.trait, path: el('path', { d: `M${x},${y + 12} C${x},${ty - 40} ${tx},${y + 60} ${tx},${ty - 16}`, class: 'edge hidden' }, eg) });
+  EDGES.push({ a: m.id, b: m.emo, path: el('path', { d: `M${x},${y - 12} L${x},${emoY(m.id) + 6}`, class: 'edge hidden' }, eg) });
+});
+
+// ── 节点 ──
+const nodeEls = {}, ng = $('#nodes');
+['episodic', 'semantic', 'attitude'].forEach(type => {
+  M.memories.filter(m => m.type === type).sort((a, b) => b.day - a.day).forEach((m, i) => {
+    const [x, y] = POS[m.id], c = COLOR(m.id), r = 6 + m.str * 6, g = el('g', { class: 'node', transform: `translate(${x},${y})` }, ng);
+    el('circle', { r: r + 6, stroke: c, class: 'hl' }, g);
+    el('circle', { r, fill: '#fff', stroke: c, 'stroke-width': 2.5, filter: 'url(#sh)' }, g);
+    el('circle', { r: r * .4, fill: c }, g);
+    const up = i % 2 === 1;
+    el('text', { y: up ? -r - 8 : r + 17, 'text-anchor': 'middle' }, g).textContent = m.title.length > 8 ? m.title.slice(0, 8) + '…' : m.title;
+    g.addEventListener('click', e => { e.stopPropagation(); select(m.id); });
+    nodeEls[m.id] = g;
+  });
+});
+M.traits.forEach(t => {
+  const [x, y] = POS[t.id], w = 128, g = el('g', { class: 'node trait', transform: `translate(${x},${y})` }, ng);
+  el('rect', { x: -w / 2 - 4, y: -22, width: w + 8, height: 44, rx: 22, stroke: '#3a64d8', class: 'hl' }, g);
+  el('rect', { x: -w / 2, y: -18, width: w, height: 36, rx: 18, fill: '#fff', filter: 'url(#sh)' }, g);
+  el('rect', { x: -w / 2 + 14, y: 8, width: (w - 28), height: 3, rx: 1.5, fill: '#e6ebf8' }, g);
+  el('rect', { x: -w / 2 + 14, y: 8, width: (w - 28) * t.v, height: 3, rx: 1.5, fill: '#3a64d8' }, g);
+  el('text', { x: -w / 2 + 14, y: 1 }, g).textContent = t.name;
+  el('text', { x: w / 2 - 14, y: 1, 'text-anchor': 'end', class: 'val' }, g).textContent = Math.round(t.v * 100);
+  g.addEventListener('click', e => { e.stopPropagation(); select(t.id); });
+  nodeEls[t.id] = g;
+});
+M.emotions.forEach(e => (nodeEls[e.id] = null));
+$('#tide').addEventListener('click', () => select(null));
+
+// ── 选择 ──
+let SEL = null;
+function select(id) {
+  SEL = id;
+  const nb = id ? M.neighbors(id).map(n => n.id) : [], lit = new Set(id ? [id, ...nb] : []);
+  if (id && M.kindOf(id) === 'emotion') M.memories.filter(m => m.emo === id).forEach(m => lit.add(m.id));
+  $('#tide').classList.toggle('dim', !!id);
+  Object.entries(nodeEls).forEach(([k, g]) => { if (!g) return; g.classList.toggle('lit', lit.has(k)); g.classList.toggle('sel', k === id); });
+  EDGES.forEach(e => {
+    const on = !!id && (e.a === id || e.b === id || (M.kindOf(id) === 'emotion' && e.b === id));
+    e.path.classList.toggle('lit', on);
+    e.path.style.stroke = on && M.kindOf(e.b) === 'emotion' ? M.byId[e.b].color : '';
+  });
+  Object.entries(EMODOT).forEach(([mid, dot]) => dot.setAttribute('opacity', !id || lit.has(mid) ? 1 : .2));
+  const beam = $('#beam');
+  if (id && M.kindOf(id) === 'memory') { beam.style.opacity = 1; beam.style.transform = `translateX(${POS[id][0]}px)`; } else beam.style.opacity = 0;
+  panel();
+}
+const nm = id => M.kindOf(id) === 'memory' ? M.byId[id].title : M.byId[id].name;
+function relRow(r) { return `<div class="rel" data-id="${r.id}"><i style="background:${COLOR(r.id)}"></i><div><b>${nm(r.id)}</b><small>${r.reason}</small></div><em>${r.rel}</em></div>`; }
+function panel() {
+  const p = $('#panel');
+  if (!SEL) {
+    $('#sayText').textContent = M.mood.line;
+    p.innerHTML = `<div class="card"><h4 class="mono">HOW TO READ · 读图</h4><p class="text">从左到右是时间。<b>实线箭头</b>表示一段经历被巩固成知识或态度；上方的潮汐是她这两周的情绪起伏；点任意记忆，看它连到哪种情绪、塑造了哪一面人格。</p></div>`;
+  } else {
+    const n = M.byId[SEL], k = M.kindOf(SEL), rel = M.neighbors(SEL), c = COLOR(SEL);
+    $('#sayText').textContent = k === 'memory' ? n.say : M.say[k](n);
+    const head = k === 'memory'
+      ? `<span class="chip" style="background:${c}">${M.T[n.type]}记忆</span><div class="title">${n.title}</div><p class="text">${n.text}</p><div class="meta"><span>${n.day < 1 ? '今天' : Math.round(n.day) + ' 天前'}</span><span>来源 · ${n.who}</span><span>强度 ${Math.round(n.str * 100)}%</span></div>`
+      : `<span class="chip" style="background:${c}">人格 · ${n.en}</span><div class="title">${n.name}</div><p class="text">由 ${rel.length} 段记忆共同塑造 · 强度 ${Math.round(n.v * 100)}%</p>`;
+    p.innerHTML = `<div class="card">${head}</div><div class="card"><h4 class="mono">LINKED · 关联 ${rel.length}</h4>${rel.map(relRow).join('')}</div>`;
+  }
+  p.querySelectorAll('[data-id]').forEach(r => r.addEventListener('click', () => select(r.dataset.id)));
+}
+$('#sM').textContent = M.memories.length;
+$('#sC').textContent = M.links.filter(l => l[2] === 'consolidate').length;
+$('#sMood').textContent = M.byId[M.mood.now].name;
+panel();
+if (location.hash) select(location.hash.slice(1));
+</script>
+</body>
+</html>
