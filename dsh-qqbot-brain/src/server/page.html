@@ -316,7 +316,11 @@
       <div class="pane" id="pane-persona" hidden>
         <div class="persona-controls">
           <label for="personaSelect">人设版本</label><select id="personaSelect"></select>
-          <button class="act" id="personaNew" type="button">新增人设</button>
+          <button class="act" id="personaNew" type="button">新增</button>
+          <button class="act" id="personaImport" type="button">从文件导入</button>
+          <input type="file" id="personaFile" accept=".md,.txt,text/markdown,text/plain" hidden>
+          <button class="act" id="personaDup" type="button">另存副本</button>
+          <button class="act danger" id="personaDel" type="button">删除</button>
           <label for="personaName">名称</label><input id="personaName" maxlength="80" placeholder="人设名称">
           <button class="act" id="personaActivate" type="button">设为当前人设</button>
         </div>
@@ -423,10 +427,10 @@ async function load(){
     fapi(API+'/ops?limit=120').then(r=>r.json()),
     fapi(API+'/sessions').then(r=>r.json()),
     fapi(API+'/profiles').then(r=>r.json()),
-    fapi(API+'/personas').then(r=>r.json()),
+    fapi(API+'/personas').then(r=>r.ok?r.json():null).catch(()=>null),
   ]);
   STATE=st; OPS=ops.ops; SESS=sess.sessions; PEERS=prof.profiles||[];
-  showPersonas(personas);
+  if(personas)showPersonas(personas);
   render(); renderLibrary(); renderSessions(); renderOps();
   // 正在详情面板编辑时不要重绘（会清掉未保存的输入）
   const editing = document.activeElement && document.activeElement.closest('#info-detail');
@@ -653,8 +657,14 @@ function selectPersona(id){
   $('personaName').value=p?.name||'';
   $('personaEdit').value=p?.text||'';
   personaBaseline={name:$('personaName').value,text:$('personaEdit').value};
-  $('personaActivate').disabled=!id||id===PERSONAS.activeId;
-  $('personaStat').textContent=id===PERSONAS.activeId?'当前生效 · 保存即生效':'未启用 · 保存不影响当前回复';
+  updatePersonaButtons();
+  $('personaStat').textContent=(id===PERSONAS.activeId?'当前生效 · 保存即生效':'未启用 · 保存不影响当前回复')+` · ${$('personaEdit').value.length} 字`;
+}
+function updatePersonaButtons(){
+  const fresh=editingPersonaId==='__new__';
+  $('personaActivate').disabled=!editingPersonaId||fresh||editingPersonaId===PERSONAS.activeId;
+  $('personaDel').disabled=!editingPersonaId||fresh||editingPersonaId===PERSONAS.activeId;
+  $('personaDup').disabled=!editingPersonaId||fresh;
 }
 function showPersonas(data){
   PERSONAS=data;
@@ -666,7 +676,7 @@ function showPersonas(data){
     sel.value=current;
     $('personaStat').textContent='有未保存修改';
   }else selectPersona(current);
-  $('personaActivate').disabled=!editingPersonaId||editingPersonaId==='__new__'||editingPersonaId===data.activeId;
+  updatePersonaButtons();
 }
 
 // ── 事件绑定 ──
@@ -708,7 +718,9 @@ $('personaSave').onclick=async()=>{
   $('personaStat').textContent=editingPersonaId===data.activeId?'已保存 · 即时生效':'已保存 · 可设为当前';
 };
 $('personaActivate').onclick=async()=>{
+  const target=PERSONAS.personas.find(x=>x.id===editingPersonaId);
   if(personaDirty()&&!confirm('未保存的编辑会丢失，确认启用此前保存的版本？'))return;
+  if(!confirm(`确认启用「${target?.name||editingPersonaId}」？机器人之后的回复将使用这个人设。`))return;
   const r=await fapi(API+'/personas/activate',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({id:editingPersonaId})});
   if(!r.ok){$('personaStat').textContent='切换失败：'+await r.text();return;}
@@ -716,6 +728,37 @@ $('personaActivate').onclick=async()=>{
   showPersonas(await r.json());
   await load();
   $('personaStat').textContent='已切换 · 后续回复立即生效';
+};
+$('personaImport').onclick=()=>$('personaFile').click();
+$('personaFile').onchange=async ev=>{
+  const f=ev.target.files[0];ev.target.value='';
+  if(!f)return;
+  if(personaDirty()&&!confirm('未保存的编辑会丢失，确认导入新草稿？'))return;
+  const text=(await f.text()).trim();
+  if(!text){$('personaStat').textContent='文件为空';return;}
+  editingPersonaId='__new__';showPersonas(PERSONAS);selectPersona('__new__');
+  $('personaName').value=f.name.replace(/\.[^.]+$/,'');
+  $('personaEdit').value=text;
+  $('personaStat').textContent=`已从「${f.name}」导入草稿 · ${text.length} 字 · 保存后生效`;
+};
+$('personaDup').onclick=()=>{
+  const p=PERSONAS.personas.find(x=>x.id===editingPersonaId);
+  if(!p)return;
+  if(personaDirty()&&!confirm('未保存的编辑会丢失，确认以已保存版本为底建副本？'))return;
+  editingPersonaId='__new__';showPersonas(PERSONAS);selectPersona('__new__');
+  $('personaName').value=p.name+' 副本';
+  $('personaEdit').value=p.text;
+  $('personaStat').textContent='副本草稿 · 保存后生效';
+};
+$('personaDel').onclick=async()=>{
+  const p=PERSONAS.personas.find(x=>x.id===editingPersonaId);
+  if(!p)return;
+  if(!confirm(`删除人设「${p.name}」？不可恢复。`))return;
+  const r=await fapi(API+'/personas?id='+encodeURIComponent(editingPersonaId),{method:'DELETE'});
+  if(!r.ok){$('personaStat').textContent='删除失败：'+await r.text();return;}
+  showPersonas(await r.json());
+  await load();
+  $('personaStat').textContent='已删除';
 };
 // ── Tab：备份迁移 ──
 // 导出改用 /api/export 全量备份，包含人设列表和会话摘要

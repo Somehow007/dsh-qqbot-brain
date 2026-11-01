@@ -104,6 +104,21 @@ test('personas: 备份恢复列表、旧版字段与错误输入不改变活动�
   assert.equal(legacy.persona(), '外部旧备份');
 });
 
+test('personas: 只能删除非当前人设，删除后跨重启不复活', () => {
+  const { dir, store } = tmpStore();
+  store.setPersona('原版');
+  const dead = store.createPersona('试用', '试用内容');
+  assert.throws(() => store.deletePersona(store.activePersonaId()));
+  assert.throws(() => store.deletePersona('missing'));
+  store.deletePersona(dead.id);
+  assert.equal(store.listPersonas().length, 1);
+  store.flush();
+  const restored = new BrainStore(dir);
+  assert.equal(restored.listPersonas().length, 1);
+  assert.equal(restored.persona(), '原版');
+  rmSync(dir, { recursive: true });
+});
+
 // ── 导出 / 导入 ──
 test('export/import: 整包往返一致，衰减字段保留', () => {
   const { store } = tmpStore();

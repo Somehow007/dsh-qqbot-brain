@@ -21,6 +21,7 @@ type Op =
   | { op: 'persona'; text: string }
   | { op: 'persona-save'; persona: PersonaEntry }
   | { op: 'persona-activate'; id: string }
+  | { op: 'persona-delete'; id: string }
   | { op: 'reset' };
 
 export interface PersonaEntry { id: string; name: string; text: string }
@@ -252,6 +253,9 @@ export class BrainStore {
       case 'persona-activate':
         this.activeId = op.id;
         this.personaText = this.personaEntries.get(op.id)?.text ?? '';
+        break;
+      case 'persona-delete':
+        this.personaEntries.delete(op.id);
         break;
       case 'reset':
         this.notes.clear();
@@ -534,6 +538,12 @@ export class BrainStore {
   activatePersona(id: string): void {
     if (!this.personaEntries.has(id)) throw new Error('人设不存在');
     if (id !== this.activeId) this.persist({ op: 'persona-activate', id });
+  }
+
+  deletePersona(id: string): void {
+    if (!this.personaEntries.has(id)) throw new Error('人设不存在');
+    if (id === this.activeId) throw new Error('当前人设不能删除');
+    this.persist({ op: 'persona-delete', id });
   }
 
   private validPersona(id: string, name: string, text: string): PersonaEntry {

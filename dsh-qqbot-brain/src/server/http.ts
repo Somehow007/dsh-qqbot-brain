@@ -68,9 +68,10 @@ export class BrainHttpServer {
       if (req.method === 'GET') return json(res, { text: this.brain.persona() });
       if (req.method === 'POST') {
         readBody(req).then((body) => {
-          let text = body.trim();
-          const o = parseJson<{ text?: string }>(body);
-          if (o && typeof o === 'object' && 'text' in o) text = typeof o.text === 'string' ? o.text.trim() : '';
+          const o = parseJson<unknown>(body);
+          const text = (o !== null && typeof o === 'object')
+            ? (typeof (o as { text?: unknown }).text === 'string' ? ((o as { text: string }).text).trim() : '')
+            : body.trim();
           if (!text) { res.writeHead(400).end('empty persona'); return; }
           this.brain.setPersona(text);
           this.onPersonaSet?.(text);
@@ -80,12 +81,24 @@ export class BrainHttpServer {
       }
     }
     if (p === `${prefix}/api/personas` && req.method === 'GET') return json(res, this.brain.personas());
+    if (p === `${prefix}/api/personas` && req.method === 'DELETE') {
+      const id = url.searchParams.get('id') ?? '';
+      if (!id) { res.writeHead(400).end('id required'); return; }
+      try {
+        this.brain.deletePersona(id);
+        return json(res, { ok: true, ...this.brain.personas() });
+      } catch (e) {
+        res.writeHead(e instanceof Error && e.message === '人设不存在' ? 404 : 400)
+          .end(e instanceof Error ? e.message : 'invalid persona');
+      }
+      return;
+    }
     if ((p === `${prefix}/api/personas` && (req.method === 'POST' || req.method === 'PATCH'))
       || (p === `${prefix}/api/personas/activate` && req.method === 'POST')) {
       try {
         const o = parseJson<{ id?: string; name?: string; text?: string }>(await readBody(req));
         if (!o || typeof o !== 'object') { res.writeHead(400).end('invalid json'); return; }
-        if (p.endsWith('/activate')) {
+        if (p === `${prefix}/api/personas/activate`) {
           if (typeof o.id !== 'string') { res.writeHead(400).end('id required'); return; }
           this.brain.activatePersona(o.id);
           this.onPersonaSet?.(this.brain.persona());

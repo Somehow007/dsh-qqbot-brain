@@ -28,6 +28,7 @@ test('人设列表定时刷新时保留未保存的名称与全文草稿', () =>
   const controls: Record<string, { value: string; textContent?: string; disabled?: boolean; options?: unknown[]; replaceChildren?: (...options: unknown[]) => void; add?: (option: unknown) => void }> = {
     personaName: { value: '' }, personaEdit: { value: '' }, personaStat: { value: '' },
     personaActivate: { value: '', disabled: false },
+    personaDel: { value: '', disabled: false }, personaDup: { value: '', disabled: false },
     personaSelect: { value: '', options: [] },
   };
   controls.personaSelect!.replaceChildren = (...options) => { controls.personaSelect!.options = options; };

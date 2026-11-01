@@ -46,6 +46,8 @@ test('人设 API: 口令保护、创建编辑切换与备份恢复同步活动�
     assert.equal((await call('/personas/activate', 'POST', { id: 'missing' })).status, 404);
     assert.equal((await call('/personas', 'PATCH', { id, name: '', text: 'bad' })).status, 400);
     assert.equal((await call('/persona', 'POST', { text: '' })).status, 400);
+    assert.equal((await call('/persona', 'POST', { name: 'x' })).status, 400);
+    assert.equal(brain.persona(), '旧版');
     assert.equal((await call('/personas/activate', 'POST', { id })).status, 200);
     assert.equal(brain.assemble('s1', 'hi').persona, '温柔内核');
     assert.equal(readPersonaFile(dir), '温柔内核');
@@ -57,6 +59,13 @@ test('人设 API: 口令保护、创建编辑切换与备份恢复同步活动�
     assert.equal(readPersonaFile(dir), '新版');
     assert.equal(new BrainStore(dir).persona(), '新版');
     assert.equal(readFileSync(join(dir, 'persona.md'), 'utf8').trim(), '新版');
+    assert.equal((await call('/personas?id=missing', 'DELETE')).status, 404);
+    assert.equal((await call('/personas?id=' + id, 'DELETE')).status, 400);
+    const del = await call('/personas?id=legacy', 'DELETE');
+    assert.equal(del.status, 200);
+    const left = await del.json() as { personas: { id: string }[] };
+    assert.equal(left.personas.length, 1);
+    assert.equal(left.personas[0]!.id, id);
   } finally {
     await new Promise<void>((resolve) => server.close(() => resolve()));
     rmSync(dir, { recursive: true });

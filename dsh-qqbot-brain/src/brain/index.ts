@@ -105,6 +105,10 @@ export class Brain {
     this.store.activatePersona(id);
   }
 
+  deletePersona(id: string): void {
+    this.store.deletePersona(id);
+  }
+
   /**
    * 每轮组装注入上下文。
    * speaker：当前发言人（群聊），可为昵称字符串或 {nick, openid}。

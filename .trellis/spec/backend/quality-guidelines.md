@@ -28,7 +28,7 @@ Changes to `dsh-qqbot-brain` persona storage, HTTP endpoints, startup loading or
 
 - `BrainStore.createPersona(name, text, id?)`, `savePersona(id, name, text)`, `activatePersona(id)`, `activePersonaId()`, `listPersonas()`.
 - `Brain.persona()` and `Brain.assemble(...).persona` always read the active text.
-- `GET /brain/api/personas`, `POST /brain/api/personas`, `PATCH /brain/api/personas`, `POST /brain/api/personas/activate` use fixed paths so the host webServer can register them explicitly.
+- `GET /brain/api/personas`, `POST /brain/api/personas`, `PATCH /brain/api/personas`, `DELETE /brain/api/personas?id=`, `POST /brain/api/personas/activate` use fixed paths so the host webServer can register them explicitly.
 
 ### 3. Contracts
 
@@ -38,7 +38,7 @@ Changes to `dsh-qqbot-brain` persona storage, HTTP endpoints, startup loading or
 
 ### 4. Validation & Error Matrix
 
-- Empty name/text, overlong name (>80) or text (>50,000), malformed personas list → 400 without modifying the selected persona; unknown ID → 404.
+- Empty name/text, overlong name (>80) or text (>50,000), malformed personas list → 400 without modifying the selected persona; unknown ID → 404; deleting the active persona → 400 (switch first); legacy `POST /api/persona` with a JSON body lacking `text` → 400 (never store raw JSON as persona text).
 - Replace import validates persona list and active reference before `reset`; merge skips conflicting IDs, keeps local activity; replace restores the backup activity.
 - All API calls respect `http.token` via query or `x-brain-token` header; wrong/missing token → 401.
 
