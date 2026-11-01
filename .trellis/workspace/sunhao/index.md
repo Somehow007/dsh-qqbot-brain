@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 23
-- **Last Active**: 2026-11-01
+- **Total Sessions**: 24
+- **Last Active**: 2026-11-02
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~502 | Active |
+| `journal-1.md` | ~524 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 24 | 2026-11-02 | 脑图关联后端化：语义/特质/派生边 + 情绪快照 + 写入判重 | `87cdff6` | `main` |
 | 23 | 2026-11-01 | 脑图重构：鲸脑皮层（概念①）落地 | `d08288c` | `main` |
 | 22 | 2026-11-01 | 脑图概念图重设计三版（①鲸脑皮层 ②心智咖啡馆 ③海马回廊） | `aaa9c41`, `fda6e82` | `main` |
 | 21 | 2026-11-01 | 脑图中attitude的表现形式确认 | - | `main` |

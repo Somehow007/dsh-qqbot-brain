@@ -500,3 +500,25 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 24: 脑图关联后端化：语义/特质/派生边 + 情绪快照 + 写入判重
+<!-- trellis-session: v=2 fp=c1d30384e3f06501 -->
+
+**Date**: 2026-11-02
+**Task**: 脑图关联后端化：语义/特质/派生边 + 情绪快照 + 写入判重
+**Branch**: `main`
+
+### Summary
+
+脑图关联原本全部前端推断（bigram 字面重合、ops 情绪流水被 compact 清空、人格字面稀疏）。先用线上 129 条记忆验证可行性：向量全覆盖、top3@0.65 剪枝出 288 条真关联边、发现 91 对近重复漏网、情绪 op 不过 compact（0/129 可匹配）。随后实施四项：1) graphEdges 语义边 top3@[0.65,0.9) + facet 边 @0.55（facet 向量按人设缓存）；2) 写入时 emotionStamp 钉情绪快照（distill/巩固/手动三处）；3) sourceIds 派生边（巩固时记录情景来源，全图唯一实录关系）；4) dedupeEmbedCos=0.9 写入判重（强化旧记忆而非新增）。前端 buildRelations 合并服务端边与本地理由、快照/服务端 facet 优先并全量回退。验证：89/89 测试、typecheck、build、smoke 33 项；生产数据副本实测 135 条→279 语义+60 特质边+nearDup 59；已部署线上（备份→rsync→restart→验证），检查器显示「语义相似 73%」、人格光谱关联计数从近全 0 变 21/9/13/0/13/38。后续：存量 59 对近重复清理另开任务；存量情绪回填不值（需 transcript 重放）。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `87cdff6` | feat(brain): serve real graph edges & stamp note emotion/sources |
+
+### Status
+
+[OK] **Completed**
