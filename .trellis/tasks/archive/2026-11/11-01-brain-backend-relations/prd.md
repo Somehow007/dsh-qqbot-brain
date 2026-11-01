@@ -63,4 +63,35 @@
 ## 状态
 
 - [x] 评估 + 线上验证
-- [ ] 待用户确认后实施（建议先做 1，顺手带 2）
+- [x] 实施 1+2+3+4（commit `87cdff6`，已部署线上）
+
+## Resolution（2026-11-01）
+
+### 问题
+
+脑图节点关联全部前端推断：bigram 只认字面重合（语义相关连不上）、情绪关联被 ops 流水 compact 清空（0/129 可匹配）、人格关联字面稀疏。
+
+### 怎么解决的
+
+按线上数据校准后实施了全部四项（commit `87cdff6`）：
+
+1. **语义边**（`graphEdges`）：`MemoryNote.embedding` 两两余弦，每节点 top-3 且 ∈[0.65,0.9) 去重封顶 400 条；**≥0.9 判为近重复不连**（与评估结论一致），并顺手把近重复对数计入 `stats.nearDup` 作观测指标。
+2. **情绪快照**：`NoteDraft.emotion`/`MemoryNote.emotion`（`NoteEmotion={v,a,d,label}`）新增可选字段；`endOfTurn` 里情绪 apply **前移**到记忆入库前（新记忆钉上本轮最新情绪而非上轮残留），distill/consolidate/手动 addNote 三处写入点统一 `emotionStamp()` 盖章。存量 129 条放弃回填（transcript 重放成本高）。
+3. **facet 边**：`personaFacetTexts()`（与前端 `personaFacets` 同款 `##` 拆分、facet id 对齐）取向量，记忆 vs facet max 余弦 ≥0.55 出边；向量按 persona 文本缓存，人设切换自动重算，`/api/state` 轮询零成本。
+4. **derived 边**：`MemoryNote.sourceIds`（可选字段）记录巩固时喂入的情景记忆 id——全图唯一「实录非推断」的关系；`sanitizeNote`/`addNote` 透传，replay/导出导入兼容。
+5. **写入判重**：`dedupeEmbedCos=0.9`（config 可调）——distill 新草稿先取向量，`findNearDup` 全库扫描，≥0.9 则 `reinforce` 旧记忆 + 记日志而非新增。直接回应评估发现的 91 对近重复漏网。consolidate/手动 add 路径不判重（巩固本来就重写事实，手写是用户本意）。
+6. **前端**：`buildRelations(notes, edges)` 以服务端边为骨架、ngram/session/actor 作本地附加理由（同对并边、理由取并集，primary 按 derived>semantic>topic>session>actor）；note.emotion 快照直接进 `emoOf`、服务端 facet 边进 `facetOf`，缺边条目全部回退原推断；检查器理由显示「语义相似 73%」「沉淀为这条语义记忆」；图例更新（新增沉淀巩固实线类）。
+
+### 验证结论
+
+- `npm test` 89/89、typecheck、build ✓；smoke 33 项 ✓（stub 补了 edges/emotion/derived 数据走新路径）
+- **线上数据副本实测**：135 条记忆 → 279 语义边（top 样本全是真话题簇：五笑梗图系列/demo↔鲸鱼娘/山姆）+ 60 facet 边（荤段子→边界、嘴硬→风格，合理）+ `nearDup:59` 存量近重复对
+- **已部署**（备份 → rsync dist → restart → 验证）：线上 `/api/state` 返回 339 边，隧道截图确认检查器显示「语义相似 73% · 相似话题 · 同一会话」，人格光谱关联计数从近全 0 变为 21/9/13/0/13/38
+- emoNotes:0 属预期——快照只对新写入记忆生效；derived:0 同理（下次巩固跑过才出）
+
+### 后续优化方向
+
+- **存量近重复清理**：59 对 ≥0.9 已在库里，写时判重只挡增量。可考虑一次性合并脚本（保留 hits/strength 最大者、文案取较长者）或页面「疑似重复」提示——另开任务评估。
+- **存量情绪回填**：若真需要，只能 transcript 重放；暂不值。
+- 语义边阈值/top-k 若上线后嫌密/嫌稀，调 `graphEdges` 常量即可（未做成 config，避免配置面膨胀）。
+- LLM 关系抽取（支持/矛盾/因果）依旧不做：成本与可靠性不划算。
