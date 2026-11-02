@@ -467,6 +467,51 @@ export class Brain {
     return { v: e.v, a: e.a, d: e.d, label: e.label };
   }
 
+  /**
+   * 存量近重复清理：向量余弦 ≥dedupeEmbedCos 的记忆并查集聚类，
+   * 每簇保留信息量最大的一条（长文案 > 重要度 > 命中 > 更早创建），
+   * 其余经 merge op 合并字段后删除。无向量记忆不参与（无法判定）。
+   */
+  sweepNearDups(): { clusters: number; merged: number; pairs: { keep: string; drop: string }[] } {
+    const notes = this.store.allNotes().filter((n) => n.embedding?.length);
+    const parent = new Map<string, string>();
+    const find = (x: string): string => {
+      let r = x;
+      while (parent.get(r) !== r) { parent.set(r, parent.get(parent.get(r)!)!); r = parent.get(r)!; }
+      return r;
+    };
+    notes.forEach((n) => parent.set(n.id, n.id));
+    for (let i = 0; i < notes.length; i++) {
+      for (let j = i + 1; j < notes.length; j++) {
+        if (vecCosine(notes[i]!.embedding!, notes[j]!.embedding!) >= this.cfg.dedupeEmbedCos
+          && find(notes[i]!.id) !== find(notes[j]!.id)) {
+          parent.set(find(notes[i]!.id), find(notes[j]!.id));
+        }
+      }
+    }
+    const clusters = new Map<string, MemoryNote[]>();
+    for (const n of notes) {
+      const r = find(n.id);
+      const c = clusters.get(r) ?? [];
+      c.push(n); clusters.set(r, c);
+    }
+    const pairs: { keep: string; drop: string }[] = [];
+    let clusterCount = 0;
+    for (const members of clusters.values()) {
+      if (members.length < 2) continue;
+      clusterCount++;
+      members.sort((a, b) => b.content.length - a.content.length
+        || b.importance - a.importance || b.hits - a.hits || a.createdAt - b.createdAt);
+      const keep = members[0]!;
+      for (const m of members.slice(1)) {
+        this.store.mergeNotes(keep.id, m.id, this.cfg.strengthCap);
+        pairs.push({ keep: keep.id, drop: m.id });
+      }
+      this.log?.(`近重复合并：「${keep.content.slice(0, 24)}」吸收 ${members.length - 1} 条复读`);
+    }
+    return { clusters: clusterCount, merged: pairs.length, pairs };
+  }
+
   /** 写入判重：全库找与新记忆向量余弦最高的既有记忆，≥dedupeEmbedCos 判为同一事实 */
   private findNearDup(vec: number[]): { note: MemoryNote; cos: number } | undefined {
     if (this.cfg.dedupeEmbedCos <= 0) return undefined;

@@ -512,6 +512,39 @@ test('graph edges: 语义边取向量余弦 top-k，近重复不连', async () =
   assert.ok(sem[0]!.score >= 0.65 && sem[0]!.score < 0.9);
 });
 
+test('sweepNearDups: 近重复簇合并为信息量最大的一条，重载后保持', () => {
+  const { dir, store } = tmpStore();
+  const a = store.addNote('s1', { content: '短', importance: 2, actor: '张三' }, NOW - 2 * DAY);
+  const b = store.addNote('s1', { content: '长文案：用户反复强调自己对花生严重过敏这件事', importance: 4 }, NOW - DAY);
+  const c = store.addNote('s1', { content: '中等长度的同类记录', importance: 3 }, NOW);
+  const d = store.addNote('s1', { content: '完全无关的另一条记忆', importance: 3 }, NOW);
+  store.setEmbedding(a.id, [1, 0, 0]);
+  store.setEmbedding(b.id, [0.99, 0.05, 0]);
+  store.setEmbedding(c.id, [0.98, 0.1, 0]);
+  store.setEmbedding(d.id, [0, 1, 0]);
+  store.reinforce(a, 1, 10, NOW);
+  store.reinforce(b, 1, 10, NOW);
+  store.reinforce(d, 1, 10, NOW); // d 也要活过 compact 的物理遗忘（其内部按真实时间计龄）
+  const sBefore = store.noteById(b.id)!.strength;
+  const brain = new Brain({ store, distiller: mockDistiller({}), now });
+  const r = brain.sweepNearDups();
+  assert.equal(r.merged, 2);
+  assert.equal(r.clusters, 1);
+  const rest = store.allNotes();
+  assert.equal(rest.length, 2);
+  const keep = rest.find((n) => n.content.startsWith('长文案'))!;
+  assert.equal(keep.id, b.id, '保留信息量最大的');
+  assert.equal(keep.hits, 2, 'a/b 各一次命中并入保留者');
+  assert.equal(keep.importance, 4);
+  assert.equal(keep.createdAt, NOW - 2 * DAY, 'createdAt 取最早');
+  assert.equal(keep.actor, '张三', '保留者缺 actor 时由被并者补');
+  assert.ok(keep.strength > sBefore, '强度应并入提升');
+  store.flush();
+  const store2 = new BrainStore(dir);
+  assert.equal(store2.allNotes().length, 2, 'merge op 重放后仍为 2 条');
+  assert.equal(store2.noteById(b.id)!.hits, 2);
+});
+
 test('graph edges: sourceIds 产出 derived 边，指向不存在节点被过滤', async () => {
   const { store } = tmpStore();
   const e = store.addNote('s1', { content: '情景记忆', importance: 3 }, NOW);

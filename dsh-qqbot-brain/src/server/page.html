@@ -371,6 +371,10 @@
         <button type="submit">导入备份</button>
         <span class="stat" id="impStat" style="font-size:11px;color:var(--muted)"></span>
       </form>
+      <div class="toolbar" style="border-top:1px dashed var(--line2);margin-top:14px">
+        <button class="savebtn" id="dedupBtn">合并近重复记忆</button>
+        <span class="stat" id="dedupStat" style="font-size:11px;color:var(--muted)"></span>
+      </div>
     </div>
   </section>
   <footer class="fnote">DSH-QQBOT-BRAIN · 数据来自 /brain/api（真实蒸馏记忆）· 人格内核与记忆可直接在本页编辑，修改即时生效。</footer>
@@ -762,6 +766,7 @@ function render(){
   $('stMood').textContent=e.label||EMO_BY_ID[C.current].name;
   $('stPersona').textContent=PERSONAS.personas.find(p=>p.id===PERSONAS.activeId)?.name||(STATE.persona?'已加载':'未配置');
   $('serial').textContent=`SESS ${STATE.stats.sessions} · OPS ${OPS.length}`;
+  updateDedupStat();
   $('deck-more').textContent=`查看全部 ${all.length} 条记忆 ↗`;
   drawEdges();applyFocus();
   const cards=$('cards');cards.replaceChildren();
@@ -1032,7 +1037,7 @@ function renderSessions(){
     g.appendChild(d);});
 }
 // ── Tab：事件流水 ──
-const OP_CN={add:'新增记忆',reinforce:'唤起强化',update:'修改',del:'删除',emotion:'情绪',profile:'画像',persona:'人格',reset:'整库重置'};
+const OP_CN={add:'新增记忆',reinforce:'唤起强化',update:'修改',del:'删除',merge:'近重复合并',emotion:'情绪',profile:'画像',persona:'人格',reset:'整库重置'};
 function opDesc(o){
   const op=o.op;
   switch(op.op){
@@ -1040,6 +1045,7 @@ function opDesc(o){
     case 'reinforce':return `S→${op.strength} 唤起×${op.hits}（${shortId(op.id)}）`;
     case 'update':return `${shortId(op.id)} ${JSON.stringify(op.patch).slice(0,40)}`;
     case 'del':return `删除 ${shortId(op.id)}`;
+    case 'merge':return `保留 ${shortId(op.keepId)}，吸收 ${shortId(op.dropId)}（S→${op.patch.strength.toFixed(1)} 唤起×${op.patch.hits}）`;
     case 'emotion':return `${op.state.label||''} v=${op.state.v.toFixed(1)} a=${op.state.a.toFixed(1)}（${shortId(op.sessionId)}）`;
     case 'profile':return `${op.name?op.name+'：':''}${(op.text||'').slice(0,46)}`;
     case 'persona':return (op.text||'').slice(0,46);
@@ -1193,6 +1199,21 @@ $('impForm').onsubmit=async ev=>{
     ?`已导入（${mode==='merge'?'合并':'覆盖'}）：记忆 ${d.notes} 条 · 跳过 ${d.skipped} · 画像 ${d.profiles} · 情绪 ${d.emotions}${d.persona?' · 人格已更新':''}`
     :'导入失败：'+(r.status===400?'文件不是有效备份':'HTTP '+r.status);
   ev.target.reset();await load();};
+// 近重复合并：服务端向量聚类，保留每簇信息量最大的记忆，其余并入后删除
+function updateDedupStat(){
+  const el=$('dedupStat');if(!el||!STATE)return;
+  el.textContent=(STATE.stats?.nearDup??0)>0
+    ?`当前近重复记忆对 ${STATE.stats.nearDup}（语义同一事实；合并后不可撤销，建议先导出备份）`
+    :'暂无明显近重复记忆';
+}
+$('dedupBtn').onclick=async()=>{
+  if(!confirm('把语义上属于同一事实的近重复记忆合并为一条？保留每簇信息量最大的，强度与命中并入保留者。操作写入事件流水，建议先导出备份。'))return;
+  const r=await fapi(API+'/dedup',{method:'POST'});
+  const d=await r.json().catch(()=>null);
+  if(r.ok&&d)$('dedupStat').textContent=d.merged?`已合并 ${d.merged} 条（${d.clusters} 簇）`:'暂无可合并的近重复';
+  else $('dedupStat').textContent='失败：HTTP '+r.status;
+  await load();
+};
 // ── 复位 / 信号开关 ──
 $('brandAvatar').onclick=()=>panel(null);
 $('resetView').onclick=()=>panel(null);

@@ -15,6 +15,10 @@ type Op =
   | { op: 'update'; id: string; patch: Partial<Pick<MemoryNote, 'content' | 'importance' | 'kind'>> }
   | { op: 'embed'; id: string; vector: number[] }
   | { op: 'del'; id: string }
+  | { op: 'merge'; keepId: string; dropId: string; patch: {
+      strength: number; hits: number; importance: number; createdAt: number; lastAccessAt: number;
+      actor?: string; emotion?: NoteEmotion; sourceIds?: string[];
+    } }
   | { op: 'emotion'; sessionId: string; state: EmotionState }
   | { op: 'profile'; sessionId: string; text: string; key?: string; name?: string; at?: number }
   | { op: 'digest'; sessionId: string; text: string; uptoTurn?: number }
@@ -229,6 +233,12 @@ export class BrainStore {
         break;
       }
       case 'del': this.notes.delete(op.id); break;
+      case 'merge': {
+        const n = this.notes.get(op.keepId);
+        if (n) Object.assign(n, op.patch);
+        this.notes.delete(op.dropId);
+        break;
+      }
       case 'emotion': this.emotions.set(op.sessionId, op.state); break;
       case 'digest':
         this.digests.set(op.sessionId, {
@@ -344,6 +354,33 @@ export class BrainStore {
     if (!note.content) return note;
     this.persist({ op: 'add', note });
     return note;
+  }
+
+  /**
+   * 近重复合并：把 drop 的价值并入 keep 后删除 drop。
+   * 强度 = max + min×0.5（封顶 cap，复读次数应体现在强度而非简单取大）；
+   * hits 求和、importance 取大、createdAt 取早（记忆形成于更早）、
+   * lastAccessAt 取新；keep 缺的 actor/emotion 由 drop 补；sourceIds 取并集。
+   * 注意：其他记忆的 sourceIds 若引用 dropId 会成为悬垂引用，图谱边生成时按存活集过滤即可。
+   */
+  mergeNotes(keepId: string, dropId: string, cap: number): boolean {
+    const keep = this.notes.get(keepId), drop = this.notes.get(dropId);
+    if (!keep || !drop || keepId === dropId) return false;
+    this.persist({
+      op: 'merge', keepId, dropId,
+      patch: {
+        strength: Math.min(cap, Math.max(keep.strength, drop.strength) + Math.min(keep.strength, drop.strength) * 0.5),
+        hits: keep.hits + drop.hits,
+        importance: Math.max(keep.importance, drop.importance),
+        createdAt: Math.min(keep.createdAt, drop.createdAt),
+        lastAccessAt: Math.max(keep.lastAccessAt, drop.lastAccessAt),
+        actor: keep.actor ?? drop.actor,
+        emotion: keep.emotion ?? drop.emotion,
+        sourceIds: [...new Set([...(keep.sourceIds ?? []), ...(drop.sourceIds ?? [])])]
+          .filter((id) => id !== keepId && id !== dropId),
+      },
+    });
+    return true;
   }
 
   /** 命中强化：S+step（封顶），记录唤起时刻与次数 */

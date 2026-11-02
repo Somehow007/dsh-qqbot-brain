@@ -123,6 +123,9 @@ export class BrainHttpServer {
       const limit = Math.min(500, Math.max(1, Number(url.searchParams.get('limit')) || 100));
       return json(res, { ops: this.brain.recentOps(limit) });
     }
+    if (p === `${prefix}/api/dedup` && req.method === 'POST') {
+      return json(res, this.brain.sweepNearDups());
+    }
     if (p === `${prefix}/api/consolidate` && req.method === 'POST') {
       const sid = url.searchParams.get('session');
       const targets = sid ? [sid] : this.brain.sessionsNeedingConsolidation();
@@ -225,7 +228,7 @@ export class BrainHttpServer {
       const prefix = this.cfg.prefix.replace(/\/$/, '');
       webServer.register({ path: prefix, handler: (r, s) => this.route(r, s) });
       webServer.register({ path: `${prefix}/`, handler: (r, s) => this.route(r, s) });
-      for (const sub of ['/api/state', '/api/query', '/api/persona', '/api/personas', '/api/personas/activate', '/api/sessions', '/api/profiles', '/api/ops', '/api/notes', '/api/export', '/api/import']) {
+      for (const sub of ['/api/state', '/api/query', '/api/persona', '/api/personas', '/api/personas/activate', '/api/sessions', '/api/profiles', '/api/ops', '/api/notes', '/api/export', '/api/import', '/api/dedup']) {
         webServer.register({ path: `${prefix}${sub}`, handler: (r, s) => this.route(r, s) });
       }
       this.log(`brain: 已挂载到宿主 webServer ${prefix}`);
