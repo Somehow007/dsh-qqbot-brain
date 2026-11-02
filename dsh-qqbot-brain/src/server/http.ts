@@ -121,8 +121,11 @@ export class BrainHttpServer {
     }
     if (p === `${prefix}/api/profiles` && req.method === 'PATCH') {
       const o = parseJson<{ key?: string; name?: string; text?: string }>(await readBody(req));
-      if (!o?.key || typeof o.text !== 'string' || !o.text.trim()) { res.writeHead(400).end('key/text required'); return; }
-      return this.brain.updateProfile(o.key, { name: o.name, text: o.text })
+      if (!o?.key || typeof o.text !== 'string' || !o.text.trim()
+        || (o.name !== undefined && typeof o.name !== 'string')) {
+        res.writeHead(400).end('key/text required'); return;
+      }
+      return this.brain.updateProfile(o.key, { name: o.name?.slice(0, 80), text: o.text })
         ? json(res, { ok: true, profiles: this.brain.people() })
         : void res.writeHead(404).end('profile not found');
     }

@@ -643,6 +643,23 @@ test('buildConsolidatePrompt: 情景记忆列表带形成时间标注', () => {
   assert.match(p, /- \[3天前\] 张三爱民谣/);
 });
 
+test('prompt 槽位填充：实参含字面 %s 不导致后续槽位错位', () => {
+  const notes = [{
+    id: 'n1', sessionId: 's1', content: '记忆X', importance: 3,
+    kind: 'episodic' as const, createdAt: NOW, strength: 1, hits: 0, lastAccessAt: NOW,
+  }];
+  // 旧链式 replace 会把 list 填进画像里的 %s，尾部槽位留下字面 %s
+  const p = buildConsolidatePrompt(notes, '画像里有 %s 占位符', '人设%s', { now: NOW, timeZone: 'Asia/Shanghai' });
+  assert.match(p, /人设%s/);
+  assert.match(p, /画像里有 %s 占位符/);
+  assert.match(p, /- \[1分钟前\] 记忆X/);
+  const d = buildDigestPrompt(
+    [{ at: NOW, userText: '带 %s 的消息', assistantText: '回', actor: 'u:1' }],
+    '先前摘要', '人设', { now: NOW, timeZone: 'Asia/Shanghai' });
+  assert.match(d, /带 %s 的消息/);
+  assert.match(d, /先前摘要/);
+});
+
 // ── 可视化数据 ──
 test('graph: 返回节点统计与遗忘标记', async () => {
   const { store } = tmpStore();

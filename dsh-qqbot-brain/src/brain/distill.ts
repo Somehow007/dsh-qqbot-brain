@@ -144,6 +144,16 @@ export function buildProfileReviewPrompt(items: ProfileReviewItem[]): string {
 const DISTILL_TURN_CAP = 800;
 const capText = (s: string, n: number) => (s.length > n ? `${s.slice(0, n)}…` : s);
 
+/**
+ * 顺序填充 %s 槽位。必须用单趟 /g 替换而非链式 replace——
+ * 链式下若靠前的实参（persona/画像/名称等用户可写内容）含字面 %s，
+ * 下一次 replace 会命中注入的 %s 导致槽位错位；单趟只扫模板本身。
+ */
+const fillSlots = (prompt: string, args: string[]): string => {
+  let i = 0;
+  return prompt.replace(/%s/g, () => args[i++] ?? '');
+};
+
 export function buildDistillPrompt(
   turns: Turn[], persona: string, maxNotes: number,
   existing?: MemoryNote[], currentEmotion?: EmotionState,
@@ -156,9 +166,8 @@ export function buildDistillPrompt(
   const convo = turns
     .map((t) => `[${formatStamp(t.at, ctx.timeZone)}] ${t.actor ?? '用户'}：${capText(t.userText, DISTILL_TURN_CAP)}\n角色：${capText(t.assistantText, DISTILL_TURN_CAP)}`)
     .join('\n');
-  let prompt = PROMPT.replace('%d', String(maxNotes))
-    .replace('%s', persona || '（未设定）')
-    .replace('%s', ctxBlock ? `${ctxBlock}\n\n${convo}` : convo);
+  let prompt = fillSlots(PROMPT.replace('%d', String(maxNotes)),
+    [persona || '（未设定）', ctxBlock ? `${ctxBlock}\n\n${convo}` : convo]);
   if (existingProfiles?.length) {
     prompt += `\n\n现有画像：\n${existingProfiles
       .map((p) => `- ${p.actor ?? '本会话'}：${p.text}`)
@@ -180,9 +189,7 @@ export function buildDistillPrompt(
 
 export function buildConsolidatePrompt(notes: MemoryNote[], profile: string, persona: string, ctx: TimeCtx = defaultTimeCtx()): string {
   const list = notes.map((n) => `- [${ageLabel(n.createdAt, ctx.now)}] ${n.actor ? `[${n.actor}] ` : ''}${n.content}`).join('\n');
-  return CONSOLIDATE_PROMPT.replace('%s', persona || '（未设定）')
-    .replace('%s', profile || '（暂无）')
-    .replace('%s', list);
+  return fillSlots(CONSOLIDATE_PROMPT, [persona || '（未设定）', profile || '（暂无）', list]);
 }
 
 export function buildDigestPrompt(
@@ -194,9 +201,7 @@ export function buildDigestPrompt(
   const convo = turns
     .map((t) => `[${formatStamp(t.at, ctx.timeZone)}] ${t.actor ?? '用户'}：${capText(t.userText, turnCharCap)}\n角色：${capText(t.assistantText, turnCharCap)}`)
     .join('\n');
-  return DIGEST_PROMPT.replace('%s', persona || '（未设定）')
-    .replace('%s', priorDigest || '（暂无）')
-    .replace('%s', convo)
+  return fillSlots(DIGEST_PROMPT, [persona || '（未设定）', priorDigest || '（暂无）', convo])
     + `\n\n当前时间：${formatClock(ctx.now, ctx.timeZone)}`;
 }
 
@@ -278,7 +283,7 @@ export class Distiller {
     const c = ctx ?? defaultTimeCtx();
     const list = notes.map((n) => `- [${ageLabel(n.createdAt, c.now)}] ${n.content}`).join('\n');
     const result = await this.call(
-      PROFILE_DRAFT_PROMPT.replace('%s', subject).replace('%s', persona || '（未设定）').replace('%s', list));
+      fillSlots(PROFILE_DRAFT_PROMPT, [subject, persona || '（未设定）', list]));
     return result.profile;
   }
 
