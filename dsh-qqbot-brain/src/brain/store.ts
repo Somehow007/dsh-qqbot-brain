@@ -113,6 +113,25 @@ export interface OpRecord { t: number; op: Op }
 
 export const PROFILE_TEXT_CAP = 500;
 
+/**
+ * 画像文本截断：超出上限时优先在上限内最后一个句末标点处收束，
+ * 避免从句子中间切断；句末标点太靠前（<40%）或没有时才硬切。
+ */
+export function truncateProfileText(text: string, cap: number): string {
+  const t = text.trim();
+  if (t.length <= cap) return t;
+  const head = t.slice(0, cap);
+  const end = Math.max(
+    head.lastIndexOf('。'), head.lastIndexOf('！'), head.lastIndexOf('？'),
+    head.lastIndexOf('!'), head.lastIndexOf('?'), head.lastIndexOf('；'),
+    head.lastIndexOf(';'), head.lastIndexOf('\n'),
+  );
+  if (end < Math.floor(cap * 0.4)) return head;
+  let cut = end + 1;
+  while (cut < head.length && '」』”’"'.includes(head[cut]!)) cut++;
+  return head.slice(0, cut);
+}
+
 // ── 向量编解码：派生态以 base64(f32) 存快照，不进 op 流水 ──
 function encodeVec(v: number[]): string {
   const buf = Buffer.alloc(v.length * 4);
@@ -260,7 +279,7 @@ export class BrainStore {
         }
         const prev = this.profiles.get(key);
         this.profiles.set(key, {
-          text: op.text.trim().slice(0, PROFILE_TEXT_CAP),
+          text: truncateProfileText(op.text, PROFILE_TEXT_CAP),
           name: op.name ?? prev?.name ?? '',
           sessions: [...new Set([...(prev?.sessions ?? []), op.sessionId])],
           updatedAt: op.at ?? Date.now(),

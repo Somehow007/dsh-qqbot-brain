@@ -1101,6 +1101,19 @@ test('store: 单条画像文本 500 字硬截断，防修订膨胀', () => {
   assert.equal(store.profileOf('s1').length, 500);
 });
 
+test('store: 画像截断优先句末收束，不从句子中间切断', () => {
+  const { store } = tmpStore();
+  // 末句从 480 字处开始、绵延超过上限：应停在 480 处的句末，不剩半截话
+  const head = '稳'.repeat(480) + '。';
+  const text = head + '尾句还在说半截话'.repeat(60);
+  store.setProfile('s1', text);
+  assert.equal(store.profileOf('s1'), head);
+  // 上限内最后一个标点太靠前（<40%）时仍硬切，保住信息量
+  const early = '短句。' + 'x'.repeat(800);
+  store.setProfile('s1', early);
+  assert.equal(store.profileOf('s1').length, 500);
+});
+
 test('buildDistillPrompt: 画像边界提示——时效信息进记忆不进画像', () => {
   const p = buildDistillPrompt(
     [{ userText: '明天早八', assistantText: '咕嘟', at: NOW }], '大肥鱼', 5,
