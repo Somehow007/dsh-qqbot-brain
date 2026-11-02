@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 27
+- **Total Sessions**: 28
 - **Last Active**: 2026-11-02
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~588 | Active |
+| `journal-1.md` | ~610 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 28 | 2026-11-02 | 脑图公网直连：弃 SSH 隧道 | `45580ea` | `feat/webserver-shim` |
 | 27 | 2026-11-02 | 情绪桶覆盖走查：mood 受控枚举修复 | - | `main` |
 | 26 | 2026-11-02 | 根 README 重设计：项目叙事版 | `1b1b99c` | `main` |
 | 25 | 2026-11-02 | 存量近重复记忆清理：merge op + 一次清扫 | `2792245` | `main` |

@@ -586,3 +586,25 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 28: 脑图公网直连：弃 SSH 隧道
+<!-- trellis-session: v=2 fp=7b45d294a7e73ff0 -->
+
+**Date**: 2026-11-02
+**Task**: 脑图公网直连：弃 SSH 隧道
+**Branch**: `feat/webserver-shim`
+
+### Summary
+
+用户反馈云服务器脑图走 SSH 隧道太麻烦且本地占 4099 端口，要求公网直连浏览器直达。排查：服务器 bundle patch 定 host/token，系统防火墙全通、闸门在腾讯云安全组；page.html 已有 ?token→sessionStorage 透传机制。方案：patch 改 0.0.0.0+随机 token 并重启 dsh-qqbot，index.ts 新增 BRAIN_HTTP_HOST/BRAIN_HTTP_TOKEN env 覆盖并写入 brain.env（rsync 部署不回退、密钥不进 git），文档同步。验证：0.0.0.0:4099 监听、无 token 401/带 token 200/页面 200、typecheck+98/98 测试绿；公网 curl 超时=安全组未放，待控制台放行 TCP 4099。后续：安全组可限自家 IP；新 dist 部署后 patch 内联 token 可清空改由 env 单点管理。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `45580ea` | feat(server): BRAIN_HTTP_HOST/BRAIN_HTTP_TOKEN env overrides |
+
+### Status
+
+[OK] **Completed**
