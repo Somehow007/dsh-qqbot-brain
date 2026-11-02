@@ -802,3 +802,23 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 38: 线上记忆清洗：剔除黄色边界测试污染
+<!-- trellis-session: v=2 fp=497d7f948dd94dd1 -->
+
+**Date**: 2026-11-03
+**Task**: 线上记忆清洗：剔除黄色边界测试污染
+**Branch**: `main`
+
+### Summary
+
+问题：黄色边界测试的蒸馏产物污染了线上记忆库（露骨 RP 会话整段、私聊恋人线、群内荤词条目、demo 画像写成「主人兼恋人」）。排查：export 全量导出 170 条按 session+关键词分类，用户拍板「恋人线全删+边界记忆留正面删涉黄」。方案：服务器单管道跑重新导出→过滤→import?mode=replace（46 删 124 留），demo 画像重写、3 条 digest 清空、RP 情绪态删除；4 条误伤人工复核救回。验证：state total=124、63aa5c4d 会话/情绪/digest 全消失、画像干净、snapshot 一致。插曲：23:54 新一条 RP 蒸馏撞进 reset 窗口，因 endOfTurn 先日志后落盘被 reset 带走。后续：009c0ab 的危险区功能（/api/notes/purge、/api/reset）部署后此类清洗有现成入口；RP 会话继续聊会再累积污染，测试结束可再 purge。备份在服务器 /tmp/brain-export-backup-2026-11-02-2352.json。
+
+### Git Commits
+
+(No commits - planning session)
+
+### Status
+
+[OK] **Completed**
