@@ -886,3 +886,25 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 42: 画像管理功能上线部署
+<!-- trellis-session: v=2 fp=39f079d6ad6fd7c6 -->
+
+**Date**: 2026-11-03
+**Task**: 画像管理功能上线部署
+**Branch**: `main`
+
+### Summary
+
+确认线上 dist 落后（11-02 19:33 部署，缺 009c0ab/6aa2d89/e6155a5）后部署：rsync dist+package.json 到 ubuntu@124.222.65.169:~/dsh-qqbot-brain，sudo systemctl restart dsh-qqbot，服务 active，远程 page.html/index.js md5 与本地一致，新端点 regenerate/purge/reset 经宿主路由返回 401（token 校验前置=路由已挂载）。功能：画像卡编辑/重生成/删除 + 危险区时段删除/记忆重置保人设。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `e6155a5` | fix(brain): prompt 槽位单趟填充 + PATCH name 类型校验 |
+
+### Status
+
+[OK] **Completed**
