@@ -23,7 +23,7 @@
 
 - [x] `ss -tln` 见 `0.0.0.0:4099`
 - [x] 无 token → 401；`?token=` → 200；页面 200
-- [ ] 公网可达（待用户开安全组后验证）
+- [x] 公网可达（用户已于控制台放行 TCP 4099，本机 curl 页面 200 / 无 token 401）
 
 ## Resolution（2026-11-02）
 
@@ -58,8 +58,16 @@
 - `ss -tln` → `0.0.0.0:4099` LISTEN ✔
 - `curl 127.0.0.1:4099/brain/api/state` → 401；带 token → 200；`/brain` 页面 → 200 ✔
 - brain.log 启动行确认 `脑图 http://0.0.0.0:4099/brain` ✔
-- 本机 curl 公网 → 000 超时：腾讯云安全组未放 4099（控制台待用户操作）⏳
+- 用户在腾讯云控制台放行 TCP 4099 后，本机 curl 公网：`/brain?token=…` → 200、
+  无 token API → 401 ✔（2026-11-02 端到端闭环）
 - 本地 typecheck + 98/98 单测全绿 ✔
+
+### 访问入口与口令存放（备查）
+
+- 入口：`http://124.222.65.169:4099/brain?token=<口令>`；口令进 sessionStorage 后免带
+- 口令不落本仓库；服务器两处同值（当前生效 / 部署新 dist 后生效）：
+  `grep token ~/dsh-qqbot-brain/cordis.patch.yml`、`grep BRAIN_HTTP ~/.dsh/brain.env`
+- 换口令：两处改同值 + `sudo systemctl restart dsh-qqbot`；浏览器重新带参访问一次
 
 ### 后续优化方向
 
