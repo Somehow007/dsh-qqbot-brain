@@ -3,9 +3,9 @@ import type { PromptInjector } from '../inject/prompt.ts';
 
 /**
  * 捕获 ctx.on('session/event') 广播的对话事件：
- *   user/message      —— 记录最新用户文本（兼作检索 query），暂存待配对
+ *   user/message      —— 用户文本入队（兼作检索 query），攒到 turn/end 与回复配对
  *   assistant/message —— 收集本轮回复文本
- *   turn/end          —— 配对的 (user,assistant) 入库并触发蒸馏
+ *   turn/end          —— 排空的 (user队列,assistant) 入库并触发蒸馏
  * sessionId/agentId 从事件 data 中容错提取（官方出站模块同样依赖该通道）。
  */
 
@@ -72,7 +72,8 @@ function sessionIdOf(session: SessionLike | undefined, e: RawEvent): string | un
 }
 
 export class SessionCapture {
-  private pendingUser = new Map<string, { text: string; actor?: string; at: number }>();
+  /** 待配对的用户消息队列：turn/end 前排空拼入一轮，避免连发/群聊插话覆盖丢失 */
+  private pendingUser = new Map<string, { text: string; actor?: string; at: number }[]>();
   private replyBuf = new Map<string, string[]>();
 
   private brain: Brain;
@@ -112,7 +113,10 @@ export class SessionCapture {
         if (!raw.trim()) return;
         const { actor, text: stripped } = parseSenderTag(raw);
         const text = stripped.trim() ? stripped : raw;
-        this.pendingUser.set(sessionId, { text, actor, at: Date.now() });
+        const q = this.pendingUser.get(sessionId) ?? [];
+        q.push({ text, actor, at: Date.now() });
+        if (q.length > 8) q.splice(0, q.length - 8);
+        this.pendingUser.set(sessionId, q);
         this.injector.noteUserText(sessionId, text, actor);
         break;
       }
@@ -125,15 +129,16 @@ export class SessionCapture {
         break;
       }
       case 'turn/end': {
-        const user = this.pendingUser.get(sessionId);
+        const pending = this.pendingUser.get(sessionId) ?? [];
+        this.pendingUser.set(sessionId, []);
         const replies = this.replyBuf.get(sessionId) ?? [];
         this.replyBuf.set(sessionId, []);
-        if (!user || replies.length === 0) return;
+        if (pending.length === 0 || replies.length === 0) return;
         this.brain.ingest(sessionId, {
-          userText: user.text,
+          userText: pending.map((p) => p.text).join('\n'),
           assistantText: replies.join('\n'),
-          actor: user.actor,
-          at: user.at,
+          actor: pending[pending.length - 1]!.actor,
+          at: pending[0]!.at,
         });
         void this.brain.endOfTurn(sessionId).catch((e: unknown) => {
           this.log(`brain: 蒸馏失败 ${String(e)}`);

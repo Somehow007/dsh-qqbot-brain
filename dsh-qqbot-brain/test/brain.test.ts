@@ -483,6 +483,30 @@ test('capture: 群聊事件把 actor 接进 Turn，检索 query 用剥标签正�
   assert.equal(notes[0]!.text, '今晚吃鱼');
 });
 
+test('capture: turn/end 前的多条用户消息入队拼成一轮，配对后队列排空', async () => {
+  const ingested: Array<{ userText: string; assistantText: string; actor?: string }> = [];
+  const brain = { ingest: (_s: string, t: never) => { ingested.push(t); }, endOfTurn: async () => {} };
+  const injector = { noteAgentSession: () => {}, noteUserText: () => {} } as unknown as PromptInjector;
+  let handler: (session: unknown, ev: unknown) => void = () => {};
+  const ctx = { on: (_e: string, h: typeof handler) => { handler = h; } };
+  const cap = new SessionCapture(brain as unknown as Brain, injector, () => {}, false);
+  cap.register(ctx);
+
+  const s = { id: 'g1' };
+  // 连发两条（不同发言人），机器人只回一轮 → 两条都应进蒸馏且 actor 取最后一条
+  handler(s, { type: 'user/message', data: { message: '[张三 (ABCDEF1234567890)] 你这只咸鱼' } });
+  handler(s, { type: 'user/message', data: { message: '[李四 (ABCDEF1234567891)] 别骂了别骂了' } });
+  handler(s, { type: 'assistant/message', data: { message: '谁是咸鱼！' } });
+  handler(s, { type: 'turn/end', data: {} });
+  assert.equal(ingested.length, 1);
+  assert.match(ingested[0]!.userText, /你这只咸鱼\n别骂了别骂了/);
+  assert.equal(ingested[0]!.actor, '李四 (ABCDEF1234567891)');
+  // 队列已排空：下一轮没有新用户消息，旧消息不重复配对
+  handler(s, { type: 'assistant/message', data: { message: '哼' } });
+  handler(s, { type: 'turn/end', data: {} });
+  assert.equal(ingested.length, 1);
+});
+
 test('buildDistillPrompt: actor 作为发言人标签渲染', () => {
   const p = buildDistillPrompt(
     [{ userText: '今晚吃鱼', assistantText: '咕嘟', actor: '张三 (ABCDEF1234567890)', at: NOW }],
