@@ -49,11 +49,12 @@ memory-quality-fix（蒸馏v2/检索纠偏/身份层/滚动摘要）+ 百炼 emb
 **已修（commit `63113cc`，11-02 ~16:46 部署，服务 active，`dist/brain/index.js` 远端 sha256 一致）**：
 `consolidate()` 与 `sessionsNeedingConsolidation()` 只统计**未被 semantic `sourceIds` 覆盖**的到期 episodic——semantic 笔记本就记录来源 id，覆盖集合是确定性的，无需新增持久态。模拟重放验证：832f1a89 未覆盖数 0 → 不再触发巩固；17429483 未覆盖 65 → 正常巩固；98/98 测试通过（含新回归用例）。
 
-**顺带发现（未修，列入观察）**：
+**顺带发现 → 已全部修复（`b0aadba` 截断句末收束；`750a910` 人设防入画像+同键合并+画像合并入口）**：
 
-- `sess:832f1a89` 会话画像被巩固写成了**大肥鱼自身人设**（「蓝发鲸鱼娘…」）；同一轮巩固中两个 profile 项都落到 sess: 键互相覆盖
-- demo 画像被 500 字硬上限**从句子中间截断**（「对鲸鱼娘起的」）
-- demo 双 openid 卡（FEFE5282/99449CA8）仍分裂
+- ~~`sess:832f1a89` 会话画像被写成大肥鱼自身人设~~ → 三处 prompt 禁止给角色自己写画像、会话级条目写用户群像；审核遇自我描述判空删除；存量脏数据已用空文本 profile op 清除（备份 `~/backups/brain-before-merge-fix-*.tgz`）
+- ~~同轮多个 profile 项落到同一 sess: 键互相覆盖~~ → `reviewAndWriteProfiles` 改按「解析后落点」分组，同键草稿合并候选交审核
+- ~~demo 画像 500 字截断断句~~ → `truncateProfileText` 优先句末收束（存量断句待下次修订自愈）
+- ~~demo 双 openid 卡~~ → 新增 `Brain.mergeProfiles` + `POST /api/profiles/merge` + 页面 PERSON 卡两段式「合并」按钮（审核模型整理合并文本、并集会话标记、源卡删除；审核不可用时不改数据）。待用户在页面上手动执行合并
 
 **两天后（~11-04）复查清单**：
 
