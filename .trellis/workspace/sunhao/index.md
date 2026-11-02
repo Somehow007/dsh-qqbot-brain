@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 35
+- **Total Sessions**: 36
 - **Last Active**: 2026-11-02
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~760 | Active |
+| `journal-1.md` | ~782 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 36 | 2026-11-02 | 线上排查：黄色测试消息被 QQ 平台拦截 | `cfc36ff` | `main` |
 | 35 | 2026-11-02 | LLM token 成本优化落地（R1-R9 全项） | `0885cc7` | `main` |
 | 34 | 2026-11-02 | LLM 调用与宿主侧 token 成本审查 | - | `main` |
 | 33 | 2026-11-02 | 画像人设污染修复与合并入口 | `750a910` | `main` |

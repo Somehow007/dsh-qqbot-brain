@@ -758,3 +758,25 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 36: 线上排查：黄色测试消息被 QQ 平台拦截
+<!-- trellis-session: v=2 fp=456e014c6e477e03 -->
+
+**Date**: 2026-11-02
+**Task**: 线上排查：黄色测试消息被 QQ 平台拦截
+**Branch**: `main`
+
+### Summary
+
+用户测试黄色发言边界时大肥鱼看似不理人。SSH 上 124.222.65.169 核对：私聊转录 235 条消息条条有回复（含已到达的全部擦边内容），异常在 21:03–21:19 的 15.5 分钟零事件死窗，随后『怎么不理我了』正常到达被回复；同期群聊在线、四次重启不重合、全部日志零错误、出站无 flush failed。结论：越线消息被 QQ 平台 C2C 内容风控在入站侧吞掉，未到机器人，本体与 brain 插件均正常。后续：平台风控不可观测属黑盒，注意频繁擦边对 bot 账号评级的风险。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `cfc36ff` | chore(task): archive 11-02-qqbot-nsfw-message-drop |
+
+### Status
+
+[OK] **Completed**
