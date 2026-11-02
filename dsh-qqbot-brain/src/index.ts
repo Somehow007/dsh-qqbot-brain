@@ -53,6 +53,10 @@ export async function apply(ctx: unknown, config?: Partial<BrainPluginConfig>): 
   cfg.embed.apiKey = env('BRAIN_EMBED_API_KEY') ?? cfg.embed.apiKey;
   cfg.embed.baseUrl = env('BRAIN_EMBED_BASE_URL') ?? cfg.embed.baseUrl;
   cfg.embed.model = env('BRAIN_EMBED_MODEL') ?? cfg.embed.model;
+  // 脑图 host/token 可走环境变量：密钥放 brain.env 而非 patch 文件，
+  // 且 rsync 覆盖部署 patch 后公网直连配置不会丢。
+  cfg.http.host = env('BRAIN_HTTP_HOST') ?? cfg.http.host;
+  cfg.http.token = env('BRAIN_HTTP_TOKEN') ?? cfg.http.token;
 
   const logger = ((ctx as { logger?: { info(m: string): void } }).logger ?? console);
   const dataDir = resolve(cfg.dataDir);

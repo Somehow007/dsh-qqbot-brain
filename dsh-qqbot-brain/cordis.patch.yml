@@ -6,6 +6,7 @@
 #   DEEPSEEK_API_KEY / BRAIN_LLM_API_KEY - 蒸馏用（缺省自动关闭蒸馏）
 #   BRAIN_EMBED_API_KEY / BRAIN_EMBED_BASE_URL / BRAIN_EMBED_MODEL - 语义向量（缺省自动回退 lexical 检索）
 #   BRAIN_DATA_DIR - 记忆数据目录（可选，默认 ./brain-data）
+#   BRAIN_HTTP_HOST / BRAIN_HTTP_TOKEN - 脑图监听地址 / 访问口令（优先级高于下方 http 配置）
 
 - insert:
     - id: qqbot-brain

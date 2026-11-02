@@ -43,6 +43,8 @@ npx @deepseek-ai/dsh plugin --profile qqbot add /opt/dsh-qqbot-brain
   本机 `ssh -L 4099:127.0.0.1:4099 user@server`，浏览器开 `http://127.0.0.1:4099/brain`。
 - **公网直连**：patch 改 `host: 0.0.0.0` 且 `token: '<随机口令>'`，安全组 4099 只放自己 IP。
   浏览器开 `http://<服务器>:4099/brain?token=<口令>`（口令存入会话存储，后续刷新免带）。
+  也可用环境变量 `BRAIN_HTTP_HOST` / `BRAIN_HTTP_TOKEN`（写进 brain.env 这类
+  EnvironmentFile）：口令不进 patch 文件，rsync 覆盖部署后公网直连配置仍保留。
 - webServer 挂载模式下 `http.host` 不生效，只能靠 token 或宿主侧控制。
 
 ### systemd 常驻
