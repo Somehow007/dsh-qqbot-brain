@@ -608,3 +608,25 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 29: 脑图公网直连：安全组放行后验证闭环
+<!-- trellis-session: v=2 fp=d283064fe524de06 -->
+
+**Date**: 2026-11-02
+**Task**: 脑图公网直连：安全组放行后验证闭环
+**Branch**: `feat/webserver-shim`
+
+### Summary
+
+用户在腾讯云控制台放行 TCP 4099 后回报，本机复测公网：/brain?token 页面 200、无 token API 401，端到端闭环。向用户交付访问入口（带 token 的完整 URL，sessionStorage 免二次输入）与自助查/换口令路径（服务器 cordis.patch.yml 与 brain.env 两处同值，改后重启 dsh-qqbot）。口令属密钥不落 git，仅在归档 prd 记录存放位置与查询命令；任务验收三项全部打勾，brain-public-access 正式收官。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `3c4d2f8` | docs(trellis): close out brain-public-access verification + access notes |
+
+### Status
+
+[OK] **Completed**
