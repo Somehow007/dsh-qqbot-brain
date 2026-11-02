@@ -736,3 +736,25 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 35: LLM token 成本优化落地（R1-R9 全项）
+<!-- trellis-session: v=2 fp=7ae8cb5d7e2ade82 -->
+
+**Date**: 2026-11-02
+**Task**: LLM token 成本优化落地（R1-R9 全项）
+**Branch**: `main`
+
+### Summary
+
+问题：审查发现易变 section 切断 DeepSeek 前缀缓存、[Chat history] 环境块重复进 distill/digest 输入、max_tokens 截断作废、画像审核重启重审等 9 项冗余。排查：全量读插件+官方 dsh-system-prompt 源码+DeepSeek 缓存文档核实机制，按证据分级排序。方案：分四阶段落地——R2 section 重排序（稳定段 80/81、易变段 10300-10340）；R1 parseSenderTag 拆 text/actor/history 三路，history 仅进 Turn.contextText；R3 convo/digest 单行截断+跳过 contextText；R5 max_tokens→2048；R6 embedNotes 只补缺向量；R9 检索缓存换 graphVersion；R7 审核章 reviewed 持久化；R4/R11/R8 新增 distillEveryTurns/personaDigest/digest.turnCharCap 配置与 query 向量缓存。验证：typecheck 过、测试 113/113（新增 6 用例）、eval 基线 88.2%/FP40% 持平；修复跨会话画像归属簿记回归一处。后续：上线后看 prompt_cache_hit_tokens 实测 R2 收益；distillEveryTurns/personaDigest 需 A/B 再推广。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `0885cc7` | perf: 削减每轮 LLM 输入 token——前缀缓存保命中、history 拆离、输入有界 |
+
+### Status
+
+[OK] **Completed**
