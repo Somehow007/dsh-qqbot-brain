@@ -66,6 +66,7 @@ function sanitizeNoteEmotion(raw: unknown): NoteEmotion | undefined {
     a: Math.min(1, Math.max(0, num(e.a, 0))),
     d: Math.min(1, Math.max(-1, num(e.d, 0))),
     label: typeof e.label === 'string' ? e.label : '',
+    mood: typeof e.mood === 'string' && e.mood ? e.mood : undefined,
   };
 }
 
@@ -102,6 +103,7 @@ function sanitizeEmotion(raw: unknown): EmotionState | undefined {
     a: Math.min(1, Math.max(0, num(e.a, 0))),
     d: Math.min(1, Math.max(-1, num(e.d, 0))),
     label: typeof e.label === 'string' ? e.label : '',
+    mood: typeof e.mood === 'string' && e.mood ? e.mood : undefined,
     updatedAt: num(e.updatedAt, Date.now()),
   };
 }

@@ -1,4 +1,5 @@
 import type { DistillResult, EmotionState, MemoryNote, Turn } from './types.ts';
+import { MOODS } from './types.ts';
 
 /**
  * 蒸馏器：会话结束后（或每轮末）把对话压缩为记忆笔记 + 情绪增量 + 画像更新。
@@ -21,7 +22,7 @@ export type FetchLike = (url: string, init: {
 const PROMPT = `你是陪伴型聊天角色的记忆提炼模块。阅读下面这段最新对话，输出 JSON：
 {
   "memories": [{"content": "一句话可长期复用的事实（含相关实体）", "importance": 1-5, "actor": "发言人名（群聊必填，单聊可省略）", "merge": 0}],
-  "emotion": {"label": "角色此刻的情绪短语，贴合角色性格（如「嘴硬但开心」「害羞偷笑」「记仇」），不要只写「平静」", "v": -1到1效价, "a": 0到1唤醒, "d": -1到1支配},
+  "emotion": {"label": "角色此刻的情绪短语，贴合角色性格（如「嘴硬但开心」「害羞偷笑」「记仇」），不要只写「平静」", "mood": "情绪类别，只选其一：${MOODS.join('/')}", "v": -1到1效价, "a": 0到1唤醒, "d": -1到1支配},
   "profiles": [{"actor": "发言人标识", "text": "对该人的画像全文"}],
   "forget": []
 }
@@ -39,6 +40,11 @@ const PROMPT = `你是陪伴型聊天角色的记忆提炼模块。阅读下面�
 拿不准就不记：宁可 memories 为空，也不要写流水账。
 importance 锚点：5=承诺或重要个人信息，4=稳定偏好，3=关系变化，2=一般事实，1=琐碎（1 分的不值得记，别写）。
 content 用第三人称陈述事实（「某昵称：事实」），不要写成「角色回应了…」的对话记录。
+
+emotion 字段：判定的是「这轮对话给角色带来的情绪」，依据是用户行为对角色的刺激，不要只按角色回复的语气反推（角色可能嘴硬）。
+mood 参照锚点：被夸/被撩/被关心→害羞；分享好消息/被投喂/被惦记→开心或兴奋；被挑衅/被拆台/吃亏→炸毛或记仇；
+被冷落/被误解/被凶→委屈或难过；听到八卦/新奇玩意→好奇；日常寒暄无波动→平静。
+角色傲娇/嘴硬时按内心真实感受给效价（嘴上嫌弃实际开心时 v 仍为正），label 写真实情绪。
 
 对话每行形如「发言人：内容」；单聊发言人显示为「用户」，群聊显示为「昵称 (openid)」，memories.actor 写该发言人昵称。
 profiles 字段：仅在画像需要更新时输出，否则省略整个字段。
@@ -176,6 +182,7 @@ export function parseDistillOutput(raw: string): DistillResult {
         v: typeof e.v === 'number' ? e.v : 0,
         a: typeof e.a === 'number' ? e.a : 0.3,
         d: typeof e.d === 'number' ? e.d : 0,
+        mood: typeof e.mood === 'string' && (MOODS as readonly string[]).includes(e.mood) ? e.mood : undefined,
       }
     : undefined;
   const profile = typeof o.profile === 'string' && o.profile.trim() ? o.profile.trim() : undefined;

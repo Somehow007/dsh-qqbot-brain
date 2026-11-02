@@ -3,7 +3,7 @@ import type { BrainConfig, EmotionState } from './types.ts';
 const clamp = (x: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, x));
 
 export const NEUTRAL_EMOTION: EmotionState = {
-  v: 0, a: 0.3, d: 0, label: '平静', updatedAt: 0,
+  v: 0, a: 0.3, d: 0, label: '平静', mood: '平静', updatedAt: 0,
 };
 
 /**
@@ -29,17 +29,19 @@ export class EmotionEngine {
       a: 0.3 + (s.a - 0.3) * k,
       d: s.d * k,
       label: days > 1 ? '平静' : s.label,
+      mood: days > 1 ? '平静' : s.mood,
       updatedAt: now,
     };
   }
 
   /** 应用蒸馏给出的情绪增量（值域由增量语义直接覆盖 v/a/d） */
-  apply(sessionId: string, e: { label: string; v: number; a: number; d: number }, now: number): EmotionState {
+  apply(sessionId: string, e: { label: string; v: number; a: number; d: number; mood?: string }, now: number): EmotionState {
     const next: EmotionState = {
       v: clamp(e.v, -1, 1),
       a: clamp(e.a, 0, 1),
       d: clamp(e.d, -1, 1),
       label: e.label.slice(0, 24),
+      mood: e.mood,
       updatedAt: now,
     };
     this.states.set(sessionId, next);

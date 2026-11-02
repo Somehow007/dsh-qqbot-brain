@@ -17,7 +17,7 @@ interface WebServerLike { register(route: WebRoute): () => void }
 const PAGE_FILE = join(dirname(fileURLToPath(import.meta.url)), 'page.html');
 
 function json(res: ServerResponse, data: unknown): void {
-  res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
+  res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-cache' });
   res.end(JSON.stringify(data));
 }
 
@@ -206,7 +206,7 @@ export class BrainHttpServer {
     }
     if (p === prefix || p === `${prefix}/`) {
       try {
-        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache' });
         res.end(readFileSync(PAGE_FILE, 'utf8'));
       } catch {
         res.writeHead(503).end('brain page not built yet (M3)');

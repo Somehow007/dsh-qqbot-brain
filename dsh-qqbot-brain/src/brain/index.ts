@@ -464,7 +464,7 @@ export class Brain {
   /** 当前会话情绪快照（写入记忆时钉上；op 流水会 compact，快照存记忆上才可靠） */
   private emotionStamp(sessionId: string, now: number): NoteEmotion {
     const e = this.emotion.get(sessionId, now);
-    return { v: e.v, a: e.a, d: e.d, label: e.label };
+    return { v: e.v, a: e.a, d: e.d, label: e.label, mood: e.mood };
   }
 
   /**

@@ -16,7 +16,12 @@ export interface NoteEmotion {
   a: number;
   d: number;
   label: string;
+  /** 受控情绪类别（见 MOODS），可视化按它分桶；老数据缺省走 v/a 推断 */
+  mood?: string;
 }
+
+/** 受控情绪类别：蒸馏从该集合挑选，脑图情绪桶与之同名对应 */
+export const MOODS = ['平静', '开心', '兴奋', '害羞', '好奇', '委屈', '炸毛', '记仇', '难过'] as const;
 
 /** 一条长期记忆（蒸馏笔记） */
 export interface MemoryNote {
@@ -55,6 +60,8 @@ export interface EmotionState {
   d: number;
   /** 自然语言状态行，注入 prompt 用，如「慵懒满足」 */
   label: string;
+  /** 受控情绪类别（MOODS 之一）；旧数据可缺省，可视化回退 v/a 推断 */
+  mood?: string;
   updatedAt: number;
 }
 
@@ -96,7 +103,7 @@ export interface ProfileDraft {
 /** 蒸馏结果 */
 export interface DistillResult {
   memories: NoteDraft[];
-  emotion?: { label: string; v: number; a: number; d: number };
+  emotion?: { label: string; v: number; a: number; d: number; mood?: string };
   /** 旧字段：会话级画像全文（兼容旧 LLM 输出与调用方） */
   profile?: string;
   /** 结构化画像：群聊按发言人各一条，单聊/会话级省略 actor */

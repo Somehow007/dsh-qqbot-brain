@@ -459,14 +459,19 @@ function relationWhy(rel,other){
     return REL_LABEL[t];
   }).join(' · ');
 }
-// ── 情绪层推断：PAD → 5 个情绪桶；记忆取同会话、形成后 10 分钟内最近的一次情绪记录 ──
+// ── 情绪层推断：情绪按蒸馏给出的 mood 类别分桶（name 与 MOODS 一一对应），
+// 无 mood 的老数据回退 PAD 推断；记忆取同会话、形成后 10 分钟内最近的一次情绪记录 ──
 const EMO_BUCKETS=[
-  {id:'emo:joy',name:'开心',color:'#ffc95c'},{id:'emo:calm',name:'平静',color:'#5fdcc8'},
+  {id:'emo:calm',name:'平静',color:'#5fdcc8'},{id:'emo:joy',name:'开心',color:'#ffc95c'},
+  {id:'emo:hyped',name:'兴奋',color:'#ff9d3c'},{id:'emo:shy',name:'害羞',color:'#ff9ecf'},
   {id:'emo:curious',name:'好奇',color:'#6cb8ff'},{id:'emo:pout',name:'委屈',color:'#a991ff'},
-  {id:'emo:huff',name:'炸毛',color:'#ff6f86'}];
+  {id:'emo:huff',name:'炸毛',color:'#ff6f86'},{id:'emo:grudge',name:'记仇',color:'#c66bd0'},
+  {id:'emo:sad',name:'难过',color:'#7a8fb8'}];
 const EMO_BY_ID=Object.fromEntries(EMO_BUCKETS.map(e=>[e.id,e]));
+const EMO_BY_NAME=Object.fromEntries(EMO_BUCKETS.map(e=>[e.name,e.id]));
 const EMO_WINDOW=10*60e3;
 function emotionBucket(s){
+  if(s&&s.mood&&EMO_BY_NAME[s.mood])return EMO_BY_NAME[s.mood];
   const v=+(s&&s.v)||0,a=+(s&&s.a)||0;
   if(v>=.25)return a>=.5?'emo:joy':'emo:calm';
   if(v<=-.25)return a>=.5?'emo:huff':'emo:pout';
@@ -948,7 +953,7 @@ function panel(key){
     $('info-title').textContent=e.name+(now?' · 此刻':'');hint.textContent='情绪 · 杏仁核（推断）';hint.style.color=e.color;
     if(now){quote(`${s.label||e.name}（v=${(+s.v||0).toFixed(2)} a=${(+s.a||0).toFixed(2)} d=${(+s.d||0).toFixed(2)}）`);const c=emotionChart();if(c)detail.append(c);}
     detail.append(linkBlock('带着这种情绪形成的记忆',neighbors(key),'操作日志里没有找到对应的记忆。'));
-    foot.textContent='情绪桶由 PAD 推断：效价 v 决定正负，唤醒 a 决定强弱。';
+    foot.textContent='情绪桶按蒸馏给出的情绪类别（mood）判定；无 mood 的旧记录按 PAD 推断。';
   }else{
     const n=STATE.notes.find(x=>x.id===key),nb=neighbors(key);
     $('info-title').textContent=nodeLabel(n,STATE.notes,16);hint.textContent=`${kindLabel(n.kind)}记忆`;hint.style.color=colorOf(key);
@@ -1046,7 +1051,7 @@ function opDesc(o){
     case 'update':return `${shortId(op.id)} ${JSON.stringify(op.patch).slice(0,40)}`;
     case 'del':return `删除 ${shortId(op.id)}`;
     case 'merge':return `保留 ${shortId(op.keepId)}，吸收 ${shortId(op.dropId)}（S→${op.patch.strength.toFixed(1)} 唤起×${op.patch.hits}）`;
-    case 'emotion':return `${op.state.label||''} v=${op.state.v.toFixed(1)} a=${op.state.a.toFixed(1)}（${shortId(op.sessionId)}）`;
+    case 'emotion':return `${op.state.label||''}${op.state.mood?`「${op.state.mood}」`:''} v=${op.state.v.toFixed(1)} a=${op.state.a.toFixed(1)}（${shortId(op.sessionId)}）`;
     case 'profile':return `${op.name?op.name+'：':''}${(op.text||'').slice(0,46)}`;
     case 'persona':return (op.text||'').slice(0,46);
     case 'reset':return '清空全部数据（导入覆盖）';

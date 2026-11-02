@@ -37,7 +37,7 @@ The main map is a fixed-layout brain cross-section (concept `mockup-mind-cortex.
 
 Cross-layer links are **frontend inferences** and must be labelled as such in the UI:
 
-- Emotion: `emotionOps(OPS)` → `matchEmotion(note, emos)` picks the same-session `op:'emotion'` record within `[createdAt-5s, createdAt+10min]`; `emotionBucket(PAD)` maps it to one of five fixed buckets. `load()` fetches `/ops?limit=500` for this; the ops tab only renders the first 150.
+- Emotion: `emotionOps(OPS)` → `matchEmotion(note, emos)` picks the same-session `op:'emotion'` record within `[createdAt-5s, createdAt+10min]`; `emotionBucket(state)` prefers the distilled `mood` category (names match `MOODS` in `types.ts` one-to-one, 9 buckets), falling back to PAD inference for pre-mood records. `load()` fetches `/ops?limit=500` for this; the ops tab only renders the first 150. Keep `EMO_BUCKETS` names and the backend `MOODS` enum synchronized — a mood that has no same-named bucket silently falls back to v/a inference.
 - Persona: `personaFacets(text)` splits the active persona on `^## ` (≤6, whole text when no headings); `matchFacet(note, facets)` requires ≥`FACET_MIN` shared letter/number bigrams that appear in fewer than half of the sections.
 
 Pure helpers (`ngrams` … before `function bindMapNode`) are extracted by `test/page.test.ts`; keep new pure functions inside that range and free of DOM access.

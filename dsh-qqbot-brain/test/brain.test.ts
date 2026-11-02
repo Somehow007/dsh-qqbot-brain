@@ -235,11 +235,26 @@ test('retrieval: 完全无关的查询返回空，单字查询经 unigram 命中
 
 // ── 蒸馏 ──
 test('parseDistillOutput: 解析 JSON / 容忍噪声', () => {
-  const r = parseDistillOutput('```json\n{"memories":[{"content":"x","importance":4}],"emotion":{"label":"开心","v":0.7,"a":0.6,"d":0.2},"profile":"p"}\n```');
+  const r = parseDistillOutput('```json\n{"memories":[{"content":"x","importance":4}],"emotion":{"label":"开心","mood":"开心","v":0.7,"a":0.6,"d":0.2},"profile":"p"}\n```');
   assert.equal(r.memories.length, 1);
   assert.equal(r.emotion?.label, '开心');
+  assert.equal(r.emotion?.mood, '开心');
   assert.equal(r.profile, 'p');
   assert.deepEqual(parseDistillOutput('not json'), { memories: [] });
+});
+
+test('parseDistillOutput: mood 只收受控类别，非法值丢弃', () => {
+  const r = parseDistillOutput(JSON.stringify({
+    memories: [],
+    emotion: { label: '气得鼓鼓的', mood: '愤怒MAX', v: -0.5, a: 0.8, d: 0.1 },
+  }));
+  assert.equal(r.emotion?.label, '气得鼓鼓的');
+  assert.equal(r.emotion?.mood, undefined);
+  const r2 = parseDistillOutput(JSON.stringify({
+    memories: [],
+    emotion: { label: '害羞偷笑', mood: '害羞', v: 0.5, a: 0.4, d: -0.1 },
+  }));
+  assert.equal(r2.emotion?.mood, '害羞');
 });
 
 test('parseDistillOutput: kind=attitude 被保留，非法 kind 回落情景', () => {
@@ -325,7 +340,7 @@ test('endOfTurn: 蒸馏结果写入记忆/情绪/画像', async () => {
     now,
     distiller: mockDistiller({
       memories: [{ content: '用户决定戒熬夜开始晨跑', importance: 4 }],
-      emotion: { label: '得意', v: 0.6, a: 0.5, d: 0.2 },
+      emotion: { label: '得意', mood: '开心', v: 0.6, a: 0.5, d: 0.2 },
       profile: '阿澈：开始晨跑的软件工程学生',
     }),
   });
@@ -334,6 +349,8 @@ test('endOfTurn: 蒸馏结果写入记忆/情绪/画像', async () => {
   assert.equal(store.allNotes().length, 1);
   assert.equal(store.allNotes()[0]!.content, '用户决定戒熬夜开始晨跑');
   assert.equal(store.emotionOf('s1')?.label, '得意');
+  assert.equal(store.emotionOf('s1')?.mood, '开心');
+  assert.equal(store.allNotes()[0]!.emotion?.mood, '开心');
   assert.equal(store.profileOf('s1'), '阿澈：开始晨跑的软件工程学生');
   // 缓冲区已清空，再次 endOfTurn 不产生新记忆
   await brain.endOfTurn('s1');
@@ -343,12 +360,14 @@ test('endOfTurn: 蒸馏结果写入记忆/情绪/画像', async () => {
 // ── 情绪 ──
 test('emotion: 应用增量后随时间向中性回归', () => {
   const eng = new EmotionEngine(DEFAULT_BRAIN_CONFIG);
-  eng.apply('s1', { label: '得意', v: 0.8, a: 0.9, d: 0.5 }, NOW);
+  eng.apply('s1', { label: '得意', mood: '开心', v: 0.8, a: 0.9, d: 0.5 }, NOW);
   const soon = eng.get('s1', NOW + 0.2 * DAY);
   assert.ok(soon.v > 0.6);
+  assert.equal(soon.mood, '开心');
   const later = eng.get('s1', NOW + 10 * DAY);
   assert.ok(later.v < 0.1);
   assert.equal(later.label, '平静');
+  assert.equal(later.mood, '平静');
 });
 
 test('emotion: 持久化状态在 Brain 构造时恢复，graph 无 session 显示最新', async () => {
@@ -374,6 +393,15 @@ test('buildDistillPrompt: 附当前情绪供"无变化省略"判断', () => {
   );
   assert.match(p, /角色当前情绪：得意/);
   assert.match(p, /省略 emotion 字段/);
+});
+
+test('buildDistillPrompt: mood 枚举与刺激锚点约束情绪判定', () => {
+  const p = buildDistillPrompt(
+    [{ userText: '你好', assistantText: '咕嘟', at: NOW }], '大肥鱼', 5,
+  );
+  assert.match(p, /mood.*平静\/开心\/兴奋\/害羞\/好奇\/委屈\/炸毛\/记仇\/难过/s);
+  assert.match(p, /被夸\/被撩\/被关心→害羞/);
+  assert.match(p, /不要只按角色回复的语气反推/);
 });
 
 // ── 组装 ──
