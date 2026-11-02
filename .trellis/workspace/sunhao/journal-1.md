@@ -650,3 +650,25 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 31: 画像收缩排查与巩固棘轮修复
+<!-- trellis-session: v=2 fp=a9881dfbb94ea225 -->
+
+**Date**: 2026-11-02
+**Task**: 画像收缩排查与巩固棘轮修复
+**Branch**: `main`
+
+### Summary
+
+用户发现花咲蝶舞画像从D0约800字缩到28字而demo画像更完整。排查云端日志/数据还原：主群832f1a89自10-30起无新对话流入（蒸馏0次、dsh会话目录不存在），但巩固定时器对同一批6条旧episodic按冷却+重启反复重写画像，审核按边界规则持续剔除轶事→只缩不涨；demo在两个活会话持续逐轮蒸馏故画像顶满。轶事仍存于17429483的episodic笔记。修复63113cc：consolidate只统计未被semantic sourceIds覆盖的到期episodic，重放验证832f1a89不再触发、17429483正常；98/98测试通过并已部署。顺带发现：会话画像被写成人设、500字截断断句、demo双openid。评估已记入试运行任务prd，约11-04复查巩固是否归零。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `63113cc` | fix(brain): consolidate only unabsorbed episodic notes |
+
+### Status
+
+[OK] **Completed**
