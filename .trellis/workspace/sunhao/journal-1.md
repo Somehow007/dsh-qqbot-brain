@@ -544,3 +544,25 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 26: 根 README 重设计：项目叙事版
+<!-- trellis-session: v=2 fp=9df0a212900c9191 -->
+
+**Date**: 2026-11-02
+**Task**: 根 README 重设计：项目叙事版
+**Branch**: `main`
+
+### Summary
+
+问题：根 README 只是安装手册，看不出项目探讨什么、效果如何、到哪一步。做法：通读 .trellis/tasks 全部评估留痕+journal-1(25 session)+源码核对，重组为叙事 README——工程命题(只调API能否记得更久/人格不漂移)+理论映射表+痛点解法表+读写路径ASCII图+实测数据(eval 88.2%/40%→100%/20%、单测90/90、试运行44→150→119条、~280语义边、RSS≈194MiB)+诚实清单+阶段路线+浓缩快速开始；headless Chrome 截鲸脑皮层概念稿作头图(docs/brain-map.png)并标注概念稿。验证：检索公式按 retrieval.ts 修正为 α·rel·(1+β·R)+γ·imp/5、判重口径改为增量强化+存量合并、eval 用例数按 cases.json 核实。后续：试运行复盘后更新当前阶段；接 dsh-meme 或换 harness 时同步快速开始段。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1b1b99c` | docs: 重设计根 README——认知架构叙事版 |
+
+### Status
+
+[OK] **Completed**
