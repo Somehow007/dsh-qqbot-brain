@@ -566,3 +566,23 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 27: 情绪桶覆盖走查：mood 受控枚举修复
+<!-- trellis-session: v=2 fp=e8c2857d47c13853 -->
+
+**Date**: 2026-11-02
+**Task**: 情绪桶覆盖走查：mood 受控枚举修复
+**Branch**: `main`
+
+### Summary
+
+问题：线上情绪只有开心/平静两桶有记录，害羞兴奋等不触发。排查：双线取证——page.html emotionBucket 只用 v/a 压进固定 5 桶（害羞/兴奋无桶、负半区不可达），蒸馏判定又偏保守；线上 16 条 op label 全丰富但 14/16 被映射成平静。方案：蒸馏输出加受控 mood 枚举 + 刺激→情绪锚点 + 判定对象改为用户刺激；脑图扩 9 桶 mood 优先 v/a 兜底。验证：typecheck/92 tests/build 全过；服务器上真实 deepseek 回放 7 场景全部命中预期 mood（被撩→害羞、挑衅→炸毛、八卦→好奇等）。后续：待部署观察新 op 的桶分布，旧数据不回填。
+
+### Git Commits
+
+(No commits - planning session)
+
+### Status
+
+[OK] **Completed**

@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 26
+- **Total Sessions**: 27
 - **Last Active**: 2026-11-02
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~568 | Active |
+| `journal-1.md` | ~588 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 27 | 2026-11-02 | 情绪桶覆盖走查：mood 受控枚举修复 | - | `main` |
 | 26 | 2026-11-02 | 根 README 重设计：项目叙事版 | `1b1b99c` | `main` |
 | 25 | 2026-11-02 | 存量近重复记忆清理：merge op + 一次清扫 | `2792245` | `main` |
 | 24 | 2026-11-02 | 脑图关联后端化：语义/特质/派生边 + 情绪快照 + 写入判重 | `87cdff6` | `main` |
