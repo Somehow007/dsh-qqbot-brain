@@ -630,3 +630,23 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 30: 审查大肥鱼说话时机与时间信息现状
+<!-- trellis-session: v=2 fp=cc443ed2d2deccb3 -->
+
+**Date**: 2026-11-02
+**Task**: 审查大肥鱼说话时机与时间信息现状
+**Branch**: `main`
+
+### Summary
+
+问题：归因闭环解决『谁说了什么』后，『什么时候说』仍开放。排查：对照插件源码与官方 dsh-qqbot 编译产物逐层走查，拆为两层——时间归因层（SDK/Turn 时间戳都在但渲染层全丢，模型只剩[N天前记]天粒度，蒸馏/digest prompt 无时刻锚点）；发言时机层（requireMention 门控常量决定被@才说，非@消息只进 historyBuffer 环形10条且回复后清空、不产生 session/event 使 brain 全盲，无主动 followup 通道，空文本不发送=半个沉默选项）。方案：按修复面分层——插件内可补当前时刻注入+蒸馏时间戳（低成本），宿主层可试 requireMention=false+沉默规则，『听而不说』轻量判定与主动开口需上游钩子或平台 intent 权限。验证：核对 6 个插件文件+6 个官方包文件+mem 25 会话确认未讨论过。后续：先做插件内时间注入；时机决策列为上游依赖跟踪。
+
+### Git Commits
+
+(No commits - planning session)
+
+### Status
+
+[OK] **Completed**
