@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 32
+- **Total Sessions**: 33
 - **Last Active**: 2026-11-02
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~696 | Active |
+| `journal-1.md` | ~718 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 33 | 2026-11-02 | 画像人设污染修复与合并入口 | `750a910` | `main` |
 | 32 | 2026-11-02 | 让大肥鱼知道每句话是什么时候说的 | `5af9764` | `main` |
 | 31 | 2026-11-02 | 画像收缩排查与巩固棘轮修复 | `63113cc` | `main` |
 | 30 | 2026-11-02 | 审查大肥鱼说话时机与时间信息现状 | - | `main` |

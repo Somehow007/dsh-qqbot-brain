@@ -694,3 +694,25 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 33: 画像人设污染修复与合并入口
+<!-- trellis-session: v=2 fp=a3bf850b0c8e11d7 -->
+
+**Date**: 2026-11-02
+**Task**: 画像人设污染修复与合并入口
+**Branch**: `main`
+
+### Summary
+
+继画像收缩排查后处理三个顺带问题：①主群会话画像被巩固写成大肥鱼人设且同键覆盖——确认为活bug（prompt未禁止写角色自己+审核当稳定信息保留+同键草稿顺序覆盖），修复为蒸馏/巩固/审核三处prompt禁止自画像并允许1-2个标志性锚点、reviewAndWriteProfiles按解析后落点分组、存量sess:832f1a89脏数据用空文本op清除；②500字硬截断断句已在前一提交b0aadba改句末收束；③demo双openid新增mergeProfiles+POST/api/profiles/merge+页面两段式合并按钮（审核模型整理、并集会话、源卡删除、失败不改数据）。走查补两处小漏（name兜底、mergeSrc失效守卫）。106/106测试通过，已部署远端并验证hash一致与脏数据清除。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `750a910` | fix(brain): keep bot persona out of profiles; group same-key drafts; add profile merge |
+
+### Status
+
+[OK] **Completed**
