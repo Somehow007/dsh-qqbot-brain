@@ -672,3 +672,25 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 32: 让大肥鱼知道每句话是什么时候说的
+<!-- trellis-session: v=2 fp=1e857b68b7dc844b -->
+
+**Date**: 2026-11-02
+**Task**: 让大肥鱼知道每句话是什么时候说的
+**Branch**: `main`
+
+### Summary
+
+问题：who-what 归因闭环后，时间维度缺失——Turn.at/HistoryEntry.timestamp/createdAt 都在内部但从不进 prompt，模型只剩天粒度[N天前记]。方案：新增 brain/time.ts 四个渲染助手（formatStamp/formatShort/formatClock/ageLabel，非法时区降级）；注入 brain:clock section(order 85)+injectClock/timeZone 配置（DEFAULT_TIME_ZONE 单一出处）；蒸馏/脉络 convo 行带[YYYY-MM-DD HH:mm]并附当前时间锚点；轮内多消息逐条嵌[HH:mm]；记忆/巩固/已有记忆列表改用分钟/小时/天粒度。验证：102/102 测试（新增4时间用例+更新多消息断言）、typecheck、build 全绿；spec/backend/index.md 已沉淀 time.ts 约定。后续：[Chat history] 时间戳属官方包渲染层（上游）；听而不说/主动开口留作上游依赖（11-02-when-to-speak-review）。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `5af9764` | feat(brain): surface message time — clock section, convo stamps, finer age labels |
+
+### Status
+
+[OK] **Completed**
