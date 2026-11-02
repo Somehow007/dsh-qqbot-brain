@@ -19,3 +19,4 @@
 - 记忆初始强度可被 `strengthBoost`（NoteDraft，入库 clamp [0.1,3]）加权：Brain.emotionBoost 按形成时情绪 |v|·a 给 1.0~1.5——强情绪记忆更难忘；情绪只加权 strength，不动 LLM 自评的 importance。
 - `/api/state` 边集缓存键 = `sessionId|store.graphVersion|persona`；graphVersion 仅在 add/update/del/merge/reset/embed 时递增（reinforce/emotion 等不动边集的写不计），改动影响边集的 op 时同步检查该集合。
 - `MOOD_VALENCE`（types.ts）是 mood→效价符号表；mood 与 v 符号矛盾（|v|>0.3）时 endOfTurn 打 debug 日志而不改写——观测期，证据充分后再决定是否收紧为解析层过滤。
+- 时间渲染统一走 `src/brain/time.ts`：`formatStamp`（convo 行 `[YYYY-MM-DD HH:mm]`）/ `formatShort`（轮内多消息 `[HH:mm]`）/ `formatClock`（当前时刻行，含星期与时区标签）/ `ageLabel`（记忆形成年龄 `N分钟前/N小时前/N天前`）；时区一律取 `cfg.timeZone`（默认 `DEFAULT_TIME_ZONE='Asia/Shanghai'`，types.ts 单一出处），非法时区降级系统时区不抛错。宿主 `[Chat history]` 无时间戳属官方包渲染层行为，插件侧不补。
