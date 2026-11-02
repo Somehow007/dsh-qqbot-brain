@@ -426,12 +426,16 @@ export class Brain {
   /**
    * 语义巩固（新皮层慢速巩固）：把会话内足够老的情景记忆
    * 提炼为语义记忆并重写画像。返回新产生的语义记忆条数。
+   * 只处理尚未被 semantic 笔记吸收的 episodic——旧池不变时
+   * 重跑只会反复压缩画像，形成只缩不涨的棘轮。
    */
   async consolidate(sessionId: string): Promise<number> {
     const now = this.now();
+    const covered = this.consolidatedIds(sessionId);
     const eps = this.store.allNotes().filter(
       (n) => n.sessionId === sessionId && n.kind === 'episodic'
-        && ageInDays(n, now) >= this.cfg.consolidateMinAgeDays,
+        && ageInDays(n, now) >= this.cfg.consolidateMinAgeDays
+        && !covered.has(n.id),
     );
     if (eps.length < this.cfg.consolidateMinNotes) return 0;
     // 现有画像（会话级 + 涉及发言人的个人画像）一并喂入，巩固在旧画像上修订
@@ -450,19 +454,33 @@ export class Brain {
     return result.memories.length;
   }
 
-  /** 供定时器：所有满足巩固条件的会话 id */
+  /** 该会话已被 semantic 笔记吸收（sourceIds 收录）的笔记 id 集合 */
+  private consolidatedIds(sessionId: string): Set<string> {
+    const covered = new Set<string>();
+    for (const n of this.store.allNotes()) {
+      if (n.sessionId !== sessionId || n.kind !== 'semantic') continue;
+      for (const id of n.sourceIds ?? []) covered.add(id);
+    }
+    return covered;
+  }
+
+  /** 供定时器：所有满足巩固条件的会话 id（尚有未被吸收的到期 episodic） */
   sessionsNeedingConsolidation(): string[] {
     const now = this.now();
-    const ids = new Set<string>();
+    const covered = new Set<string>();
     for (const n of this.store.allNotes()) {
-      if (n.kind === 'episodic' && ageInDays(n, now) >= this.cfg.consolidateMinAgeDays) ids.add(n.sessionId);
+      if (n.kind !== 'semantic') continue;
+      for (const id of n.sourceIds ?? []) covered.add(id);
     }
-    return [...ids].filter((id) =>
-      this.store.allNotes().filter(
-        (n) => n.sessionId === id && n.kind === 'episodic'
-          && ageInDays(n, now) >= this.cfg.consolidateMinAgeDays,
-      ).length >= this.cfg.consolidateMinNotes,
-    );
+    const eligible = new Map<string, number>();
+    for (const n of this.store.allNotes()) {
+      if (n.kind !== 'episodic' || covered.has(n.id)) continue;
+      if (ageInDays(n, now) < this.cfg.consolidateMinAgeDays) continue;
+      eligible.set(n.sessionId, (eligible.get(n.sessionId) ?? 0) + 1);
+    }
+    return [...eligible.entries()]
+      .filter(([, count]) => count >= this.cfg.consolidateMinNotes)
+      .map(([id]) => id);
   }
 
   emotionOf(sessionId: string): EmotionState {

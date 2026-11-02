@@ -1138,6 +1138,34 @@ test('consolidate: 语义巩固产出的画像也必须先审核', async () => {
   assert.equal(store.profileOf('s1'), '喜欢听民谣');
 });
 
+test('consolidate: 已被吸收的 episodic 不再触发重复巩固', async () => {
+  const { store } = tmpStore();
+  store.addNote('s1', { content: '张三喜欢听民谣', importance: 4 }, NOW - 3 * DAY);
+  let calls = 0;
+  const distiller = new Distiller(
+    { enabled: true, baseUrl: 'https://x.test', apiKey: 'k', model: 'm', timeoutMs: 1000, maxNotes: 5 },
+    async (_url, init) => {
+      calls++;
+      const prompt = (JSON.parse(init.body) as { messages: { content: string }[] }).messages[0]!.content;
+      const content = prompt.includes('长期人物画像的编辑')
+        ? '{"profiles":[]}'
+        : JSON.stringify({ memories: [{ content: '张三爱民谣', importance: 3, actor: '张三' }], profiles: [] });
+      return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content } }] }) };
+    },
+  );
+  const brain = new Brain({ store, distiller, now, config: { consolidateMinNotes: 1 } });
+  assert.deepEqual(brain.sessionsNeedingConsolidation(), ['s1']);
+  assert.equal(await brain.consolidate('s1'), 1);
+  // 同一批 episodic 已被 semantic 吸收：不再列入巩固、不再调用 LLM
+  assert.deepEqual(brain.sessionsNeedingConsolidation(), []);
+  const callsAfter = calls;
+  assert.equal(await brain.consolidate('s1'), 0);
+  assert.equal(calls, callsAfter);
+  // 新的 episodic 到期后恢复巩固资格
+  store.addNote('s1', { content: '张三开始学吉他', importance: 3 }, NOW - 2 * DAY);
+  assert.deepEqual(brain.sessionsNeedingConsolidation(), ['s1']);
+});
+
 test('reviewProfiles: 索引重复或条数缺失时整体失败，不落部分画像', async () => {
   const distiller = new Distiller(
     { enabled: true, baseUrl: 'https://x.test', apiKey: 'k', model: 'm', timeoutMs: 1000, maxNotes: 5 },
