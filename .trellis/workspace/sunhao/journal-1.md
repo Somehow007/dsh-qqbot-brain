@@ -716,3 +716,23 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 34: LLM 调用与宿主侧 token 成本审查
+<!-- trellis-session: v=2 fp=9169bb9b401bd25f -->
+
+**Date**: 2026-11-02
+**Task**: LLM 调用与宿主侧 token 成本审查
+**Branch**: `main`
+
+### Summary
+
+全面审查 LLM 调用链与宿主侧注入 token：盘点每轮调用（宿主聊天+distill+reviewProfiles+每15轮digest+每会话24h consolidate，embedder 线上关闭）及注入 7 section 体量（persona 实测 3396字占大头）。定位核心冗余：①[Chat history]10条全量进 userText 使 digest 40轮窗口内同消息重复~10次（单笔17-45k tok 最大调用）②volatile sections(emotion/clock/memory) order 80-86 在官方 tools/policies(500-10200)之前切断 DeepSeek 前缀缓存③每轮必蒸馏+静默轮白付~5k④distill max_tokens=700 多画像时截断丢轮⑤embedNotes(touched) 对已有向量记忆重复 embed⑥reviewProfiles 重启后每会话重审⑦检索索引因 reinforce 的 version++ 反复重建（CPU）。产出按收益排序的优化清单：section 重排序(>10200)、Turn 拆正文/historyTail+digest per-turn 截断、max_tokens 2048、embed 修正、graphVersion 换名、蒸馏攒批/persona 精简版/审核批量化待用户拍板。结论：架构方向正确、内部 prompt 缓存友好，烧钱点在宿主注入 persona+缓存断点、每轮全量蒸馏、digest history 放大。
+
+### Git Commits
+
+(No commits - planning session)
+
+### Status
+
+[OK] **Completed**

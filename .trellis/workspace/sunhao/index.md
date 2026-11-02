@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 33
+- **Total Sessions**: 34
 - **Last Active**: 2026-11-02
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~718 | Active |
+| `journal-1.md` | ~738 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 34 | 2026-11-02 | LLM 调用与宿主侧 token 成本审查 | - | `main` |
 | 33 | 2026-11-02 | 画像人设污染修复与合并入口 | `750a910` | `main` |
 | 32 | 2026-11-02 | 让大肥鱼知道每句话是什么时候说的 | `5af9764` | `main` |
 | 31 | 2026-11-02 | 画像收缩排查与巩固棘轮修复 | `63113cc` | `main` |
