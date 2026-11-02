@@ -53,6 +53,11 @@ export class EmotionEngine {
     this.states.set(sessionId, s);
   }
 
+  /** 记忆重置时一并清内存态，防旧情绪在下次蒸馏时回写 */
+  reset(): void {
+    this.states.clear();
+  }
+
   /** 全局视图用：最近更新过的那个会话的情绪（仍按时间衰减）；无记录时 undefined */
   latest(now: number): { sessionId: string; state: EmotionState } | undefined {
     let sid: string | undefined;

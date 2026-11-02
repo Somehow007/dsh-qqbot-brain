@@ -26,7 +26,8 @@ type Op =
   | { op: 'persona-save'; persona: PersonaEntry }
   | { op: 'persona-activate'; id: string }
   | { op: 'persona-delete'; id: string }
-  | { op: 'reset' };
+  | { op: 'reset'; keepPersona?: boolean }
+  | { op: 'del-range'; from: number; to: number; ids: string[] };
 
 export interface PersonaEntry { id: string; name: string; text: string }
 
@@ -313,9 +314,14 @@ export class BrainStore {
         this.emotions.clear();
         this.profiles.clear();
         this.digests.clear();
-        this.personaText = '';
-        this.personaEntries.clear();
-        this.activeId = '';
+        if (!op.keepPersona) {
+          this.personaText = '';
+          this.personaEntries.clear();
+          this.activeId = '';
+        }
+        break;
+      case 'del-range':
+        for (const id of op.ids) this.notes.delete(id);
         break;
     }
   }
@@ -332,7 +338,8 @@ export class BrainStore {
     this.pushOp({ t: rec.t, op });
     this.version++;
     if (op.op === 'add' || op.op === 'update' || op.op === 'del'
-      || op.op === 'merge' || op.op === 'reset' || op.op === 'embed') this.graphVersion++;
+      || op.op === 'merge' || op.op === 'reset' || op.op === 'embed'
+      || op.op === 'del-range') this.graphVersion++;
     if (++this.dirtyOps >= this.compactEvery) this.compact();
   }
 
@@ -473,6 +480,25 @@ export class BrainStore {
     return true;
   }
 
+  /**
+   * 按时间段批量删除记忆（脑图页「危险区」）。
+   * createdAt ∈ [from, to] 闭区间；op 显式携带 id 列表而非区间谓词——
+   * 重放时若重算区间，会把本 op 之后才入库、但 createdAt 落在区间内的
+   * 记忆（如随后导入的备份）误删。空集不落 op。
+   */
+  deleteNotesInRange(from: number, to: number): string[] {
+    const ids = [...this.notes.values()]
+      .filter((n) => n.createdAt >= from && n.createdAt <= to)
+      .map((n) => n.id);
+    if (ids.length) this.persist({ op: 'del-range', from, to, ids });
+    return ids;
+  }
+
+  /** 清空全部记忆数据但保留人设（脑图页「记忆重置」；全清走 importData replace） */
+  resetMemory(): void {
+    this.persist({ op: 'reset', keepPersona: true });
+  }
+
   /** 全部已知会话：记忆 / 会话级画像 / 情绪三个来源的并集 */
   sessions(): { sessionId: string; noteCount: number; profile: string; emotion?: EmotionState }[] {
     const ids = new Set<string>([
@@ -564,6 +590,16 @@ export class BrainStore {
   /** 该画像键上次审核产出的文本；与当前 text 相同即「已审」，缺省/不一致=需重审 */
   reviewedOf(key: string): string {
     return this.profiles.get(normalizeProfileKey(key))?.reviewed ?? '';
+  }
+
+  hasProfile(key: string): boolean {
+    return this.profiles.has(normalizeProfileKey(key));
+  }
+
+  /** 完整画像条目（编辑/重生成需要 name/sessions 等元数据，profileOf 只给文本） */
+  profileEntry(key: string): ProfileEntry | undefined {
+    const e = this.profiles.get(normalizeProfileKey(key));
+    return e ? { ...e, sessions: [...e.sessions] } : undefined;
   }
 
   /**

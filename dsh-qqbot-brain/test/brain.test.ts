@@ -788,7 +788,7 @@ test('graph edges: 无向量时为空数组，facet 边经 embedder 匹配', asy
 
 // ── 画像按人建模 ──
 import { splitActor, userProfileKey } from '../src/brain/identity.ts';
-import { writeFileSync } from 'node:fs';
+import { appendFileSync, writeFileSync } from 'node:fs';
 
 test('splitActor: 拆出昵称与 openid，昵称含括号也能取到末尾 id 组', () => {
   assert.deepEqual(splitActor('张三 (ABCDEF1234567890)'), { nick: '张三', openid: 'ABCDEF1234567890' });
@@ -1477,4 +1477,164 @@ test('endOfTurn 向量：merge 目标重取向量，dup 命中不重复取向量
   brain2.ingest('s1', { userText: '猫', assistantText: '咕嘟', at: NOW });
   await brain2.endOfTurn('s1');
   assert.ok(embedCalls2.flat().includes('用户非常喜欢猫咪'), 'merge 改写的目标应重取向量');
+});
+
+// ── 画像管理与记忆重置（11-02-profile-admin-memory-reset）──
+
+test('del-range: 只删闭区间内记忆；op 携带 ids，重放不误删后入库的老记忆', () => {
+  const { dir, store } = tmpStore();
+  store.addNote('s1', { content: '区间内', importance: 3 }, NOW - 2 * DAY);
+  store.addNote('s1', { content: '区间外早', importance: 3 }, NOW - 10 * DAY);
+  store.addNote('s1', { content: '区间外晚', importance: 3 }, NOW);
+  const ids = store.deleteNotesInRange(NOW - 3 * DAY, NOW - 1 * DAY);
+  assert.equal(ids.length, 1);
+  assert.ok(store.recentOps(10).some((o) => o.op.op === 'del-range'));
+  assert.deepEqual(store.allNotes().map((n) => n.content).sort(), ['区间外早', '区间外晚']);
+  // 关键回归：del-range 之后才入库、createdAt 却落在区间内的记忆，重放不得被误删
+  // （若 op 存的是区间谓词而非显式 ids，重放会把它一并删掉）
+  store.addNote('s1', { content: '补录的老记忆', importance: 3 }, NOW - 2 * DAY);
+  store.flush();
+  const reloaded = new BrainStore(dir);
+  assert.deepEqual(reloaded.allNotes().map((n) => n.content).sort(), ['区间外早', '区间外晚', '补录的老记忆']);
+  rmSync(dir, { recursive: true });
+});
+
+test('resetMemory: 清笔记/画像/情绪/摘要但保人设，重放一致；旧格式 reset 重放仍全清', () => {
+  const { dir, store } = tmpStore();
+  store.setPersona('人设内核');
+  store.addNote('s1', { content: 'x', importance: 3 }, NOW);
+  store.setProfileEntry(userProfileKey('OID1'), '画像', { sessionId: 's1', name: 'demo' });
+  store.setEmotion('s1', { v: 0.5, a: 0.6, d: 0, label: '开心', updatedAt: NOW });
+  store.setDigest('s1', '摘要', 10);
+  store.resetMemory();
+  assert.equal(store.allNotes().length, 0);
+  assert.equal(store.people().length, 0);
+  assert.equal(store.sessions().length, 0);
+  assert.equal(store.digestOf('s1'), undefined);
+  assert.equal(store.persona(), '人设内核');
+  store.flush();
+  const reloaded = new BrainStore(dir);
+  assert.equal(reloaded.allNotes().length, 0);
+  assert.equal(reloaded.people().length, 0);
+  assert.equal(reloaded.persona(), '人设内核');
+  assert.equal(reloaded.activePersonaId(), 'legacy');
+  // 旧格式 reset op（无 keepPersona 字段，覆盖导入时代写的就是它）重放仍全清
+  appendFileSync(join(dir, 'brain.jsonl'), JSON.stringify({ t: NOW, op: 'reset' }) + '\n');
+  const legacy = new BrainStore(dir);
+  assert.equal(legacy.persona(), '');
+  assert.equal(legacy.listPersonas().length, 0);
+  rmSync(dir, { recursive: true });
+});
+
+test('profile: 手工编辑置已审并保留名称/sessions，删除即清空', () => {
+  const { store } = tmpStore();
+  const key = userProfileKey('OID_E');
+  store.setProfileEntry(key, '旧画像', { sessionId: 's1', name: '旧名' });
+  const brain = new Brain({
+    store,
+    distiller: new Distiller({ enabled: false, baseUrl: '', apiKey: '', model: '', timeoutMs: 1000, maxNotes: 1 }),
+    now,
+  });
+  assert.equal(brain.updateProfile(key, { text: '手工新画像' }), true);
+  assert.equal(store.profileOf(key), '手工新画像');
+  assert.equal(store.profileEntry(key)!.reviewed, '手工新画像');
+  assert.equal(store.profileEntry(key)!.name, '旧名');
+  assert.deepEqual(store.profileEntry(key)!.sessions, ['s1']);
+  assert.equal(brain.updateProfile(key, { name: '新名', text: '再改' }), true);
+  assert.equal(store.profileEntry(key)!.name, '新名');
+  // upsert：会话卡「画像未生成」态可手建——但键必须指向已知会话/发言人，防幽灵画像
+  store.addNote('s1', { content: '存在过对话', importance: 3 }, NOW);
+  assert.equal(brain.updateProfile('sess:s1', { text: '手建群像' }), true);
+  assert.equal(store.profileOf('sess:s1'), '手建群像');
+  assert.equal(store.profileEntry('sess:s1')!.sessions.includes('s1'), true);
+  assert.equal(brain.updateProfile('u:nope', { text: 'x' }), false);
+  assert.equal(brain.updateProfile('sess:nope', { text: 'x' }), false);
+  assert.equal(brain.updateProfile(key, { text: '  ' }), false);
+  assert.equal(brain.deleteProfile(key), true);
+  assert.equal(store.hasProfile(key), false);
+  assert.equal(brain.deleteProfile(key), false);
+});
+
+test('regenerateProfile: u: 键只归集该 openid 记忆，草稿送审后写回并置已审', async () => {
+  const { store } = tmpStore();
+  const key = userProfileKey('ABCDEF1234567890');
+  store.setProfileEntry(key, '旧画像', { sessionId: 'g1', name: 'demo' });
+  store.addNote('g1', { content: 'demo 是大学生住宿舍', importance: 4, actor: 'demo (ABCDEF1234567890)' }, NOW - DAY);
+  store.addNote('g1', { content: '不相干的路人发言', importance: 4, actor: '路人 (FEDCBA0987654321)' }, NOW - DAY);
+  let draftPrompt = '';
+  const distiller = new Distiller(
+    { enabled: true, baseUrl: 'https://x.test', apiKey: 'k', model: 'm', timeoutMs: 1000, maxNotes: 5 },
+    async (_url, init) => {
+      const prompt = (JSON.parse(init.body) as { messages: { content: string }[] }).messages[0]!.content;
+      const content = prompt.includes('人物画像撰稿模块')
+        ? (draftPrompt = prompt, '{"profile":"草稿画像"}')
+        : '{"profiles":[{"index":0,"text":"审核后画像"}]}';
+      return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content } }] }) };
+    },
+  );
+  const brain = new Brain({ store, distiller, now });
+  const r = await brain.regenerateProfile(key);
+  assert.deepEqual(r, { ok: true });
+  assert.ok(draftPrompt.includes('demo 是大学生住宿舍'), '草稿输入应含该人记忆');
+  assert.ok(!draftPrompt.includes('不相干的路人发言'), '草稿输入不应混入他人记忆');
+  assert.match(draftPrompt, /用户「demo」/);
+  assert.equal(store.profileOf(key), '审核后画像');
+  assert.equal(store.profileEntry(key)!.reviewed, '审核后画像');
+  assert.equal(store.people().find((p) => p.key === key)!.name, 'demo');
+});
+
+test('regenerateProfile: 蒸馏关闭/画像不存在/无记忆/审核判空均不改数据', async () => {
+  const { store } = tmpStore();
+  const key = userProfileKey('AABBCCDD');
+  store.setProfileEntry(key, '原画像', { sessionId: 's1', name: 'x' });
+  const off = new Brain({
+    store,
+    distiller: new Distiller({ enabled: false, baseUrl: '', apiKey: '', model: '', timeoutMs: 1000, maxNotes: 1 }),
+    now,
+  });
+  assert.deepEqual(await off.regenerateProfile(key), { ok: false, reason: '蒸馏服务不可用' });
+  const distiller = new Distiller(
+    { enabled: true, baseUrl: 'https://x.test', apiKey: 'k', model: 'm', timeoutMs: 1000, maxNotes: 5 },
+    async (_url, init) => {
+      const prompt = (JSON.parse(init.body) as { messages: { content: string }[] }).messages[0]!.content;
+      const content = prompt.includes('人物画像撰稿模块')
+        ? '{"profile":"草稿画像"}'
+        : '{"profiles":[{"index":0,"text":""}]}';
+      return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content } }] }) };
+    },
+  );
+  const brain = new Brain({ store, distiller, now });
+  // 画像条目缺失时以记忆佐证为准：无证据统一报「暂无可用的记忆」（含不存在的键）
+  assert.deepEqual(await brain.regenerateProfile('u:nope'), { ok: false, reason: '该对象暂无可用的记忆' });
+  assert.deepEqual(await brain.regenerateProfile(key), { ok: false, reason: '该对象暂无可用的记忆' });
+  store.addNote('s1', { content: 'x 爱钓鱼', importance: 3, actor: 'x (AABBCCDD)' }, NOW);
+  const r = await brain.regenerateProfile(key);
+  assert.deepEqual(r, { ok: false, reason: '审核认为没有可保留的稳定内容，未改动' });
+  assert.equal(store.profileOf(key), '原画像');
+});
+
+test('resetMemory: 清内存态——assemble 不再注入旧情绪/画像/摘要', async () => {
+  const { store } = tmpStore();
+  store.setPersona('人设内核');
+  store.setEmotion('s1', { v: 0.8, a: 0.9, d: 0.5, label: '兴奋', updatedAt: NOW });
+  store.setProfile('s1', '旧会话画像');
+  store.addNote('s1', { content: '一条记忆', importance: 3 }, NOW);
+  store.setDigest('s1', '旧脉络', 5);
+  const brain = new Brain({
+    store,
+    distiller: new Distiller({ enabled: false, baseUrl: '', apiKey: '', model: '', timeoutMs: 1000, maxNotes: 1 }),
+    now,
+  });
+  const before = brain.assemble('s1', 'hi');
+  assert.ok(before.emotion.includes('兴奋'));
+  assert.ok(before.memoryLines.some((l) => l.includes('旧会话画像')));
+  assert.equal(before.digest, '旧脉络');
+  const cleared = brain.resetMemory();
+  assert.equal(cleared.notes, 1);
+  assert.equal(cleared.profiles, 1);
+  const after = brain.assemble('s1', 'hi');
+  assert.equal(after.emotion, '');
+  assert.ok(!after.memoryLines.some((l) => l.includes('画像')));
+  assert.equal(after.digest, '');
+  assert.equal(after.persona, '人设内核');
 });

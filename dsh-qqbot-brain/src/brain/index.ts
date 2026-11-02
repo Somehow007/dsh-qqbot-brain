@@ -1,6 +1,6 @@
 import { DEFAULT_BRAIN_CONFIG, MOOD_VALENCE } from './types.ts';
 import type { BrainConfig, BrainContext, DistillResult, EmotionState, MemoryNote, NoteDraft, NoteEmotion, Turn } from './types.ts';
-import { isUserKey, sessionProfileKey, splitActor, userProfileKey } from './identity.ts';
+import { isUserKey, normalizeProfileKey, sessionProfileKey, splitActor, userProfileKey } from './identity.ts';
 import { ageInDays, retention } from './decay.ts';
 import { ageLabel, formatClock } from './time.ts';
 import { Retriever } from './retrieval.ts';
@@ -472,6 +472,103 @@ export class Brain {
     this.store.setProfileEntry(keepKey, text, { sessionId: sessions[0] ?? '', name: keep.name || drop.name, sessions, reviewed: text });
     this.store.setProfileEntry(dropKey, '', { sessionId: sessions[0] ?? '' });
     return true;
+  }
+
+  /**
+   * 手工编辑画像文本/名称（脑图页画像卡「编辑」）。
+   * 人工修改即视为已审（reviewed=text），但不锁定——下一轮蒸馏仍可修订。
+   * 允许给尚无画像的对象手建一张（会话卡的「画像未生成」态），
+   * 但键必须指向已知发言人/会话，防打错键产生幽灵画像。
+   */
+  updateProfile(key: string, patch: { name?: string; text: string }): boolean {
+    const k = normalizeProfileKey(key);
+    const text = patch.text?.trim();
+    if (!text) return false;
+    const entry = this.store.profileEntry(k);
+    if (!entry) {
+      const known = isUserKey(k)
+        ? this.store.speakers().has(k.slice(2))
+        : this.store.sessions().some((s) => s.sessionId === k.slice(5));
+      if (!known) return false;
+    }
+    this.store.setProfileEntry(k, text, {
+      sessionId: entry?.sessions[0] ?? (isUserKey(k) ? '' : k.slice(5)),
+      name: patch.name ?? entry?.name ?? '',
+      reviewed: text,
+    });
+    return true;
+  }
+
+  /** 删除单张画像卡（空文本 profile op 即删除语义） */
+  deleteProfile(key: string): boolean {
+    const entry = this.store.profileEntry(key);
+    if (!entry) return false;
+    this.store.setProfileEntry(key, '', { sessionId: entry.sessions[0] ?? '' });
+    return true;
+  }
+
+  /**
+   * 画像重生成（脑图页画像卡「重生成」）：归集该对象的记忆 → 蒸馏起草 → 审核把关 → 写回。
+   * 草稿/审核任一失败或审核判无稳定内容时不改数据，reason 供页面提示。
+   */
+  async regenerateProfile(key: string): Promise<{ ok: boolean; reason?: string }> {
+    if (!this.distiller.enabled) return { ok: false, reason: '蒸馏服务不可用' };
+    const k = normalizeProfileKey(key);
+    const entry = this.store.profileEntry(k);
+    const person = isUserKey(k);
+    const evidence = this.store.allNotes()
+      .filter((n) => person
+        ? (n.actor != null && splitActor(n.actor).openid === k.slice(2))
+        : n.sessionId === k.slice(5))
+      .sort((a, b) => a.createdAt - b.createdAt)
+      .slice(-60);
+    // 记忆佐证即对象存在——entry 缺失（画像未生成过）同样允许重建
+    if (!evidence.length) return { ok: false, reason: '该对象暂无可用的记忆' };
+    const name = entry?.name
+      || (person ? this.store.speakers().get(k.slice(2)) : undefined)
+      || k.slice(person ? 2 : 5).slice(0, 8);
+    const draft = await this.distiller.draftProfile(
+      person ? `用户「${name}」` : '本会话群聊整体（用户群像/氛围）',
+      evidence, this.personaForPrompts(), { now: this.now(), timeZone: this.cfg.timeZone });
+    if (draft == null) return { ok: false, reason: '蒸馏调用失败' };
+    const reviewed = await this.distiller.reviewProfiles([
+      { actor: name, previous: entry?.text ?? '', candidate: draft },
+    ]);
+    if (reviewed == null) return { ok: false, reason: '画像审核调用失败' };
+    const text = reviewed[0]?.trim();
+    if (!text) return { ok: false, reason: '审核认为没有可保留的稳定内容，未改动' };
+    this.store.setProfileEntry(k, text, {
+      sessionId: entry?.sessions[0] ?? (person ? '' : k.slice(5)),
+      name,
+      sessions: entry?.sessions ?? (person ? undefined : [k.slice(5)]),
+      reviewed: text,
+    });
+    return { ok: true };
+  }
+
+  /** 按时间段删除记忆（createdAt 闭区间）；返回删除条数 */
+  purgeNotesInRange(from: number, to: number): number {
+    return this.store.deleteNotesInRange(from, to).length;
+  }
+
+  /**
+   * 记忆重置（保人设）：清笔记/画像/情绪/摘要。
+   * 除 store 外还要清内存态——EmotionEngine states 与轮次缓冲不清，
+   * 旧数据会在下次蒸馏/digest 时被回写或驱动误触发。
+   */
+  resetMemory(): { notes: number; profiles: number; emotions: number; digests: number } {
+    const cleared = {
+      notes: this.store.allNotes().length,
+      profiles: this.store.people().length,
+      emotions: this.store.sessions().filter((s) => s.emotion).length,
+      digests: this.store.sessions().filter((s) => this.store.digestOf(s.sessionId)).length,
+    };
+    this.store.resetMemory();
+    this.emotion.reset();
+    this.turnBuffer.clear();
+    this.historyBuffer.clear();
+    this.turnCounter.clear();
+    return cleared;
   }
 
   /**

@@ -104,3 +104,67 @@ test('启动迁移单份人设、加载完整预置、保持用户选择与手�
     rmSync(dir, { recursive: true });
   }
 });
+
+test('画像管理与危险区 API：编辑/删除/重生成门禁/时段删除/记忆重置保人设', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'brain-admin-http-'));
+  const store = new BrainStore(dir);
+  store.setPersona('人设内核');
+  store.setProfileEntry('u:OID1', '画像A', { sessionId: 's1', name: 'demo' });
+  const t1 = Date.parse('2026-10-30T10:00:00Z');
+  const t2 = Date.parse('2026-11-01T10:00:00Z');
+  store.addNote('s1', { content: '旧记忆', importance: 3 }, t1);
+  store.addNote('s1', { content: '新记忆', importance: 3 }, t2);
+  const brain = new Brain({
+    store,
+    distiller: new Distiller({ enabled: false, baseUrl: '', apiKey: '', model: '', timeoutMs: 1000, maxNotes: 1 }),
+  });
+  const http = new BrainHttpServer(brain, {
+    enabled: true, port: 0, host: '127.0.0.1', prefix: '/brain', token: 'test-token',
+  }, () => {});
+  const server = createServer((req, res) => {
+    (http as unknown as { route: (req: typeof req, res: typeof res) => Promise<void> }).route(req, res).catch((err) => {
+      res.writeHead(500).end(String(err));
+    });
+  });
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  try {
+    const addr = server.address();
+    assert.ok(addr && typeof addr !== 'string');
+    const url = `http://127.0.0.1:${addr.port}/brain/api`;
+    const call = (path: string, method = 'GET', body?: object) =>
+      fetch(url + path, {
+        method, headers: { 'x-brain-token': 'test-token', 'Content-Type': 'application/json' },
+        body: body && JSON.stringify(body),
+      });
+    // 画像编辑
+    assert.equal((await call('/profiles', 'PATCH', { key: 'u:OID1', text: '手改画像', name: '新名' })).status, 200);
+    assert.equal(store.profileOf('u:OID1'), '手改画像');
+    assert.equal(store.profileEntry('u:OID1')!.name, '新名');
+    assert.equal(store.profileEntry('u:OID1')!.reviewed, '手改画像');
+    assert.equal((await call('/profiles', 'PATCH', { key: 'u:nope', text: 'x' })).status, 404);
+    assert.equal((await call('/profiles', 'PATCH', { key: 'u:OID1' })).status, 400);
+    // 重生成门禁：蒸馏不可用 → 409 且不改数据
+    assert.equal((await call('/profiles/regenerate', 'POST', { key: 'u:OID1' })).status, 409);
+    assert.equal((await call('/profiles/regenerate', 'POST', {})).status, 400);
+    // 时段删除
+    assert.equal((await call('/notes/purge', 'POST', { from: t2, to: t1 })).status, 400);
+    const purge = await call('/notes/purge', 'POST', { from: t1 - 1000, to: t1 + 1000 });
+    assert.equal(purge.status, 200);
+    assert.equal((await purge.json() as { deleted: number }).deleted, 1);
+    assert.deepEqual(store.allNotes().map((n) => n.content), ['新记忆']);
+    // 画像删除
+    assert.equal((await call('/profiles?id=' + encodeURIComponent('u:OID1'), 'DELETE')).status, 200);
+    assert.equal(store.hasProfile('u:OID1'), false);
+    assert.equal((await call('/profiles?id=' + encodeURIComponent('u:OID1'), 'DELETE')).status, 404);
+    // 记忆重置：清光记忆数据但保人设
+    const reset = await call('/reset', 'POST');
+    assert.equal(reset.status, 200);
+    const cleared = await reset.json() as { cleared: { notes: number } };
+    assert.equal(cleared.cleared.notes, 1);
+    assert.equal(store.allNotes().length, 0);
+    assert.equal(store.persona(), '人设内核');
+  } finally {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    rmSync(dir, { recursive: true });
+  }
+});

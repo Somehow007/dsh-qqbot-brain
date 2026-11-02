@@ -118,6 +118,17 @@ const PROFILE_REVIEW_PROMPT = `你是长期人物画像的编辑，不是聊天�
 待整理画像（actor 仅用于区分人物，不得修改身份）：
 %s`;
 
+const PROFILE_DRAFT_PROMPT = `你是人物画像撰稿模块。根据下面关于「%s」的记忆，写出该对象的画像全文（300字以内）。
+只保留能长期成立的身份背景、稳定偏好、性格和与角色的关系；删去一次性事件、日程、流水账和已过时判断。
+记忆可能混入无关话题，只取与该对象相关的部分；不要补造记忆里没有的事实。
+可保留 1-2 个标志性细节作人物锚点（固定外号、反复出现的长期梗）。
+没有可提炼的稳定信息时 profile 输出空字符串。只输出 JSON：{"profile": "画像全文"}
+
+角色设定：%s
+
+记忆（[前缀] 为形成时间）：
+%s`;
+
 export interface ProfileReviewItem { actor?: string; previous: string; candidate: string }
 
 export function buildProfileReviewPrompt(items: ProfileReviewItem[]): string {
@@ -259,6 +270,16 @@ export class Distiller {
   async consolidate(notes: MemoryNote[], profile: string, persona: string, ctx?: TimeCtx): Promise<DistillResult> {
     if (!this.enabled || notes.length === 0) return { memories: [] };
     return this.call(buildConsolidatePrompt(notes, profile, persona, ctx));
+  }
+
+  /** 从既有记忆为单个对象起草画像（脑图页「重生成」入口）；失败/未启用返回 undefined */
+  async draftProfile(subject: string, notes: MemoryNote[], persona: string, ctx?: TimeCtx): Promise<string | undefined> {
+    if (!this.enabled || notes.length === 0) return undefined;
+    const c = ctx ?? defaultTimeCtx();
+    const list = notes.map((n) => `- [${ageLabel(n.createdAt, c.now)}] ${n.content}`).join('\n');
+    const result = await this.call(
+      PROFILE_DRAFT_PROMPT.replace('%s', subject).replace('%s', persona || '（未设定）').replace('%s', list));
+    return result.profile;
   }
 
   /** 专门审核画像；失败时不写任何画像，避免未经校验的草稿覆盖旧画像。 */

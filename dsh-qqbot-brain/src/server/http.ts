@@ -116,8 +116,22 @@ export class BrainHttpServer {
     if (p === `${prefix}/api/sessions`) {
       return json(res, { sessions: this.brain.sessions() });
     }
-    if (p === `${prefix}/api/profiles`) {
+    if (p === `${prefix}/api/profiles` && req.method === 'GET') {
       return json(res, { profiles: this.brain.people() });
+    }
+    if (p === `${prefix}/api/profiles` && req.method === 'PATCH') {
+      const o = parseJson<{ key?: string; name?: string; text?: string }>(await readBody(req));
+      if (!o?.key || typeof o.text !== 'string' || !o.text.trim()) { res.writeHead(400).end('key/text required'); return; }
+      return this.brain.updateProfile(o.key, { name: o.name, text: o.text })
+        ? json(res, { ok: true, profiles: this.brain.people() })
+        : void res.writeHead(404).end('profile not found');
+    }
+    if (p === `${prefix}/api/profiles` && req.method === 'DELETE') {
+      const id = url.searchParams.get('id') ?? '';
+      if (!id) { res.writeHead(400).end('id required'); return; }
+      return this.brain.deleteProfile(id)
+        ? json(res, { ok: true, profiles: this.brain.people() })
+        : void res.writeHead(404).end('profile not found');
     }
     if (p === `${prefix}/api/profiles/merge` && req.method === 'POST') {
       const o = parseJson<{ keep?: string; drop?: string }>(await readBody(req));
@@ -125,6 +139,30 @@ export class BrainHttpServer {
       const ok = await this.brain.mergeProfiles(o.keep, o.drop);
       if (!ok) { res.writeHead(409).end('merge failed'); return; }
       return json(res, { ok: true, profiles: this.brain.people() });
+    }
+    if (p === `${prefix}/api/profiles/regenerate` && req.method === 'POST') {
+      const o = parseJson<{ key?: string }>(await readBody(req));
+      if (!o?.key) { res.writeHead(400).end('key required'); return; }
+      const r = await this.brain.regenerateProfile(o.key);
+      return r.ok
+        ? json(res, { ok: true, profiles: this.brain.people() })
+        : void res.writeHead(409).end(r.reason ?? 'regenerate failed');
+    }
+    if (p === `${prefix}/api/notes/purge` && req.method === 'POST') {
+      const o = parseJson<{ from?: number; to?: number }>(await readBody(req));
+      if (!o || typeof o.from !== 'number' || typeof o.to !== 'number'
+        || !Number.isFinite(o.from) || !Number.isFinite(o.to) || o.from > o.to) {
+        res.writeHead(400).end('valid from/to required');
+        return;
+      }
+      const deleted = this.brain.purgeNotesInRange(o.from, o.to);
+      this.brain.flush();
+      return json(res, { ok: true, deleted });
+    }
+    if (p === `${prefix}/api/reset` && req.method === 'POST') {
+      const cleared = this.brain.resetMemory();
+      this.brain.flush();
+      return json(res, { ok: true, cleared });
     }
     if (p === `${prefix}/api/ops`) {
       const limit = Math.min(500, Math.max(1, Number(url.searchParams.get('limit')) || 100));
@@ -235,7 +273,7 @@ export class BrainHttpServer {
       const prefix = this.cfg.prefix.replace(/\/$/, '');
       webServer.register({ path: prefix, handler: (r, s) => this.route(r, s) });
       webServer.register({ path: `${prefix}/`, handler: (r, s) => this.route(r, s) });
-      for (const sub of ['/api/state', '/api/query', '/api/persona', '/api/personas', '/api/personas/activate', '/api/sessions', '/api/profiles', '/api/ops', '/api/notes', '/api/export', '/api/import', '/api/dedup']) {
+      for (const sub of ['/api/state', '/api/query', '/api/persona', '/api/personas', '/api/personas/activate', '/api/sessions', '/api/profiles', '/api/profiles/merge', '/api/profiles/regenerate', '/api/ops', '/api/notes', '/api/notes/purge', '/api/reset', '/api/export', '/api/import', '/api/dedup']) {
         webServer.register({ path: `${prefix}${sub}`, handler: (r, s) => this.route(r, s) });
       }
       this.log(`brain: 已挂载到宿主 webServer ${prefix}`);

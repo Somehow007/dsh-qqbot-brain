@@ -198,13 +198,24 @@
     .sess .prof{margin-top:8px;line-height:1.6;color:#a8c6d4;overflow-wrap:anywhere}
     .sess .meta{margin-top:8px;font-size:10px;color:var(--faint)}
     .sess.mergesrc{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan) inset}
-    .sess .mergebtn{float:right;border:1px solid var(--line2);background:transparent;color:var(--muted);font-size:10px;padding:1px 7px}
+    .sess .mergebtn{border:1px solid var(--line2);background:transparent;color:var(--muted);font-size:10px;padding:1px 7px}
     .sess .mergebtn:hover{border-color:var(--cyan);color:var(--cyan2)}
+    .sess .cardops{float:right;display:flex;gap:4px;margin-left:8px}
+    .sess .cardops .act{margin-right:0}
+    .sess .prof-name{display:block;width:100%;border:1px solid var(--line2);background:var(--panel2);padding:5px 8px;font-size:12px;color:var(--ink);margin-top:6px;box-sizing:border-box}
+    .sess .prof-edit{display:block;width:100%;min-height:110px;border:1px solid var(--line2);background:var(--panel2);padding:8px;font-size:12px;line-height:1.6;color:var(--ink);resize:vertical;margin-top:6px;box-sizing:border-box}
+    .danger-zone{border:1px solid #4a2f33;background:rgba(74,47,51,.12);padding:12px 14px;margin-top:14px}
+    .danger-zone h4{margin:0 0 8px;font-size:12px;color:#f0b5a0}
+    .danger-zone .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px;font-size:12px;color:var(--muted)}
+    .danger-zone input{border:1px solid var(--line2);background:var(--panel2);padding:5px 8px;font-size:11px;color:var(--ink)}
+    .danger-zone .danger{border:1px solid #a05a4f;background:transparent;color:#f0b5a0;padding:5px 12px;font-size:12px}
+    .danger-zone .danger:hover:not(:disabled){background:#4a2f33}
+    .danger-zone .danger:disabled{opacity:.45}
     .ops{font-size:11px;line-height:1.9;max-height:380px;overflow-y:auto}
     .ops .op{display:flex;gap:10px;border-bottom:1px dotted #1a3a50;padding:3px 0;overflow-wrap:anywhere}
     .ops .ot{color:var(--faint);font:10px var(--mono);white-space:nowrap;width:74px}
     .ops .ok-ind{display:inline-block;width:64px;text-align:center;font-size:10px;padding:0 6px;background:#14384d;color:#7fc4d9;white-space:nowrap}
-    .ops .ok-ind.del,.ops .ok-ind.reset{background:#4a2f33;color:#f0b5a0}
+    .ops .ok-ind.del,.ops .ok-ind.reset,.ops .ok-ind.del-range{background:#4a2f33;color:#f0b5a0}
     .ops .ok-ind.persona,.ops .ok-ind.profile{background:#3d3a1e;color:#e8d79b}
     .ops .ok-ind.emotion{background:#4a3230;color:#f0a97e}
     textarea.persona-edit{width:100%;min-height:320px;border:1px solid var(--line2);background:var(--panel2);padding:12px;font-size:12.5px;line-height:1.8;resize:vertical;color:var(--ink)}
@@ -377,6 +388,20 @@
       <div class="toolbar" style="border-top:1px dashed var(--line2);margin-top:14px">
         <button class="savebtn" id="dedupBtn">合并近重复记忆</button>
         <span class="stat" id="dedupStat" style="font-size:11px;color:var(--muted)"></span>
+      </div>
+      <div class="danger-zone">
+        <h4>危险区</h4>
+        <div class="row">
+          <span>删除该时段创建的记忆：</span>
+          <input type="datetime-local" id="purgeFrom" aria-label="起始时间"><span>至</span><input type="datetime-local" id="purgeTo" aria-label="结束时间">
+          <button class="act" id="purgePreview" type="button">预览数量</button>
+          <button class="danger" id="purgeBtn" type="button" disabled>删除</button>
+          <span class="stat" id="purgeStat" style="font-size:11px;color:var(--muted)"></span>
+        </div>
+        <div class="row">
+          <button class="danger" id="resetMemBtn" type="button">记忆重置（保留人设）</button>
+          <span class="stat" style="font-size:11px;color:var(--muted)">清空全部记忆、画像、情绪与摘要；人格内核与人设版本保留。操作写入事件流水，建议先导出备份。</span>
+        </div>
       </div>
     </div>
   </section>
@@ -1025,6 +1050,47 @@ function renderLibrary(){
 }
 // ── Tab：画像（按人 + 会话级）──
 let mergeSrc='';
+// 画像卡三操作：编辑（文本+名称）/ 重生成（蒸馏+审核，失败不改数据）/ 删除（空文本 op）
+function wireProfileCard(d,{key,kind,name,text}){
+  const prof=d.querySelector('.prof');
+  const editBtn=d.querySelector('[data-a=pedit]'),regenBtn=d.querySelector('[data-a=pregen]'),delBtn=d.querySelector('[data-a=pdel]');
+  editBtn.onclick=()=>{
+    prof.replaceChildren();
+    const nm=document.createElement('input');nm.className='prof-name';nm.value=name||'';nm.maxLength=80;nm.placeholder='画像名称';
+    if(kind!=='person')nm.hidden=true;
+    const ta=document.createElement('textarea');ta.className='prof-edit';ta.value=text;ta.maxLength=500;ta.spellcheck=false;
+    const bar=document.createElement('div');bar.className='editbar';
+    const save=document.createElement('button');save.className='act';save.type='button';save.textContent='保存';
+    const cancel=document.createElement('button');cancel.className='act';cancel.type='button';cancel.textContent='取消';
+    const stat=document.createElement('span');stat.className='stat';stat.style.fontSize='10px';
+    bar.append(save,cancel,stat);prof.append(nm,ta,bar);
+    save.onclick=async()=>{
+      const t=ta.value.trim();
+      if(!t){stat.textContent='内容不能为空';return;}
+      save.disabled=true;
+      const r=await fapi(API+'/profiles',{method:'PATCH',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({key,name:nm.hidden?undefined:(nm.value.trim()||undefined),text:t})});
+      if(!r.ok){stat.textContent='保存失败：'+await r.text();save.disabled=false;return;}
+      await load();
+    };
+    cancel.onclick=()=>{prof.textContent=text||'（画像未生成）';};
+  };
+  regenBtn.onclick=async()=>{
+    if(!confirm(`用该${kind==='person'?'人':'会话'}名下的记忆重新生成画像？\n蒸馏起草 + 审核把关，现有画像可能被改写。`))return;
+    regenBtn.disabled=true;
+    try{
+      const r=await fapi(API+'/profiles/regenerate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key})});
+      if(!r.ok){alert('重生成未完成：'+await r.text());return;}
+      await load();
+    }finally{regenBtn.disabled=false;}
+  };
+  delBtn.onclick=async()=>{
+    if(!confirm(`删除「${name||key}」的画像？该对象下次参与对话时会重新生成。`))return;
+    const r=await fapi(API+'/profiles?id='+encodeURIComponent(key),{method:'DELETE'});
+    if(!r.ok){alert('删除失败：'+await r.text());return;}
+    await load();
+  };
+}
 function renderSessions(){
   const g=$('sessGrid');g.replaceChildren();
   const people=PEERS.filter(p=>p.kind==='person');
@@ -1033,7 +1099,7 @@ function renderSessions(){
   people.forEach(p=>{
     const d=document.createElement('div');d.className='sess';
     if(mergeSrc===p.key)d.classList.add('mergesrc');
-    d.innerHTML=`<div class="sid">PERSON ${esc(p.name)}${p.openid?` · ${esc(shortId(p.openid))}…`:''}<button class="mergebtn" type="button"></button></div>
+    d.innerHTML=`<div class="sid">PERSON ${esc(p.name)}${p.openid?` · ${esc(shortId(p.openid))}…`:''}<span class="cardops"><button class="act" data-a="pedit" type="button">编辑</button><button class="act" data-a="pregen" type="button">重生成</button><button class="act danger" data-a="pdel" type="button">删</button><button class="mergebtn" type="button"></button></span></div>
       <div class="prof"></div><div class="meta"></div>`;
     d.querySelector('.prof').textContent=p.text||'（画像未生成）';
     d.querySelector('.meta').textContent=`见于 ${p.sessions.length} 个会话${p.updatedAt?` · ${fmtT(p.updatedAt)} 更新`:''}`;
@@ -1050,18 +1116,20 @@ function renderSessions(){
         await load();
       }
     };
+    wireProfileCard(d,{key:p.key,kind:'person',name:p.name,text:p.text});
     g.appendChild(d);});
   SESS.forEach(s=>{
     const d=document.createElement('div');d.className='sess';
     const emo=s.emotion?`情绪 ${s.emotion.label||''}（v=${s.emotion.v?.toFixed(1)} a=${s.emotion.a?.toFixed(1)}）`:'情绪 —';
-    d.innerHTML=`<div class="sid">SESSION ${esc(shortId(s.sessionId))}…</div>
+    d.innerHTML=`<div class="sid">SESSION ${esc(shortId(s.sessionId))}…<span class="cardops"><button class="act" data-a="pedit" type="button">编辑</button><button class="act" data-a="pregen" type="button">重生成</button><button class="act danger" data-a="pdel" type="button">删</button></span></div>
       <div class="prof"></div><div class="meta"></div>`;
     d.querySelector('.prof').textContent=s.profile||'（画像未生成——多聊几轮后由蒸馏产出）';
     d.querySelector('.meta').textContent=`${s.noteCount} 条记忆 · ${emo}`;
+    wireProfileCard(d,{key:'sess:'+s.sessionId,kind:'session',name:'',text:s.profile});
     g.appendChild(d);});
 }
 // ── Tab：事件流水 ──
-const OP_CN={add:'新增记忆',reinforce:'唤起强化',update:'修改',del:'删除',merge:'近重复合并',emotion:'情绪',profile:'画像',persona:'人格',reset:'整库重置'};
+const OP_CN={add:'新增记忆',reinforce:'唤起强化',update:'修改',del:'删除','del-range':'按时段删除',merge:'近重复合并',emotion:'情绪',profile:'画像',persona:'人格',reset:'整库重置'};
 function opDesc(o){
   const op=o.op;
   switch(op.op){
@@ -1073,7 +1141,8 @@ function opDesc(o){
     case 'emotion':return `${op.state.label||''}${op.state.mood?`「${op.state.mood}」`:''} v=${op.state.v.toFixed(1)} a=${op.state.a.toFixed(1)}（${shortId(op.sessionId)}）`;
     case 'profile':return `${op.name?op.name+'：':''}${(op.text||'').slice(0,46)}`;
     case 'persona':return (op.text||'').slice(0,46);
-    case 'reset':return '清空全部数据（导入覆盖）';
+    case 'del-range':return `删除 ${(op.ids||[]).length} 条（${fmtT(op.from)} ~ ${fmtT(op.to)}）`;
+    case 'reset':return op.keepPersona?'清空记忆数据（人设保留）':'清空全部数据（导入覆盖）';
     default:return op.op;
   }
 }
@@ -1236,6 +1305,38 @@ $('dedupBtn').onclick=async()=>{
   const d=await r.json().catch(()=>null);
   if(r.ok&&d)$('dedupStat').textContent=d.merged?`已合并 ${d.merged} 条（${d.clusters} 簇）`:'暂无可合并的近重复';
   else $('dedupStat').textContent='失败：HTTP '+r.status;
+  await load();
+};
+// ── 危险区：按时段删除 + 记忆重置（保人设）──
+function purgeRange(){
+  const f=$('purgeFrom').value?new Date($('purgeFrom').value).getTime():NaN;
+  const t=$('purgeTo').value?new Date($('purgeTo').value).getTime():NaN;
+  if(!Number.isFinite(f)||!Number.isFinite(t)||f>t)return null;
+  return {from:f,to:t,count:STATE?STATE.notes.filter(n=>n.createdAt>=f&&n.createdAt<=t).length:0};
+}
+$('purgePreview').onclick=()=>{
+  const r=purgeRange();
+  $('purgeBtn').disabled=!r||!r.count;
+  $('purgeStat').textContent=!r?'请先选择有效的起止时间':`区间内 ${r.count} 条记忆将被删除`;
+};
+$('purgeFrom').onchange=$('purgeTo').onchange=()=>{$('purgeBtn').disabled=true;$('purgeStat').textContent='';};
+$('purgeBtn').onclick=async()=>{
+  const r=purgeRange();
+  if(!r||!r.count)return;
+  if(!confirm(`永久删除 ${r.count} 条创建于该时段的记忆？不可撤销，建议先导出备份。`))return;
+  const res=await fapi(API+'/notes/purge',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({from:r.from,to:r.to})});
+  const d=await res.json().catch(()=>null);
+  $('purgeStat').textContent=res.ok&&d?`已删除 ${d.deleted} 条`:'删除失败：HTTP '+res.status;
+  $('purgeBtn').disabled=true;
+  await load();
+};
+$('resetMemBtn').onclick=async()=>{
+  const n=STATE?.stats?.total??0;
+  if(!confirm(`记忆重置将清空全部记忆、画像、情绪与摘要（当前 ${n} 条记忆），人格内核与人设版本保留。\n不可撤销，建议先导出备份。确认重置？`))return;
+  const r=await fapi(API+'/reset',{method:'POST'});
+  const d=await r.json().catch(()=>null);
+  if(r.ok&&d){const c=d.cleared||{};alert(`已重置：记忆 ${c.notes??0} 条 · 画像 ${c.profiles??0} · 情绪 ${c.emotions??0} · 摘要 ${c.digests??0}`);}
+  else alert('重置失败：HTTP '+r.status);
   await load();
 };
 // ── 复位 / 信号开关 ──
