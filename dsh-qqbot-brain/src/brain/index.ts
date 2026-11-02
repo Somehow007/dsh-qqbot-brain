@@ -493,7 +493,8 @@ export class Brain {
     }
     this.store.setProfileEntry(k, text, {
       sessionId: entry?.sessions[0] ?? (isUserKey(k) ? '' : k.slice(5)),
-      name: patch.name ?? entry?.name ?? '',
+      // name 显式传空串即清空；不传（undefined）才沿用旧名
+      name: patch.name !== undefined ? patch.name : (entry?.name ?? ''),
       reviewed: text,
     });
     return true;

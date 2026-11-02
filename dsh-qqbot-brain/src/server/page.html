@@ -202,6 +202,7 @@
     .sess .mergebtn:hover{border-color:var(--cyan);color:var(--cyan2)}
     .sess .cardops{float:right;display:flex;gap:4px;margin-left:8px}
     .sess .cardops .act{margin-right:0}
+    .sess .cardops .danger{border-color:#a05a4f;color:#f0b5a0}
     .sess .prof-name{display:block;width:100%;border:1px solid var(--line2);background:var(--panel2);padding:5px 8px;font-size:12px;color:var(--ink);margin-top:6px;box-sizing:border-box}
     .sess .prof-edit{display:block;width:100%;min-height:110px;border:1px solid var(--line2);background:var(--panel2);padding:8px;font-size:12px;line-height:1.6;color:var(--ink);resize:vertical;margin-top:6px;box-sizing:border-box}
     .danger-zone{border:1px solid #4a2f33;background:rgba(74,47,51,.12);padding:12px 14px;margin-top:14px}
@@ -1051,7 +1052,7 @@ function renderLibrary(){
 // ── Tab：画像（按人 + 会话级）──
 let mergeSrc='';
 // 画像卡三操作：编辑（文本+名称）/ 重生成（蒸馏+审核，失败不改数据）/ 删除（空文本 op）
-function wireProfileCard(d,{key,kind,name,text}){
+function wireProfileCard(d,{key,kind,name,text,ph}){
   const prof=d.querySelector('.prof');
   const editBtn=d.querySelector('[data-a=pedit]'),regenBtn=d.querySelector('[data-a=pregen]'),delBtn=d.querySelector('[data-a=pdel]');
   editBtn.onclick=()=>{
@@ -1069,11 +1070,11 @@ function wireProfileCard(d,{key,kind,name,text}){
       if(!t){stat.textContent='内容不能为空';return;}
       save.disabled=true;
       const r=await fapi(API+'/profiles',{method:'PATCH',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({key,name:nm.hidden?undefined:(nm.value.trim()||undefined),text:t})});
+        body:JSON.stringify({key,name:nm.hidden?undefined:nm.value.trim(),text:t})});
       if(!r.ok){stat.textContent='保存失败：'+await r.text();save.disabled=false;return;}
       await load();
     };
-    cancel.onclick=()=>{prof.textContent=text||'（画像未生成）';};
+    cancel.onclick=()=>{prof.textContent=text||ph;};
   };
   regenBtn.onclick=async()=>{
     if(!confirm(`用该${kind==='person'?'人':'会话'}名下的记忆重新生成画像？\n蒸馏起草 + 审核把关，现有画像可能被改写。`))return;
@@ -1116,7 +1117,7 @@ function renderSessions(){
         await load();
       }
     };
-    wireProfileCard(d,{key:p.key,kind:'person',name:p.name,text:p.text});
+    wireProfileCard(d,{key:p.key,kind:'person',name:p.name,text:p.text,ph:'（画像未生成）'});
     g.appendChild(d);});
   SESS.forEach(s=>{
     const d=document.createElement('div');d.className='sess';
@@ -1125,7 +1126,7 @@ function renderSessions(){
       <div class="prof"></div><div class="meta"></div>`;
     d.querySelector('.prof').textContent=s.profile||'（画像未生成——多聊几轮后由蒸馏产出）';
     d.querySelector('.meta').textContent=`${s.noteCount} 条记忆 · ${emo}`;
-    wireProfileCard(d,{key:'sess:'+s.sessionId,kind:'session',name:'',text:s.profile});
+    wireProfileCard(d,{key:'sess:'+s.sessionId,kind:'session',name:'',text:s.profile,ph:'（画像未生成——多聊几轮后由蒸馏产出）'});
     g.appendChild(d);});
 }
 // ── Tab：事件流水 ──
@@ -1310,7 +1311,8 @@ $('dedupBtn').onclick=async()=>{
 // ── 危险区：按时段删除 + 记忆重置（保人设）──
 function purgeRange(){
   const f=$('purgeFrom').value?new Date($('purgeFrom').value).getTime():NaN;
-  const t=$('purgeTo').value?new Date($('purgeTo').value).getTime():NaN;
+  // datetime-local 只到分钟：+59999 让所选结束分钟整体含入闭区间（否则 xx:30:45 会被漏删）
+  const t=$('purgeTo').value?new Date($('purgeTo').value).getTime()+59999:NaN;
   if(!Number.isFinite(f)||!Number.isFinite(t)||f>t)return null;
   return {from:f,to:t,count:STATE?STATE.notes.filter(n=>n.createdAt>=f&&n.createdAt<=t).length:0};
 }

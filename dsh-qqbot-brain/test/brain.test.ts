@@ -1542,6 +1542,9 @@ test('profile: 手工编辑置已审并保留名称/sessions，删除即清空',
   assert.deepEqual(store.profileEntry(key)!.sessions, ['s1']);
   assert.equal(brain.updateProfile(key, { name: '新名', text: '再改' }), true);
   assert.equal(store.profileEntry(key)!.name, '新名');
+  // 显式空串即清空名称；不传 name（undefined）则沿用旧名
+  assert.equal(brain.updateProfile(key, { name: '', text: '清名' }), true);
+  assert.equal(store.profileEntry(key)!.name, '');
   // upsert：会话卡「画像未生成」态可手建——但键必须指向已知会话/发言人，防幽灵画像
   store.addNote('s1', { content: '存在过对话', importance: 3 }, NOW);
   assert.equal(brain.updateProfile('sess:s1', { text: '手建群像' }), true);
