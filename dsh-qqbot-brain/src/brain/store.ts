@@ -318,7 +318,7 @@ export class BrainStore {
     if (this.shouldEvict) {
       const now = Date.now();
       for (const n of [...this.notes.values()]) {
-        if (this.shouldEvict(n, now)) this.notes.delete(n.id);
+        if (this.shouldEvict(n, now)) { this.notes.delete(n.id); this.graphVersion++; }
       }
     }
     const snap = {

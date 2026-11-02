@@ -3,11 +3,12 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { runInNewContext, Script } from 'node:vm';
+import { MOODS } from '../src/brain/types.ts';
 
 const page = readFileSync(join(import.meta.dirname, '../src/server/page.html'), 'utf8');
 const script = page.match(/<script>([\s\S]*?)<\/script>/)?.[1] ?? '';
 const helpers = script.match(/const ngrams=[\s\S]*?(?=function bindMapNode)/)?.[0] ?? '';
-type Pad = { v: number; a: number; d?: number; label?: string };
+type Pad = { v: number; a: number; d?: number; label?: string; mood?: string };
 type EmoOp = { t: number; op: { op: string; sessionId?: string; state?: Pad } };
 type Facet = { id: string; title: string; heading: string; body: string };
 type Box = [number, number, number, number];
@@ -182,6 +183,14 @@ test('情绪桶按 PAD 推断：效价定正负，唤醒定强弱', () => {
   assert.equal(emotionBucket({ v: -.5, a: .2 }), 'emo:pout');
   assert.equal(emotionBucket({ v: -.6, a: .9 }), 'emo:huff');
   assert.equal(emotionBucket(undefined), 'emo:calm');
+});
+
+test('情绪桶优先按 mood 分类，MOODS 枚举与页面桶表同名同步', () => {
+  // mood 优先于 PAD 推断（害羞 v>0 a 中低，旧逻辑会误判平静）
+  assert.equal(emotionBucket({ v: .5, a: .3, mood: '害羞' }), 'emo:shy');
+  assert.equal(emotionBucket({ v: -.6, a: .9, mood: '开心' }), 'emo:joy');
+  assert.equal(emotionBucket({ v: .5, a: .3, mood: '不存在的情绪' }), 'emo:calm');
+  for (const m of MOODS) assert.ok(script.includes(`name:'${m}'`), `页面缺少情绪桶「${m}」，该 mood 会静默回退 PAD 推断`);
 });
 
 test('记忆的形成时情绪：同会话、形成后 10 分钟内最近的一条', () => {
