@@ -864,3 +864,25 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 41: 画像管理二次走查
+<!-- trellis-session: v=2 fp=6cf6b27d2a332477 -->
+
+**Date**: 2026-11-03
+**Task**: 画像管理二次走查
+**Branch**: `main`
+
+### Summary
+
+第二轮走查发现两个隐患并修复：① distill.ts 全部 prompt 用链式 replace('%s',...) 填槽——persona/画像/名称等用户可写内容含字面 %s 时后续实参填错槽位，改 fillSlots 单趟 /g 替换（4 处 call site）并补槽位错位回归测试；② PATCH /api/profiles 的 name 缺类型校验，非字符串会污染 op log，补字符串校验+80 字封顶。其余复核点（from 边界、esc 兜底、double-click 幂等、op 重放、快照兼容）均无问题。121/121 测试+typecheck+build 全绿。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `e6155a5` | fix(brain): prompt 槽位单趟填充 + PATCH name 类型校验 |
+
+### Status
+
+[OK] **Completed**
