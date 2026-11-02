@@ -522,3 +522,25 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 25: 存量近重复记忆清理：merge op + 一次清扫
+<!-- trellis-session: v=2 fp=329b42a9a17dd7ad -->
+
+**Date**: 2026-11-02
+**Task**: 存量近重复记忆清理：merge op + 一次清扫
+**Branch**: `main`
+
+### Summary
+
+关联后端化上线后发现存量 59 对 cos≥0.9 近重复（写入判重只挡增量）。实现一次性清理：sweepNearDups 并查集聚类→mergeNotes 收编字段（强度 max+min×0.5、hits 求和、createdAt 取早、actor/emotion/sourceIds 补缺）→merge op 落流水可重放；入口 POST /api/dedup + 备份页按钮带 nearDup 计数。验证：90/90 测试、副本 dry-run 150→119 九簇三十一条明细抽查无损、线上实跑 nearDup 归零。坑：compact 物理遗忘按真实时间计龄，fake NOW 的测试数据会变老被清，无关记忆需强化保命。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `2792245` | feat(brain): sweep near-duplicate memories via merge op |
+
+### Status
+
+[OK] **Completed**
