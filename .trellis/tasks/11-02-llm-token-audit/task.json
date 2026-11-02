@@ -1,0 +1,33 @@
+{
+  "id": "llm-token-audit",
+  "name": "llm-token-audit",
+  "title": "LLM 调用与宿主侧输入 token 成本审查",
+  "description": "逐条盘清每次 LLM 调用（宿主聊天 + 插件蒸馏/画像审核/脉络/巩固/向量）的输入构成，定位 [Chat history] 重复进蒸馏与脉络、section 顺序切断 DeepSeek 前缀缓存、embedNotes 重复取向量、画像审核重启重审、max_tokens 截断丢轮等冗余，给出按收益排序的优化清单",
+  "status": "in-progress",
+  "dev_type": null,
+  "scope": null,
+  "package": "dsh-qqbot-brain",
+  "priority": "P2",
+  "creator": "devin",
+  "assignee": "sunhao",
+  "createdAt": "2026-11-02",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [
+    "dsh-qqbot-brain/src/capture/events.ts",
+    "dsh-qqbot-brain/src/inject/prompt.ts",
+    "dsh-qqbot-brain/src/brain/index.ts",
+    "dsh-qqbot-brain/src/brain/distill.ts",
+    "dsh-qqbot-brain/src/brain/store.ts",
+    "dsh-qqbot-brain/src/config.ts"
+  ],
+  "notes": "",
+  "meta": {}
+}

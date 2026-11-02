@@ -18,6 +18,10 @@ export interface LlmConfig {
   timeoutMs: number;
   /** 单次蒸馏最多产出记忆条数 */
   maxNotes: number;
+  /** 蒸馏攒批：累计该轮数才调一次蒸馏 LLM（1=每轮都蒸；>1 省输入但情绪更新变粗） */
+  distillEveryTurns: number;
+  /** 蒸馏/脉络/巩固内部 prompt 用的人设精简版；空=用全量人格内核 */
+  personaDigest: string;
 }
 
 export interface RetrievalConfig {
@@ -51,6 +55,8 @@ export interface DigestConfig {
   everyTurns: number;
   /** 摘要输入的最近轮数上限 */
   windowTurns: number;
+  /** 摘要输入单行截断字符数（user/assistant 各自上限；要主线不要全文） */
+  turnCharCap: number;
 }
 
 export interface HttpConfig {
@@ -136,6 +142,8 @@ export const DEFAULT_CONFIG: BrainPluginConfig = {
     model: 'deepseek-chat',
     timeoutMs: 30_000,
     maxNotes: 5,
+    distillEveryTurns: 1,
+    personaDigest: '',
   },
   embed: {
     enabled: true,
@@ -147,8 +155,8 @@ export const DEFAULT_CONFIG: BrainPluginConfig = {
   retrieval: { topK: 6, alpha: 1.0, beta: 0.5, gamma: 0.2, minCosine: 0.04, reinforceMinCos: 0.15, embedMinCos: 0.47, reinforceMinEmbedCos: 0.5 },
   /** 语义巩固：周期性把老情景记忆提炼为语义记忆/重写画像 */
   consolidation: { enabled: true, tickMinutes: 60, cooldownHours: 24, minAgeDays: 1, minNotes: 4 },
-  /** 会话滚动摘要：每 15 轮更新一次，输入最近 40 轮 */
-  digest: { enabled: true, everyTurns: 15, windowTurns: 40 },
+  /** 会话滚动摘要：每 15 轮更新一次，输入最近 40 轮（单行 300 字截断） */
+  digest: { enabled: true, everyTurns: 15, windowTurns: 40, turnCharCap: 300 },
   http: { enabled: true, port: 4099, host: '127.0.0.1', prefix: '/brain', token: '' },
   compactEvery: 200,
   debug: false,

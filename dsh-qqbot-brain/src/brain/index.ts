@@ -52,8 +52,6 @@ export class Brain {
   private readonly log?: (msg: string) => void;
   private turnBuffer = new Map<string, Turn[]>();
   private distilling = new Set<string>();
-  /** 已审核的画像文本；旧数据每次进程启动后首次涉及该人时重新检查。 */
-  private reviewedProfiles = new Map<string, string>();
   /** 滚动摘要输入：最近对话轮次缓存（每会话封顶 60 条） */
   private historyBuffer = new Map<string, Turn[]>();
   /** 每会话已捕获轮数（驱动 digest 触发；重启后从 digest.uptoTurn 续算） */
@@ -84,6 +82,11 @@ export class Brain {
 
   persona(): string {
     return this.store.persona() || this.defaultPersona;
+  }
+
+  /** 内部 LLM 调用（蒸馏/脉络/巩固）用的人设：配了精简版就用，否则全量内核 */
+  private personaForPrompts(): string {
+    return this.cfg.personaDigest.trim() || this.persona();
   }
 
   /** 整体替换人格内核（导入路径；写入需经此入口而非直接改文件） */
@@ -132,7 +135,7 @@ export class Brain {
     const now = this.now();
     const sp = typeof speaker === 'string' ? { nick: speaker } : speaker;
     const scored = this.retriever.query(
-      this.store.allNotes(), sessionId, queryText, now, this.store.version, queryVec,
+      this.store.allNotes(), sessionId, queryText, now, this.store.graphVersion, queryVec,
     );
     for (const s of scored) {
       const th = s.relSrc === 'emb' ? this.cfg.reinforceMinEmbedCos : this.cfg.reinforceMinCos;
@@ -171,7 +174,7 @@ export class Brain {
       });
       if (xpool.length) {
         const xhits = this.retriever.query(
-          xpool, undefined, queryText || sp.nick || '', now, this.store.version, queryVec,
+          xpool, undefined, queryText || sp.nick || '', now, this.store.graphVersion, queryVec,
           { pool: xpool, indexKey: `__x__${sessionId}` },
         );
         for (const s of xhits.slice(0, 2)) {
@@ -226,6 +229,10 @@ export class Brain {
   async endOfTurn(sessionId: string): Promise<void> {
     const turns = this.turnBuffer.get(sessionId);
     if (!turns?.length || this.distilling.has(sessionId)) return;
+    // 攒批：未达 distillEveryTurns 继续攒（30 轮兜底防积压）——
+    // 每轮一次蒸馏改 N 轮一次，输入按轮摊薄；情绪更新粒度同步变粗（配置即权衡）
+    const need = Math.max(1, this.cfg.distillEveryTurns);
+    if (turns.length < need && turns.length < 30) return;
     this.turnBuffer.set(sessionId, []);
     this.distilling.add(sessionId);
     try {
@@ -233,11 +240,11 @@ export class Brain {
       // 判重：附上当前 top-相关已有记忆，蒸馏结果可用 merge 指回更新而非重复新增
       const queryText = turns.map((t) => t.userText).join(' ');
       const existing = this.retriever
-        .query(this.store.allNotes(), sessionId, queryText, now, this.store.version)
+        .query(this.store.allNotes(), sessionId, queryText, now, this.store.graphVersion)
         .slice(0, 8)
         .map((s) => s.note);
       const result = await this.distiller.distill(
-        turns, this.persona(), existing, this.emotion.get(sessionId, now),
+        turns, this.personaForPrompts(), existing, this.emotion.get(sessionId, now),
         this.existingProfiles(sessionId, turns.map((t) => t.actor)),
         { now, timeZone: this.cfg.timeZone },
       );
@@ -258,7 +265,9 @@ export class Brain {
       const stamp = this.emotionStamp(sessionId, now);
       // 强情绪下形成的记忆更难忘：|v|·a 加权初始强度（最高 ×1.5）
       const boost = this.emotionBoost(stamp);
-      const touched: MemoryNote[] = [];
+      // 待取向量集合：merge 目标（content 被改写需重算）+ 批量取向量失败的新记忆。
+      // 已有有效向量的（dup 命中 / 刚 setEmbedding 的新记忆）不再重复 embed。
+      const forEmbed: MemoryNote[] = [];
       // 新增草稿先取向量做写入判重：cos≥dedupeEmbedCos 视为同一事实，强化旧记忆而非再写一条
       const freshVecs = this.embedder?.enabled
         ? await this.embedder.embed(
@@ -270,7 +279,7 @@ export class Brain {
         if (target) {
           this.store.updateNote(target.id, { content: m.content, importance: m.importance, kind: m.kind });
           this.store.reinforceById(target.id, this.cfg.reinforceStep, this.cfg.strengthCap, now);
-          touched.push(target);
+          forEmbed.push(target);
           continue;
         }
         const vec = freshVecs?.[fi++] ?? null;
@@ -278,12 +287,11 @@ export class Brain {
         if (dup) {
           this.store.reinforce(dup.note, this.cfg.reinforceStep, this.cfg.strengthCap, now);
           this.log?.(`判重合并：与「${dup.note.content.slice(0, 20)}」余弦 ${dup.cos.toFixed(2)}，强化旧记忆`);
-          touched.push(dup.note);
           continue;
         }
         const n = this.store.addNote(sessionId, { ...m, emotion: stamp, strengthBoost: boost }, now);
         if (vec) this.store.setEmbedding(n.id, vec);
-        touched.push(n);
+        else forEmbed.push(n);
       }
       // 意图级遗忘：编号指回附带列表 / 子串精确匹配（限本会话，防误删）
       for (const f of result.forget ?? []) {
@@ -298,7 +306,7 @@ export class Brain {
       }
       await this.reviewAndWriteProfiles(sessionId, result, turns.map((t) => t.actor));
       // 新/改记忆补语义向量（失败静默，检索回退 lexical）
-      await this.embedNotes(touched);
+      await this.embedNotes(forEmbed);
       // 滚动摘要：累计轮数到阈值则更新「会话脉络」
       await this.maybeDigest(sessionId);
     } finally {
@@ -328,8 +336,8 @@ export class Brain {
     try {
       const recent = buf.slice(-this.cfg.digestWindowTurns);
       const text = await this.distiller.digest(
-        recent, this.store.digestOf(sessionId)?.text ?? '', this.persona(),
-        { now: this.now(), timeZone: this.cfg.timeZone },
+        recent, this.store.digestOf(sessionId)?.text ?? '', this.personaForPrompts(),
+        { now: this.now(), timeZone: this.cfg.timeZone }, this.cfg.digestTurnCharCap,
       );
       if (text) {
         this.store.setDigest(sessionId, text, count);
@@ -406,9 +414,19 @@ export class Brain {
         this.log?.(`画像身份校正：${p.actor ?? ''} → ${t.key.slice(0, 10)}…（LLM 输出的 openid 与真实发言人不符）`);
       seed(t.key, p.actor, '', p.text);
     }
+    // 已审画像在新会话首次出现：直接补会话归属（纯簿记，不值得为此走审核 LLM）
+    for (const [key, item] of byKey) {
+      if (!isUserKey(key) || !item.previous || this.store.reviewedOf(key) !== item.previous) continue;
+      const p = this.store.people().find((x) => x.key === key);
+      if (p && !p.sessions.includes(sessionId)) {
+        this.store.setProfileEntry(key, item.previous, { sessionId, name: p.name || '', reviewed: item.previous });
+      }
+    }
+    // 「需重审」= 有新候选改写，或当前内容与上次审核产出不一致（含从未审过的旧数据）。
+    // reviewed 存 ProfileEntry 持久化，重启后不再每会话重审一遍存量画像。
     const pending = [...byKey.entries()].filter(([key, item]) =>
       item.candidate !== item.previous
-      || this.reviewedProfiles.get(`${sessionId}:${key}`) !== item.previous);
+      || this.store.reviewedOf(key) !== item.previous);
     if (!pending.length) return;
     const reviewed = await this.distiller.reviewProfiles(pending.map(([, item]) => item));
     if (!reviewed) {
@@ -421,16 +439,16 @@ export class Brain {
       const isUser = isUserKey(key);
       const needsSessionLink = isUser && !!text
         && !(people.find((p) => p.key === key)?.sessions ?? []).includes(sessionId);
-      if (text !== item.previous || needsSessionLink) {
+      // 文本未变但缺审核章时也要落一笔（reviewed=text 盖章），否则下轮又进 pending
+      if (text !== item.previous || needsSessionLink || this.store.reviewedOf(key) !== text) {
         if (isUser) {
           const name = (item.actor && splitActor(item.actor).nick)
             || people.find((p) => p.key === key)?.name || '';
-          this.store.setProfileEntry(key, text, { sessionId, name });
+          this.store.setProfileEntry(key, text, { sessionId, name, reviewed: text });
         } else {
-          this.store.setProfile(sessionId, text);
+          this.store.setProfileEntry(key, text, { sessionId, reviewed: text });
         }
       }
-      this.reviewedProfiles.set(`${sessionId}:${key}`, text);
     }
   }
 
@@ -451,7 +469,7 @@ export class Brain {
     const text = reviewed?.[0]?.trim();
     if (!text) return false;
     const sessions = [...new Set([...keep.sessions, ...drop.sessions])];
-    this.store.setProfileEntry(keepKey, text, { sessionId: sessions[0] ?? '', name: keep.name || drop.name, sessions });
+    this.store.setProfileEntry(keepKey, text, { sessionId: sessions[0] ?? '', name: keep.name || drop.name, sessions, reviewed: text });
     this.store.setProfileEntry(dropKey, '', { sessionId: sessions[0] ?? '' });
     return true;
   }
@@ -475,7 +493,7 @@ export class Brain {
     const profileText = this.existingProfiles(sessionId, eps.map((n) => n.actor))
       .map((p) => `${p.actor ?? '会话整体'}：${p.text}`)
       .join('\n');
-    const result = await this.distiller.consolidate(eps, profileText, this.persona(), { now, timeZone: this.cfg.timeZone });
+    const result = await this.distiller.consolidate(eps, profileText, this.personaForPrompts(), { now, timeZone: this.cfg.timeZone });
     const stamp = this.emotionStamp(sessionId, now);
     const sourceIds = eps.map((e) => e.id);
     const boost = this.emotionBoost(stamp);
@@ -768,7 +786,7 @@ export class Brain {
   async preview(sessionId: string | undefined, query: string): Promise<MemoryNote[]> {
     const qv = (await this.queryEmbedding(query)) ?? undefined;
     return this.retriever
-      .query(this.store.allNotes(), sessionId, query, this.now(), this.store.version, qv)
+      .query(this.store.allNotes(), sessionId, query, this.now(), this.store.graphVersion, qv)
       .map((s) => s.note);
   }
 

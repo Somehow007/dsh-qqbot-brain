@@ -102,6 +102,11 @@ export interface ProfileEntry {
   sessions: string[];
   /** 最近一次重写时刻 ms epoch */
   updatedAt: number;
+  /**
+   * 最近一次画像审核产出的文本（与 text 相同=当前内容已过审）。
+   * 持久化替代进程内 reviewedProfiles map——重启后不再每会话重审一遍存量画像。
+   */
+  reviewed?: string;
 }
 
 /** 蒸馏产出的单条画像（入库前；actor 缺失=会话整体画像） */
@@ -129,6 +134,12 @@ export interface Turn {
   assistantText: string;
   actor?: string;
   at: number;
+  /**
+   * 群聊环境上下文（[Chat history] 末段，界内截断保留标记）。
+   * 只进 distill convo 做背景；digest/检索 query/embedding 不读——
+   * 否则同一批环境消息在 40 轮窗口里被重复计费近 10 次。
+   */
+  contextText?: string;
 }
 
 /** 会话滚动摘要（digest）：transcript 与 note 之间的中间层 */
@@ -195,6 +206,12 @@ export interface BrainConfig {
   consolidateMinAgeDays: number;
   /** 语义巩固：会话内情景记忆达到该数量才触发 */
   consolidateMinNotes: number;
+  /** 蒸馏攒批：累计该轮数才调一次蒸馏 LLM（1=每轮都蒸；>1 情绪更新粒度同步变粗） */
+  distillEveryTurns: number;
+  /** 蒸馏/脉络/巩固内部 prompt 用的人设精简版；空=用全量人格内核 */
+  personaDigest: string;
+  /** digest convo 单行截断字符数（user/assistant 各自上限） */
+  digestTurnCharCap: number;
   /** 写入判重：新记忆与既有记忆向量余弦 ≥ 该值时强化旧记忆而非新增（0=关闭） */
   dedupeEmbedCos: number;
   /** 物理遗忘：快照时删除 hits=0 且低于遗忘阈值 且 age>=该天数 的记忆（0=不物理删除） */
@@ -221,6 +238,9 @@ export const DEFAULT_BRAIN_CONFIG: BrainConfig = {
   digestWindowTurns: 40,
   consolidateMinAgeDays: 1,
   consolidateMinNotes: 4,
+  distillEveryTurns: 1,
+  personaDigest: '',
+  digestTurnCharCap: 300,
   dedupeEmbedCos: 0.9,
   evictAfterDays: 30,
   timeZone: DEFAULT_TIME_ZONE,

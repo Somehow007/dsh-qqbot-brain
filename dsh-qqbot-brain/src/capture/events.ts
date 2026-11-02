@@ -45,20 +45,41 @@ function textOf(message: unknown): string {
 
 const CURRENT_MSG_MARK = '[Current message]';
 const SENDER_TAG_RE = /^\s*\[([^\[\]\n]{1,64}) \(([0-9A-Fa-f-]{8,64})\)\]\s*/;
+const QUOTED_RE = /\[Quoted message begins\]([\s\S]*?)\[Quoted message ends\]/g;
+/** 群聊环境上下文进 Turn 的上限：界内取末段（最近的消息对当前轮最有语境价值） */
+const HISTORY_CTX_CAP = 500;
 
 /**
- * 解析宿主打在群聊消息上的发送者标签 `[昵称 (openid)]`。
- * 群聊整包为 `[Chat history]…[Current message]\n[tag] 正文`（或引用块后直接 tag），
+ * 解析宿主打在群聊消息上的发送者标签 `[昵称 (openid)]`，并把消息拆成三路：
+ * - text：当前正文（剥离 tag；引用块提出并入正文，保住「回复的是什么」）
+ * - history：[Chat history] 环境消息末段（≤500 字，保留起止标记）——
+ *   只进 Turn.contextText 供蒸馏读背景；检索 query / digest / embedding 不读它，
+ *   否则同一批环境消息在 digest 40 轮窗口里被重复计费近 10 次。
  * 取最后一个 [Current message] 锚点后的首个 tag；无锚点时只认行首 tag（防误吃历史行）。
- * 返回剥离 tag 后的正文与 actor（`昵称 (openid)`），单聊无 tag 时 actor 为空。
+ * 单聊无 tag 时 actor 为空且原文整体当正文。
  */
-export function parseSenderTag(raw: string): { actor?: string; text: string } {
+export function parseSenderTag(raw: string): { actor?: string; text: string; history?: string } {
   const idx = raw.lastIndexOf(CURRENT_MSG_MARK);
-  const head = idx >= 0 ? raw.slice(0, idx + CURRENT_MSG_MARK.length) : '';
+  const headRaw = idx >= 0 ? raw.slice(0, idx) : '';
   const tail = idx >= 0 ? raw.slice(idx + CURRENT_MSG_MARK.length) : raw;
   const m = tail.match(SENDER_TAG_RE);
   if (!m) return { text: raw };
-  return { actor: `${m[1]} (${m[2]})`, text: head + tail.slice(m[0].length) };
+  const quotes: string[] = [];
+  const head = headRaw.replace(QUOTED_RE, (_q, inner: string) => {
+    if (inner.trim()) quotes.push(inner.trim());
+    return '\n';
+  });
+  const inner = head.replace(/\[Chat history begins\]|\[Chat history ends\]/g, '').trim();
+  let tailInner = inner;
+  if (inner.length > HISTORY_CTX_CAP) {
+    const cut = inner.slice(inner.length - HISTORY_CTX_CAP);
+    const nl = cut.indexOf('\n');
+    tailInner = nl < 0 ? cut : cut.slice(nl + 1);
+  }
+  const history = tailInner ? `[Chat history begins]\n${tailInner}\n[Chat history ends]` : undefined;
+  const body = tail.slice(m[0].length);
+  const text = (quotes.length ? `[引用]${quotes.join('；')}\n` : '') + body;
+  return { actor: `${m[1]} (${m[2]})`, text, history };
 }
 
 function sessionIdOf(session: SessionLike | undefined, e: RawEvent): string | undefined {
@@ -75,7 +96,7 @@ function sessionIdOf(session: SessionLike | undefined, e: RawEvent): string | un
 
 export class SessionCapture {
   /** 待配对的用户消息队列：turn/end 前排空拼入一轮，避免连发/群聊插话覆盖丢失 */
-  private pendingUser = new Map<string, { text: string; actor?: string; at: number }[]>();
+  private pendingUser = new Map<string, { text: string; actor?: string; history?: string; at: number }[]>();
   private replyBuf = new Map<string, string[]>();
 
   private brain: Brain;
@@ -116,10 +137,10 @@ export class SessionCapture {
       case 'user/message': {
         const raw = textOf(ev.data?.message ?? ev.data);
         if (!raw.trim()) return;
-        const { actor, text: stripped } = parseSenderTag(raw);
+        const { actor, text: stripped, history } = parseSenderTag(raw);
         const text = stripped.trim() ? stripped : raw;
         const q = this.pendingUser.get(sessionId) ?? [];
-        q.push({ text, actor, at: Date.now() });
+        q.push({ text, actor, history, at: Date.now() });
         if (q.length > 8) q.splice(0, q.length - 8);
         this.pendingUser.set(sessionId, q);
         this.injector.noteUserText(sessionId, text, actor);
@@ -144,11 +165,14 @@ export class SessionCapture {
         const userText = pending.length > 1
           ? pending.map((p) => `[${formatShort(p.at, this.timeZone)}] ${p.text}`).join('\n')
           : pending[0]!.text;
+        // 环境上下文取最后一条带 history 的消息（其块本身已含最近 10 条，最完整）
+        const contextText = [...pending].reverse().find((p) => p.history)?.history;
         this.brain.ingest(sessionId, {
           userText,
           assistantText: replies.join('\n'),
           actor: pending[pending.length - 1]!.actor,
           at: pending[0]!.at,
+          contextText,
         });
         void this.brain.endOfTurn(sessionId).catch((e: unknown) => {
           this.log(`brain: 蒸馏失败 ${String(e)}`);

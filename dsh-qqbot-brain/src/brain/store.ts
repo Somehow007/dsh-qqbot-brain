@@ -20,7 +20,7 @@ type Op =
       actor?: string; emotion?: NoteEmotion; sourceIds?: string[];
     } }
   | { op: 'emotion'; sessionId: string; state: EmotionState }
-  | { op: 'profile'; sessionId: string; text: string; key?: string; name?: string; at?: number; sessions?: string[] }
+  | { op: 'profile'; sessionId: string; text: string; key?: string; name?: string; at?: number; sessions?: string[]; reviewed?: string }
   | { op: 'digest'; sessionId: string; text: string; uptoTurn?: number }
   | { op: 'persona'; text: string }
   | { op: 'persona-save'; persona: PersonaEntry }
@@ -205,6 +205,7 @@ export class BrainStore {
             name: e.name ?? '',
             sessions: e.sessions ?? (key.startsWith('sess:') ? [key.slice(5)] : []),
             updatedAt: e.updatedAt ?? 0,
+            reviewed: e.reviewed,
           });
         }
         this.personaText = snap.persona ?? '';
@@ -284,6 +285,7 @@ export class BrainStore {
           sessions: [...new Set([...(prev?.sessions ?? []), op.sessionId, ...(op.sessions ?? [])])]
             .filter(Boolean),
           updatedAt: op.at ?? Date.now(),
+          reviewed: op.reviewed ?? prev?.reviewed,
         });
         break;
       }
@@ -432,6 +434,8 @@ export class BrainStore {
     if (!vector.length) return;
     this.apply({ op: 'embed', id, vector });
     this.version++;
+    // 向量进边集计算，与 persist 的 embed 分支同一口径
+    this.graphVersion++;
   }
 
   // ── 会话滚动摘要 ──
@@ -544,7 +548,7 @@ export class BrainStore {
   }
 
   /** 按身份键写画像：u:<openid> 或 sess:<id>；name/sessionId/sessions 用于展示与归属追踪 */
-  setProfileEntry(key: string, text: string, meta?: { sessionId?: string; name?: string; sessions?: string[] }): void {
+  setProfileEntry(key: string, text: string, meta?: { sessionId?: string; name?: string; sessions?: string[]; reviewed?: string }): void {
     this.persist({
       op: 'profile',
       sessionId: meta?.sessionId ?? key,
@@ -552,8 +556,14 @@ export class BrainStore {
       name: meta?.name,
       sessions: meta?.sessions,
       text,
+      reviewed: meta?.reviewed,
       at: Date.now(),
     });
+  }
+
+  /** 该画像键上次审核产出的文本；与当前 text 相同即「已审」，缺省/不一致=需重审 */
+  reviewedOf(key: string): string {
+    return this.profiles.get(normalizeProfileKey(key))?.reviewed ?? '';
   }
 
   /**
@@ -691,6 +701,7 @@ export class BrainStore {
           key,
           name: meta?.name,
           text,
+          reviewed: meta?.reviewed,
         });
         res.profiles++;
       }

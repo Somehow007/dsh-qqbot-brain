@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Brain } from '../src/brain/index.ts';
 import { BrainStore } from '../src/brain/store.ts';
-import { Distiller, buildDistillPrompt, buildConsolidatePrompt, buildProfileReviewPrompt, parseDistillOutput } from '../src/brain/distill.ts';
+import { Distiller, buildDistillPrompt, buildConsolidatePrompt, buildDigestPrompt, buildProfileReviewPrompt, parseDistillOutput } from '../src/brain/distill.ts';
 import { ageLabel, formatClock, formatShort, formatStamp } from '../src/brain/time.ts';
 import { SessionCapture, parseSenderTag } from '../src/capture/events.ts';
 import type { PromptInjector } from '../src/inject/prompt.ts';
@@ -483,9 +483,24 @@ test('parseSenderTag: 带 [Chat history]+[Current message] 锚点取最后的发
   ].join('\n');
   const r = parseSenderTag(raw);
   assert.equal(r.actor, '张三 (ABCDEF1234567890)');
-  assert.match(r.text, /Chat history begins/);
-  assert.match(r.text, /收到 \(@you\)/);
+  // 正文只留当前消息；环境消息拆进 history 供蒸馏读背景，不再重复进 query/digest
+  assert.equal(r.text, '收到 (@you)');
+  assert.match(r.history!, /Chat history begins/);
+  assert.match(r.history!, /早点睡/);
+  assert.match(r.history!, /Chat history ends/);
   assert.ok(!r.text.includes('张三 (ABCDEF1234567890)]'));
+});
+
+test('parseSenderTag: history 超界取末段且按行裁切', () => {
+  const lines = ['[Chat history begins]'];
+  for (let i = 0; i < 30; i++) lines.push(`[人${i} (1111111AAAAA)] 第${i}条消息内容占位占位占位占位占位`);
+  lines.push('[Chat history ends]', '[Current message]', '[张三 (ABCDEF1234567890)] 嗯');
+  const r = parseSenderTag(lines.join('\n'));
+  assert.equal(r.text, '嗯');
+  assert.ok(r.history!.length <= 600);
+  assert.match(r.history!, /^\[Chat history begins\]/);
+  assert.ok(!r.history!.includes('第0条'));
+  assert.match(r.history!, /第29条/);
 });
 
 test('parseSenderTag: 昵称含括号也能取到最后 (id) 组', () => {
@@ -494,13 +509,17 @@ test('parseSenderTag: 昵称含括号也能取到最后 (id) 组', () => {
   assert.equal(r.text, '在吗');
 });
 
-test('parseSenderTag: 单聊裸文本 / 引用块无标签 → 无 actor 且原文不动', () => {
+test('parseSenderTag: 单聊裸文本 / 引用块提出并入正文', () => {
   const plain = parseSenderTag('今晚吃鱼');
   assert.equal(plain.actor, undefined);
   assert.equal(plain.text, '今晚吃鱼');
-  const quoted = parseSenderTag('[Quoted message begins]\nx\n[Quoted message ends]\n[Current message]\n裸文本');
-  assert.equal(quoted.actor, undefined);
-  assert.equal(quoted.text.includes('裸文本'), true);
+  // 无 tag 时原文整体当正文（单聊）
+  const noTag = parseSenderTag('[Current message]\n裸文本无标签');
+  assert.equal(noTag.actor, undefined);
+  const quoted = parseSenderTag('[Quoted message begins]\nx\n[Quoted message ends]\n[Current message]\n[李四 (ABCDEF1234567891)] 裸文本');
+  assert.equal(quoted.actor, '李四 (ABCDEF1234567891)');
+  assert.match(quoted.text, /^\[引用\]x\n裸文本/);
+  assert.equal(quoted.history, undefined);
 });
 
 test('capture: 群聊事件把 actor 接进 Turn，检索 query 用剥标签正文', async () => {
@@ -1308,4 +1327,151 @@ test('reviewProfiles: 索引重复或条数缺失时整体失败，不落部分�
   assert.equal(await distiller.reviewProfiles([
     { previous: '', candidate: 'a' }, { previous: '', candidate: 'b' },
   ]), undefined);
+});
+
+// ── token 成本优化（11-02-llm-token-audit）──
+
+test('capture: 群聊 history 块拆进 Turn.contextText，userText 只留当前正文', async () => {
+  const ingested: Array<{ userText: string; contextText?: string }> = [];
+  const brain = {
+    ingest: (_s: string, t: { userText: string; contextText?: string }) => { ingested.push(t); },
+    endOfTurn: async () => {},
+  };
+  const injector = { noteAgentSession: () => {}, noteUserText: () => {} } as unknown as PromptInjector;
+  let handler: (session: unknown, ev: unknown) => void = () => {};
+  const ctx = { on: (_e: string, h: typeof handler) => { handler = h; } };
+  const cap = new SessionCapture(brain as unknown as Brain, injector, () => {}, false);
+  cap.register(ctx);
+  const s = { id: 'g1' };
+  const raw = [
+    '[Chat history begins]', '[李四 (11111111AAAA)] 早点睡', '[Chat history ends]',
+    '[Current message]', '[张三 (ABCDEF1234567890)] 收到',
+  ].join('\n');
+  handler(s, { type: 'user/message', data: { message: raw } });
+  handler(s, { type: 'assistant/message', data: { message: '咕嘟' } });
+  handler(s, { type: 'turn/end', data: {} });
+  assert.equal(ingested.length, 1);
+  assert.equal(ingested[0]!.userText, '收到');
+  assert.match(ingested[0]!.contextText!, /早点睡/);
+});
+
+test('buildDistillPrompt: contextText 作为背景块进 convo 之前', () => {
+  const p = buildDistillPrompt(
+    [{
+      userText: '收到', assistantText: '咕嘟', actor: '张三 (ABCDEF1234567890)', at: NOW,
+      contextText: '[Chat history begins]\n[李四 (111)] 早点睡\n[Chat history ends]',
+    }],
+    '大肥鱼', 5,
+  );
+  const ctxIdx = p.indexOf('早点睡');
+  const convoIdx = p.indexOf('收到');
+  assert.ok(ctxIdx > 0 && ctxIdx < convoIdx, '环境上下文应在正文之前且只出现一次');
+  assert.equal(p.indexOf('早点睡'), p.lastIndexOf('早点睡'));
+});
+
+test('buildDigestPrompt: 单行截断且不含 contextText', () => {
+  const long = '长'.repeat(500);
+  const p = buildDigestPrompt(
+    [{ userText: long, assistantText: long, at: NOW, contextText: '环境消息不应进摘要' }],
+    '旧摘要', '大肥鱼', { now: NOW, timeZone: 'Asia/Shanghai' }, 300,
+  );
+  assert.ok(p.includes('…'), '超长行应被截断');
+  assert.ok(!p.includes('环境消息不应进摘要'), 'contextText 不进 digest');
+  assert.ok(!p.includes(long), '全文不应原样进入');
+});
+
+test('endOfTurn: distillEveryTurns 攒批，未达阈值不调用', async () => {
+  const { store } = tmpStore();
+  let calls = 0;
+  let turnLines = 0;
+  const distiller = new Distiller(
+    { enabled: true, baseUrl: 'https://x.test', apiKey: 'k', model: 'm', timeoutMs: 1000, maxNotes: 5 },
+    async (_url, init) => {
+      const prompt = (JSON.parse(init.body) as { messages: { content: string }[] }).messages[0]!.content;
+      if (prompt.includes('记忆提炼模块')) {
+        calls++;
+        turnLines = (prompt.match(/\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}\]/g) ?? []).length;
+      }
+      return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content: '{"memories":[]}' } }] }) };
+    },
+  );
+  const brain = new Brain({ store, distiller, now, config: { distillEveryTurns: 2 } });
+  brain.ingest('s1', { userText: '第一轮', assistantText: '咕嘟', at: NOW });
+  await brain.endOfTurn('s1');
+  assert.equal(calls, 0, '未达 2 轮不应蒸馏');
+  brain.ingest('s1', { userText: '第二轮', assistantText: '咕嘟', at: NOW });
+  await brain.endOfTurn('s1');
+  assert.equal(calls, 1, '攒满 2 轮应一次蒸馏');
+  assert.equal(turnLines, 2, '一次调用覆盖两轮');
+});
+
+test('画像审核章持久化：重启后存量画像不再重审', async () => {
+  const { dir, store } = tmpStore();
+  const mkDistiller = (counter: { review: number }) => new Distiller(
+    { enabled: true, baseUrl: 'https://x.test', apiKey: 'k', model: 'm', timeoutMs: 1000, maxNotes: 5 },
+    async (_url, init) => {
+      const prompt = (JSON.parse(init.body) as { messages: { content: string }[] }).messages[0]!.content;
+      if (prompt.includes('长期人物画像的编辑')) {
+        counter.review++;
+        const raw = prompt.slice(prompt.indexOf('待整理画像') + '待整理画像（actor 仅用于区分人物，不得修改身份）：'.length).trim();
+        const items = JSON.parse(raw) as { index: number; candidate: string }[];
+        return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content: JSON.stringify({ profiles: items.map((i) => ({ index: i.index, text: i.candidate })) }) } }] }) };
+      }
+      return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content: '{"memories":[],"profiles":[{"text":"会话画像v1"}]}' } }] }) };
+    },
+  );
+  const c1 = { review: 0 };
+  const brain1 = new Brain({ store, distiller: mkDistiller(c1), now });
+  brain1.ingest('s1', { userText: '你好', assistantText: '咕嘟', at: NOW });
+  await brain1.endOfTurn('s1');
+  assert.equal(c1.review, 1, '首次画像应审核');
+  assert.equal(store.reviewedOf('sess:s1'), '会话画像v1', '审核章应已落盘');
+  store.flush();
+  // 模拟重启：重载 store + 新 Brain，同一画像内容不再触发审核调用
+  const store2 = new BrainStore(dir);
+  const c2 = { review: 0 };
+  const brain2 = new Brain({ store: store2, distiller: mkDistiller(c2), now });
+  brain2.ingest('s1', { userText: '又来', assistantText: '咕嘟', at: NOW });
+  await brain2.endOfTurn('s1');
+  assert.equal(c2.review, 0, '已审画像重启后不应重审');
+  rmSync(dir, { recursive: true });
+});
+
+test('endOfTurn 向量：merge 目标重取向量，dup 命中不重复取向量', async () => {
+  const { store } = tmpStore();
+  const old = store.addNote('s1', { content: '用户喜欢猫', importance: 3 }, NOW);
+  store.setEmbedding(old.id, [1, 0, 0]);
+  const embedCalls: string[][] = [];
+  const fake = {
+    enabled: true,
+    embed: async (texts: string[]) => { embedCalls.push(texts); return texts.map(() => [0.99, 0.05, 0]); },
+    embedOne: async () => null,
+  };
+  const brain = new Brain({
+    store,
+    distiller: mockDistiller({ memories: [{ content: '用户其实很喜欢猫咪', importance: 3 }] }),
+    embedder: fake as never,
+    now,
+  });
+  brain.ingest('s1', { userText: '猫', assistantText: '咕嘟', at: NOW });
+  await brain.endOfTurn('s1');
+  assert.equal(store.allNotes().length, 1, '近重复应合并而非新增');
+  // freshVecs 一次（新草稿判重）；dup 命中后不再对其重取向量
+  assert.deepEqual(embedCalls.flat(), ['用户其实很喜欢猫咪']);
+  // merge 路径：目标 content 被改写，需要重取向量
+  const embedCalls2: string[][] = [];
+  const fake2 = {
+    enabled: true,
+    embed: async (texts: string[]) => { embedCalls2.push(texts); return texts.map(() => [0.9, 0.1, 0]); },
+    embedOne: async () => null,
+  };
+  const brain2 = new Brain({
+    store,
+    distiller: mockDistiller({ memories: [{ content: '用户非常喜欢猫咪', importance: 4, merge: 0 }] }),
+    embedder: fake2 as never,
+    now,
+  });
+  brain2.ingest('s1', { userText: '猫', assistantText: '咕嘟', at: NOW });
+  await brain2.endOfTurn('s1');
+  assert.ok(embedCalls2.flat().includes('用户非常喜欢猫咪'), 'merge 改写的目标应重取向量');
 });

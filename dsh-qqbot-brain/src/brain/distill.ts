@@ -126,18 +126,28 @@ export function buildProfileReviewPrompt(items: ProfileReviewItem[]): string {
   }))));
 }
 
+/**
+ * convo 单行文本截断（user/assistant 各自上限）：防病态长输入；
+ * 蒸馏取 800（保事实完整），digest 用 cfg.digestTurnCharCap（要主线不要全文）。
+ */
+const DISTILL_TURN_CAP = 800;
+const capText = (s: string, n: number) => (s.length > n ? `${s.slice(0, n)}…` : s);
+
 export function buildDistillPrompt(
   turns: Turn[], persona: string, maxNotes: number,
   existing?: MemoryNote[], currentEmotion?: EmotionState,
   existingProfiles?: { actor?: string; text: string }[],
   ctx: TimeCtx = defaultTimeCtx(),
 ): string {
+  // 环境上下文（[Chat history] 末段）取最后一个带 contextText 的轮次：
+  // 其块内已含最近环境消息，单块足够；逐轮拼只会重复计费。
+  const ctxBlock = [...turns].reverse().find((t) => t.contextText)?.contextText;
   const convo = turns
-    .map((t) => `[${formatStamp(t.at, ctx.timeZone)}] ${t.actor ?? '用户'}：${t.userText}\n角色：${t.assistantText}`)
+    .map((t) => `[${formatStamp(t.at, ctx.timeZone)}] ${t.actor ?? '用户'}：${capText(t.userText, DISTILL_TURN_CAP)}\n角色：${capText(t.assistantText, DISTILL_TURN_CAP)}`)
     .join('\n');
   let prompt = PROMPT.replace('%d', String(maxNotes))
     .replace('%s', persona || '（未设定）')
-    .replace('%s', convo);
+    .replace('%s', ctxBlock ? `${ctxBlock}\n\n${convo}` : convo);
   if (existingProfiles?.length) {
     prompt += `\n\n现有画像：\n${existingProfiles
       .map((p) => `- ${p.actor ?? '本会话'}：${p.text}`)
@@ -164,9 +174,14 @@ export function buildConsolidatePrompt(notes: MemoryNote[], profile: string, per
     .replace('%s', list);
 }
 
-export function buildDigestPrompt(turns: Turn[], priorDigest: string, persona: string, ctx: TimeCtx = defaultTimeCtx()): string {
+export function buildDigestPrompt(
+  turns: Turn[], priorDigest: string, persona: string,
+  ctx: TimeCtx = defaultTimeCtx(), turnCharCap = 300,
+): string {
+  // digest 只要主线脉络：正文按行截断，contextText（环境消息块）整段不读——
+  // 它的内容在相邻轮里近乎逐字重复，进窗口等于把同一批消息再付一遍。
   const convo = turns
-    .map((t) => `[${formatStamp(t.at, ctx.timeZone)}] ${t.actor ?? '用户'}：${t.userText}\n角色：${t.assistantText}`)
+    .map((t) => `[${formatStamp(t.at, ctx.timeZone)}] ${t.actor ?? '用户'}：${capText(t.userText, turnCharCap)}\n角色：${capText(t.assistantText, turnCharCap)}`)
     .join('\n');
   return DIGEST_PROMPT.replace('%s', persona || '（未设定）')
     .replace('%s', priorDigest || '（暂无）')
@@ -290,7 +305,7 @@ export class Distiller {
   }
 
   /** 会话滚动摘要：返回纯文本摘要（失败/未启用返回空串） */
-  async digest(turns: Turn[], priorDigest: string, persona: string, ctx?: TimeCtx): Promise<string> {
+  async digest(turns: Turn[], priorDigest: string, persona: string, ctx?: TimeCtx, turnCharCap = 300): Promise<string> {
     if (!this.enabled || turns.length === 0) return '';
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), this.cfg.timeoutMs);
@@ -305,7 +320,7 @@ export class Distiller {
           model: this.cfg.model,
           temperature: 0,
           max_tokens: 500,
-          messages: [{ role: 'user', content: buildDigestPrompt(turns, priorDigest, persona, ctx) }],
+          messages: [{ role: 'user', content: buildDigestPrompt(turns, priorDigest, persona, ctx, turnCharCap) }],
         }),
         signal: ctrl.signal,
       });
@@ -332,7 +347,8 @@ export class Distiller {
         body: JSON.stringify({
           model: this.cfg.model,
           temperature: 0,
-          max_tokens: 700,
+          // 群聊多画像+记忆 JSON 会超 700：截断→parse 失败→整轮白调
+          max_tokens: 2048,
           messages: [{ role: 'user', content: prompt }],
         }),
         signal: ctrl.signal,

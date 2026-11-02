@@ -3,15 +3,19 @@ import { splitActor } from '../brain/identity.ts';
 import type { BrainPluginConfig } from '../config.ts';
 
 /**
- * 通过 system-prompt/assemble waterfall 注入七块 section：
- *   brain:persona (order 80) 人格内核 · 最稳定锚点
- *   brain:digest  (order 81) 会话脉络 · 滚动摘要
- *   brain:emotion (order 82) 情绪态一行
- *   brain:attitude(order 83) 态度立场（对人/事/话题的当前看法，慢变量）
- *   brain:memory  (order 84) top-k 记忆摘录（含 [跨群] 召回与画像行）
- *   brain:clock   (order 85) 当前时刻（锚定「这句话是何时说的」）
- *   brain:speaker (order 86) 当前发言人（群聊）
- * 官方 qqbot:scope-prompt 为 order 90，我们的内核更早、更难被稀释。
+ * 通过 system-prompt/assemble waterfall 注入七块 section，按稳定性分两段：
+ *   brain:persona (order 80)    人格内核 · 最稳定锚点
+ *   brain:digest  (order 81)    会话脉络 · 每 15 轮才变
+ *   brain:speaker (order 10300) 当前发言人（群聊）
+ *   brain:attitude(order 10310) 态度立场（对人/事/话题的当前看法，慢变量）
+ *   brain:memory  (order 10320) top-k 记忆摘录（含 [跨群] 召回与画像行）
+ *   brain:emotion (order 10330) 情绪态一行
+ *   brain:clock   (order 10340) 当前时刻（每轮必变）
+ * 官方 sections 段位：identity -1000 → persona-prefix 0 → policies 500-900 →
+ * tools 1000-3100 → … → persona-suffix 10200（dsh-system-prompt SECTION_ORDERS）。
+ * DeepSeek 前缀缓存只认「从第 0 token 起的相同前缀」，断在第一个变动 section——
+ * 故稳定段留在 80/81，易变段整体移到 >10200 的 prompt 尾部：
+ * 保住 tools/policies 数千 token 的缓存命中，关键信息贴消息端也符合 U 型注意力。
  *
  * agent→sessionId 解析：优先读 context.agent 的 session 信息；
  * 拿不到时回退到 SessionCapture 维护的 agentId→sessionId 映射。
@@ -40,6 +44,8 @@ export class PromptInjector {
   private lastUserText = new Map<string, string>();
   /** sessionId → 最近一条消息的发言人（群聊 `[昵称 (openid)]`，单聊无） */
   private lastActor = new Map<string, string>();
+  /** sessionId → 上次检索 query 与查询向量（同 query 复用，省重复 embedding 调用） */
+  private queryVecCache = new Map<string, { query: string; vec: number[] | null }>();
 
   private brain: Brain;
   private config: BrainPluginConfig;
@@ -80,8 +86,15 @@ export class PromptInjector {
 
       const query = this.lastUserText.get(sessionId) ?? '';
       const actor = this.lastActor.get(sessionId);
-      // 有 embedder 时取查询向量走语义检索；失败静默回退 lexical
-      const queryVec = (await this.brain.queryEmbedding(query).catch(() => null)) ?? undefined;
+      // 有 embedder 时取查询向量走语义检索；失败静默回退 lexical。
+      // 同一 query 复用上条向量：宿主重试 assemble / 复读消息不再重复调 embedding。
+      const cached = this.queryVecCache.get(sessionId);
+      const queryVec = cached?.query === query
+        ? (cached.vec ?? undefined)
+        : await this.brain.queryEmbedding(query).then((v) => {
+            this.queryVecCache.set(sessionId, { query, vec: v });
+            return v ?? undefined;
+          }).catch(() => undefined);
       // actor 形如「昵称 (openid)」（昵称本身可能含括号），拆出昵称与 openid 供画像/态度按人取
       const brain = this.brain.assemble(sessionId, query, actor ? splitActor(actor) : undefined, queryVec);
 
@@ -92,28 +105,28 @@ export class PromptInjector {
       if (this.config.injectDigest && brain.digest) {
         sections.push({ name: 'brain:digest', order: 81, text: `【会话脉络】${brain.digest}` });
       }
-      if (this.config.injectEmotion && brain.emotion) {
-        sections.push({ name: 'brain:emotion', order: 82, text: `【情绪态】${brain.emotion}` });
+      if (this.config.injectSpeaker && actor) {
+        sections.push({ name: 'brain:speaker', order: 10300, text: `【当前发言人】${actor}` });
       }
       if (this.config.injectAttitude && brain.attitudeLines.length) {
         sections.push({
           name: 'brain:attitude',
-          order: 83,
+          order: 10310,
           text: `【当前立场】\n${brain.attitudeLines.join('\n')}`,
         });
       }
       if (this.config.injectMemory && brain.memoryLines.length) {
         sections.push({
           name: 'brain:memory',
-          order: 84,
+          order: 10320,
           text: `【记忆库摘录】\n${brain.memoryLines.join('\n')}`,
         });
       }
-      if (this.config.injectClock && brain.clock) {
-        sections.push({ name: 'brain:clock', order: 85, text: `【当前时刻】${brain.clock}` });
+      if (this.config.injectEmotion && brain.emotion) {
+        sections.push({ name: 'brain:emotion', order: 10330, text: `【情绪态】${brain.emotion}` });
       }
-      if (this.config.injectSpeaker && actor) {
-        sections.push({ name: 'brain:speaker', order: 86, text: `【当前发言人】${actor}` });
+      if (this.config.injectClock && brain.clock) {
+        sections.push({ name: 'brain:clock', order: 10340, text: `【当前时刻】${brain.clock}` });
       }
       if (this.config.debug && brain.hits.length) {
         this.log(`brain: 命中 ${brain.hits.length} 条记忆 (session=${sessionId.slice(0, 8)}…)`);
