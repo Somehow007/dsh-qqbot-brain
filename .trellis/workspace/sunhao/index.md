@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 36
-- **Last Active**: 2026-11-02
+- **Total Sessions**: 37
+- **Last Active**: 2026-11-03
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~782 | Active |
+| `journal-1.md` | ~804 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 37 | 2026-11-03 | 画像卡管理与危险区 | `009c0ab` | `main` |
 | 36 | 2026-11-02 | 线上排查：黄色测试消息被 QQ 平台拦截 | `cfc36ff` | `main` |
 | 35 | 2026-11-02 | LLM token 成本优化落地（R1-R9 全项） | `0885cc7` | `main` |
 | 34 | 2026-11-02 | LLM 调用与宿主侧 token 成本审查 | - | `main` |

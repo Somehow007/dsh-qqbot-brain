@@ -780,3 +780,25 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 37: 画像卡管理与危险区
+<!-- trellis-session: v=2 fp=44d0bea79f3548ef -->
+
+**Date**: 2026-11-03
+**Task**: 画像卡管理与危险区
+**Branch**: `main`
+
+### Summary
+
+用户要求加人物画像+记忆重置功能，brainstorm 收敛为脑图页三个入口：画像卡编辑/删除/重生成（draft+review 两跳 LLM，upsert 语义）、备份迁移页危险区（按 createdAt 时段批量删记忆、记忆重置保人设）。关键设计：del-range op 显式携带 ids 保证重放不误删后入库的老记忆；reset op 加 keepPersona 字段保持旧记录全清语义；EmotionEngine 内存态随重置清空防旧情绪回写。120/120 测试+typecheck+build 全绿，独立端口冒烟 API 正常。已归档至 archive/2026-11。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `009c0ab` | feat(brain): 画像卡管理与危险区——编辑/删除/重生成、按时段删除、记忆重置保人设 |
+
+### Status
+
+[OK] **Completed**
