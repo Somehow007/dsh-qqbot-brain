@@ -844,3 +844,23 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 40: 宿主侧会话管理：删 RP transcript + 切回旧 session
+<!-- trellis-session: v=2 fp=a2763c496277972a -->
+
+**Date**: 2026-11-03
+**Task**: 宿主侧会话管理：删 RP transcript + 切回旧 session
+**Branch**: `main`
+
+### Summary
+
+问题：brain 记忆清洗后宿主 dsh 侧仍有 RP 会话原文（63aa5c4d，391 行露骨流水），且用户想把该 QQ 群切回 /new 之前的恋人线会话。排查：摸清宿主会话机制——transcript 在 ~/.dsh/sessions/…/session.v4.jsonl.zstd，QQ聊天key→sessionId 覆盖映射在 ~/.dsh-qqbot/model-prefs.json，未覆盖时用 sha256(key) 派生 id；/new 只换映射不删文件，运行中改 prefs 无效需停服。验证谱系：1fbd1c03 即该群 /new 前的恋人线会话（e6b717d7 原生→1fbd1c03→63aa5c4d）。方案：备份后停服，rm 63aa5c4d session 目录+projcache，prefs 改指 1fbd1c03，启动。验证：服务 active、brain 启动行正常、目录已无 63aa5c4d。后续：用户发消息应见 resumed session=1fbd1c03；备份在服务器 /tmp/host-reset-backup/。
+
+### Git Commits
+
+(No commits - planning session)
+
+### Status
+
+[OK] **Completed**

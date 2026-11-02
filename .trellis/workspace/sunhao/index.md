@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 39
+- **Total Sessions**: 40
 - **Last Active**: 2026-11-03
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~846 | Active |
+| `journal-1.md` | ~866 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 40 | 2026-11-03 | 宿主侧会话管理：删 RP transcript + 切回旧 session | - | `main` |
 | 39 | 2026-11-03 | 画像管理走查修复 | `6aa2d89` | `main` |
 | 38 | 2026-11-03 | 线上记忆清洗：剔除黄色边界测试污染 | - | `main` |
 | 37 | 2026-11-03 | 画像卡管理与危险区 | `009c0ab` | `main` |
