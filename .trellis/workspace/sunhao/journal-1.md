@@ -822,3 +822,25 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 39: 画像管理走查修复
+<!-- trellis-session: v=2 fp=43e838b8c8497cbd -->
+
+**Date**: 2026-11-03
+**Task**: 画像管理走查修复
+**Branch**: `main`
+
+### Summary
+
+对画像管理+危险区做 diff 走查，主干无问题；修掉 4 个小问题：datetime-local 分钟精度导致所选结束分钟内记忆漏删（to +59999）；画像名称只能改不能清（空串即清空语义）；session 卡取消编辑丢失占位文案后缀；画像卡删按钮 danger 类无样式。120/120 测试+typecheck+build 全绿。已知边界未修：重置/删除与 in-flight 蒸馏的写回竞态，留作并发保护后续任务。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `6aa2d89` | fix(brain): 走查修复——时段删除含结束分钟、画像名可清空、删按钮着色、取消还原占位文案 |
+
+### Status
+
+[OK] **Completed**
