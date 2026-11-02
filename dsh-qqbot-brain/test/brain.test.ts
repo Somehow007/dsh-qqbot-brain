@@ -1201,6 +1201,74 @@ test('consolidate: 语义巩固产出的画像也必须先审核', async () => {
   assert.equal(store.profileOf('s1'), '喜欢听民谣');
 });
 
+test('endOfTurn: 解析到同一会话键的多条画像草稿合并审核，不互相覆盖', async () => {
+  const { store } = tmpStore();
+  // 两个同名 demo 发言人 → 昵称歧义，actor 为「demo」的画像退化 sess: 键
+  store.addNote('g1', { content: 'a', importance: 3, actor: 'demo (ABCDEF1234567890)' }, NOW);
+  store.addNote('g1', { content: 'b', importance: 3, actor: 'demo (FEDCBA0987654321)' }, NOW);
+  let reviewItems: { index: number; candidate: string }[] = [];
+  const distiller = new Distiller(
+    { enabled: true, baseUrl: 'https://x.test', apiKey: 'k', model: 'm', timeoutMs: 1000, maxNotes: 5 },
+    async (_url, init) => {
+      const prompt = (JSON.parse(init.body) as { messages: { content: string }[] }).messages[0]!.content;
+      let content;
+      if (prompt.includes('长期人物画像的编辑')) {
+        const raw = prompt.slice(prompt.indexOf('待整理画像') + '待整理画像（actor 仅用于区分人物，不得修改身份）：'.length).trim();
+        reviewItems = JSON.parse(raw) as typeof reviewItems;
+        content = JSON.stringify({ profiles: reviewItems.map((it) => ({ index: it.index, text: it.candidate })) });
+      } else {
+        content = JSON.stringify({ memories: [], profiles: [
+          { actor: 'demo', text: '爱抬杠的主人' },
+          { text: '群里氛围爱玩梗' },
+        ] });
+      }
+      return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content } }] }) };
+    },
+  );
+  const brain = new Brain({ store, distiller, now });
+  brain.ingest('g1', { userText: 'hi', assistantText: '咕嘟', actor: 'demo (ABCDEF1234567890)', at: NOW });
+  await brain.endOfTurn('g1');
+  assert.equal(reviewItems.length, 1);
+  assert.match(reviewItems[0]!.candidate, /爱抬杠的主人\n群里氛围爱玩梗/);
+  assert.equal(store.profileOf('g1'), '爱抬杠的主人\n群里氛围爱玩梗');
+});
+
+test('mergeProfiles: 双卡合并为审核后文本并吸收会话标记，源卡删除', async () => {
+  const { store } = tmpStore();
+  store.setProfileEntry(userProfileKey('OID_A'), '画像A', { sessionId: 's1', name: 'demo' });
+  store.setProfileEntry(userProfileKey('OID_B'), '画像B', { sessionId: 's2', name: 'demo' });
+  const distiller = new Distiller(
+    { enabled: true, baseUrl: 'https://x.test', apiKey: 'k', model: 'm', timeoutMs: 1000, maxNotes: 5 },
+    async () => ({
+      ok: true, status: 200,
+      json: async () => ({ choices: [{ message: { content: '{"profiles":[{"index":0,"text":"合并后画像"}]}' } }] }),
+    }),
+  );
+  const brain = new Brain({ store, distiller, now });
+  assert.equal(await brain.mergeProfiles(userProfileKey('OID_A'), userProfileKey('OID_B')), true);
+  assert.equal(store.profileOf(userProfileKey('OID_A')), '合并后画像');
+  assert.equal(store.profileOf(userProfileKey('OID_B')), '');
+  const keep = store.people().find((p) => p.key === userProfileKey('OID_A'));
+  assert.deepEqual([...keep!.sessions].sort(), ['s1', 's2']);
+});
+
+test('mergeProfiles: 审核失败时不改任何画像', async () => {
+  const { store } = tmpStore();
+  store.setProfileEntry(userProfileKey('OID_A'), '画像A', { sessionId: 's1', name: 'demo' });
+  store.setProfileEntry(userProfileKey('OID_B'), '画像B', { sessionId: 's2', name: 'demo' });
+  const distiller = new Distiller(
+    { enabled: true, baseUrl: 'https://x.test', apiKey: 'k', model: 'm', timeoutMs: 1000, maxNotes: 5 },
+    async () => ({
+      ok: true, status: 200,
+      json: async () => ({ choices: [{ message: { content: '{"profiles":[]}' } }] }),
+    }),
+  );
+  const brain = new Brain({ store, distiller, now });
+  assert.equal(await brain.mergeProfiles(userProfileKey('OID_A'), userProfileKey('OID_B')), false);
+  assert.equal(store.profileOf(userProfileKey('OID_A')), '画像A');
+  assert.equal(store.profileOf(userProfileKey('OID_B')), '画像B');
+});
+
 test('consolidate: 已被吸收的 episodic 不再触发重复巩固', async () => {
   const { store } = tmpStore();
   store.addNote('s1', { content: '张三喜欢听民谣', importance: 4 }, NOW - 3 * DAY);

@@ -119,6 +119,13 @@ export class BrainHttpServer {
     if (p === `${prefix}/api/profiles`) {
       return json(res, { profiles: this.brain.people() });
     }
+    if (p === `${prefix}/api/profiles/merge` && req.method === 'POST') {
+      const o = parseJson<{ keep?: string; drop?: string }>(await readBody(req));
+      if (!o?.keep || !o?.drop) { res.writeHead(400).end('keep/drop required'); return; }
+      const ok = await this.brain.mergeProfiles(o.keep, o.drop);
+      if (!ok) { res.writeHead(409).end('merge failed'); return; }
+      return json(res, { ok: true, profiles: this.brain.people() });
+    }
     if (p === `${prefix}/api/ops`) {
       const limit = Math.min(500, Math.max(1, Number(url.searchParams.get('limit')) || 100));
       return json(res, { ops: this.brain.recentOps(limit) });

@@ -1,6 +1,6 @@
 import { DEFAULT_BRAIN_CONFIG, MOOD_VALENCE } from './types.ts';
 import type { BrainConfig, BrainContext, DistillResult, EmotionState, MemoryNote, NoteDraft, NoteEmotion, Turn } from './types.ts';
-import { isUserKey, splitActor, userProfileKey } from './identity.ts';
+import { isUserKey, sessionProfileKey, splitActor, userProfileKey } from './identity.ts';
 import { ageInDays, retention } from './decay.ts';
 import { ageLabel, formatClock } from './time.ts';
 import { Retriever } from './retrieval.ts';
@@ -354,73 +354,106 @@ export class Brain {
     return out;
   }
 
+  /**
+   * 解析画像条目的落点键：身份经真实发言人记录校验，不信任 LLM 输出的 openid。
+   * - 无 actor → sess: 会话级
+   * - openid 在已知发言人中（记忆 actor / 已有 u: 画像键 / 本轮 actor）→ u: 键
+   * - openid 不可信但昵称唯一匹配已知发言人 → 校正为该发言人真实 openid
+   * - 无法确认到具体的人 → sess: 兜底，不制造幽灵人物
+   */
+  private resolveProfileTarget(
+    sessionId: string, actor: string | undefined, speakers: Map<string, string>,
+  ): { key: string; name?: string; corrected: boolean } {
+    if (!actor) return { key: sessionProfileKey(sessionId), corrected: false };
+    const id = splitActor(actor);
+    if (id.openid && speakers.has(id.openid))
+      return { key: userProfileKey(id.openid), name: id.nick, corrected: false };
+    const same = id.nick ? [...speakers].filter(([, n]) => n === id.nick) : [];
+    if (same.length === 1)
+      return { key: userProfileKey(same[0]![0]), name: same[0]![1], corrected: true };
+    return { key: sessionProfileKey(sessionId), corrected: false };
+  }
+
   private async reviewAndWriteProfiles(
     sessionId: string, result: DistillResult, actors: (string | undefined)[],
   ): Promise<void> {
-    const existing = this.existingProfiles(sessionId, actors);
-    const candidates = [
-      ...(result.profile ? [{ text: result.profile }] : []),
-      ...(result.profiles ?? []),
-    ];
-    const byActor = new Map<string, ProfileReviewItem>();
-    for (const p of existing) {
-      byActor.set(p.actor ?? '', { actor: p.actor, previous: p.text, candidate: p.text });
-    }
-    for (const p of candidates) {
-      const key = p.actor ?? '';
-      const prev = byActor.get(key);
-      byActor.set(key, { actor: p.actor, previous: prev?.previous ?? '', candidate: p.text });
-    }
-    const pending = [...byActor.entries()].filter(([actor, item]) =>
-      item.candidate !== item.previous
-      || this.reviewedProfiles.get(`${sessionId}:${actor}`) !== item.previous);
-    if (!pending.length) return;
-    const reviewed = await this.distiller.reviewProfiles(pending.map(([, item]) => item));
-    if (!reviewed) {
-      this.log?.(`画像审核失败：${sessionId.slice(0, 8)}…，保持原画像`);
-      return;
-    }
-    for (const [i, [actor, item]] of pending.entries()) {
-      const text = reviewed[i]!.slice(0, PROFILE_TEXT_CAP);
-      const openid = actor ? splitActor(actor).openid : undefined;
-      const needsSessionLink = openid && text && this.store.people().some((p) =>
-        p.key === userProfileKey(openid) && !p.sessions.includes(sessionId));
-      if (text !== item.previous || needsSessionLink) {
-        this.writeProfiles(sessionId, { memories: [], profiles: [{ actor: item.actor, text }] }, actors);
-      }
-      this.reviewedProfiles.set(`${sessionId}:${actor}`, text);
-    }
-  }
-
-  /**
-   * 画像落盘：身份键经真实发言人记录校验，不信任 LLM 输出的 openid。
-   * - actor 的 openid 在已知发言人中（记忆 actor / 已有 u: 画像键 / 本轮 actor）→ u: 键
-   * - openid 不可信但昵称唯一匹配已知发言人 → 校正为该发言人真实 openid
-   * - 无法确认到具体的人 → 退化为 sess: 会话级画像，不制造幽灵人物
-   */
-  private writeProfiles(sessionId: string, result: DistillResult, actors: (string | undefined)[]): void {
-    if (result.profile) this.store.setProfile(sessionId, result.profile);
+    // 发言人注册表并入本轮真实 actor，供画像身份校验
     const speakers = this.store.speakers();
     for (const a of actors) {
       if (!a) continue;
       const id = splitActor(a);
       if (id.openid) speakers.set(id.openid, id.nick);
     }
-    for (const p of result.profiles ?? []) {
-      const id = p.actor ? splitActor(p.actor) : undefined;
-      if (id?.openid && speakers.has(id.openid)) {
-        this.store.setProfileEntry(userProfileKey(id.openid), p.text, { sessionId, name: id.nick });
-        continue;
-      }
-      const candidates = id?.nick ? [...speakers].filter(([, n]) => n === id.nick) : [];
-      if (candidates.length === 1) {
-        const [openid, nick] = candidates[0]!;
-        this.log?.(`画像身份校正：${p.actor ?? ''} → u:${openid.slice(0, 8)}…（LLM 输出的 openid 与真实发言人不符）`);
-        this.store.setProfileEntry(userProfileKey(openid), p.text, { sessionId, name: nick });
-      } else {
-        this.store.setProfile(sessionId, p.text);
-      }
+    const candidates = [
+      ...(result.profile ? [{ text: result.profile }] : []),
+      ...(result.profiles ?? []),
+    ];
+    // 按「解析后落点」分组：同一键的多条草稿合并候选文本交审核，防顺序覆盖
+    const byKey = new Map<string, ProfileReviewItem>();
+    const seed = (key: string, actor: string | undefined, previous: string, candidate: string) => {
+      const cur = byKey.get(key);
+      if (!cur) { byKey.set(key, { actor, previous, candidate }); return; }
+      if (previous) cur.previous = cur.previous ? `${cur.previous}\n${previous}` : previous;
+      cur.candidate = cur.candidate !== cur.previous ? `${cur.candidate}\n${candidate}` : candidate;
+      if (!cur.actor && actor) cur.actor = actor;
+    };
+    for (const p of this.existingProfiles(sessionId, actors)) {
+      seed(this.resolveProfileTarget(sessionId, p.actor, speakers).key, p.actor, p.text, p.text);
     }
+    for (const p of candidates) {
+      const t = this.resolveProfileTarget(sessionId, p.actor, speakers);
+      if (t.corrected)
+        this.log?.(`画像身份校正：${p.actor ?? ''} → ${t.key.slice(0, 10)}…（LLM 输出的 openid 与真实发言人不符）`);
+      seed(t.key, p.actor, '', p.text);
+    }
+    const pending = [...byKey.entries()].filter(([key, item]) =>
+      item.candidate !== item.previous
+      || this.reviewedProfiles.get(`${sessionId}:${key}`) !== item.previous);
+    if (!pending.length) return;
+    const reviewed = await this.distiller.reviewProfiles(pending.map(([, item]) => item));
+    if (!reviewed) {
+      this.log?.(`画像审核失败：${sessionId.slice(0, 8)}…，保持原画像`);
+      return;
+    }
+    const people = this.store.people();
+    for (const [i, [key, item]] of pending.entries()) {
+      const text = reviewed[i]!.slice(0, PROFILE_TEXT_CAP);
+      const isUser = isUserKey(key);
+      const needsSessionLink = isUser && !!text
+        && !(people.find((p) => p.key === key)?.sessions ?? []).includes(sessionId);
+      if (text !== item.previous || needsSessionLink) {
+        if (isUser) {
+          const name = (item.actor && splitActor(item.actor).nick)
+            || people.find((p) => p.key === key)?.name || '';
+          this.store.setProfileEntry(key, text, { sessionId, name });
+        } else {
+          this.store.setProfile(sessionId, text);
+        }
+      }
+      this.reviewedProfiles.set(`${sessionId}:${key}`, text);
+    }
+  }
+
+  /**
+   * 手工合并两张人物画像（同一人双 openid）：审核模型把两份文本整理成一份，
+   * 写入 keep 并吸收 drop 的全部会话标记，drop 键删除。
+   * 审核失败/无蒸馏时不改任何数据，返回 false。
+   */
+  async mergeProfiles(keepKey: string, dropKey: string): Promise<boolean> {
+    if (keepKey === dropKey || !isUserKey(keepKey) || !isUserKey(dropKey)) return false;
+    const people = this.store.people();
+    const keep = people.find((p) => p.key === keepKey);
+    const drop = people.find((p) => p.key === dropKey);
+    if (!keep || !drop) return false;
+    const reviewed = await this.distiller.reviewProfiles([
+      { actor: keep.name || drop.name, previous: keep.text, candidate: drop.text },
+    ]);
+    const text = reviewed?.[0]?.trim();
+    if (!text) return false;
+    const sessions = [...new Set([...keep.sessions, ...drop.sessions])];
+    this.store.setProfileEntry(keepKey, text, { sessionId: sessions[0] ?? '', name: keep.name || drop.name, sessions });
+    this.store.setProfileEntry(dropKey, '', { sessionId: sessions[0] ?? '' });
+    return true;
   }
 
   /**

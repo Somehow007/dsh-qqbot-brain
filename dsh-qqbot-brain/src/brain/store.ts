@@ -20,7 +20,7 @@ type Op =
       actor?: string; emotion?: NoteEmotion; sourceIds?: string[];
     } }
   | { op: 'emotion'; sessionId: string; state: EmotionState }
-  | { op: 'profile'; sessionId: string; text: string; key?: string; name?: string; at?: number }
+  | { op: 'profile'; sessionId: string; text: string; key?: string; name?: string; at?: number; sessions?: string[] }
   | { op: 'digest'; sessionId: string; text: string; uptoTurn?: number }
   | { op: 'persona'; text: string }
   | { op: 'persona-save'; persona: PersonaEntry }
@@ -281,7 +281,8 @@ export class BrainStore {
         this.profiles.set(key, {
           text: truncateProfileText(op.text, PROFILE_TEXT_CAP),
           name: op.name ?? prev?.name ?? '',
-          sessions: [...new Set([...(prev?.sessions ?? []), op.sessionId])],
+          sessions: [...new Set([...(prev?.sessions ?? []), op.sessionId, ...(op.sessions ?? [])])]
+            .filter(Boolean),
           updatedAt: op.at ?? Date.now(),
         });
         break;
@@ -542,13 +543,14 @@ export class BrainStore {
     this.persist({ op: 'profile', sessionId, text });
   }
 
-  /** 按身份键写画像：u:<openid> 或 sess:<id>；name/sessionId 用于展示与归属追踪 */
-  setProfileEntry(key: string, text: string, meta?: { sessionId?: string; name?: string }): void {
+  /** 按身份键写画像：u:<openid> 或 sess:<id>；name/sessionId/sessions 用于展示与归属追踪 */
+  setProfileEntry(key: string, text: string, meta?: { sessionId?: string; name?: string; sessions?: string[] }): void {
     this.persist({
       op: 'profile',
       sessionId: meta?.sessionId ?? key,
       key,
       name: meta?.name,
+      sessions: meta?.sessions,
       text,
       at: Date.now(),
     });

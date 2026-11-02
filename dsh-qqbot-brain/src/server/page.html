@@ -197,6 +197,9 @@
     .sess .sid{font:10px var(--mono);color:var(--muted);letter-spacing:.06em}
     .sess .prof{margin-top:8px;line-height:1.6;color:#a8c6d4;overflow-wrap:anywhere}
     .sess .meta{margin-top:8px;font-size:10px;color:var(--faint)}
+    .sess.mergesrc{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan) inset}
+    .sess .mergebtn{float:right;border:1px solid var(--line2);background:transparent;color:var(--muted);font-size:10px;padding:1px 7px}
+    .sess .mergebtn:hover{border-color:var(--cyan);color:var(--cyan2)}
     .ops{font-size:11px;line-height:1.9;max-height:380px;overflow-y:auto}
     .ops .op{display:flex;gap:10px;border-bottom:1px dotted #1a3a50;padding:3px 0;overflow-wrap:anywhere}
     .ops .ot{color:var(--faint);font:10px var(--mono);white-space:nowrap;width:74px}
@@ -1021,16 +1024,32 @@ function renderLibrary(){
     tb.appendChild(tr);});
 }
 // ── Tab：画像（按人 + 会话级）──
+let mergeSrc='';
 function renderSessions(){
   const g=$('sessGrid');g.replaceChildren();
   const people=PEERS.filter(p=>p.kind==='person');
+  if(mergeSrc&&!people.some(p=>p.key===mergeSrc))mergeSrc='';
   if(!people.length&&!SESS.length){g.innerHTML='<div class="empty">暂无画像数据</div>';return;}
   people.forEach(p=>{
     const d=document.createElement('div');d.className='sess';
-    d.innerHTML=`<div class="sid">PERSON ${esc(p.name)}${p.openid?` · ${esc(shortId(p.openid))}…`:''}</div>
+    if(mergeSrc===p.key)d.classList.add('mergesrc');
+    d.innerHTML=`<div class="sid">PERSON ${esc(p.name)}${p.openid?` · ${esc(shortId(p.openid))}…`:''}<button class="mergebtn" type="button"></button></div>
       <div class="prof"></div><div class="meta"></div>`;
     d.querySelector('.prof').textContent=p.text||'（画像未生成）';
     d.querySelector('.meta').textContent=`见于 ${p.sessions.length} 个会话${p.updatedAt?` · ${fmtT(p.updatedAt)} 更新`:''}`;
+    const btn=d.querySelector('.mergebtn');
+    btn.textContent=mergeSrc===p.key?'取消':(mergeSrc?'并入此卡':'合并');
+    btn.onclick=async()=>{
+      if(mergeSrc===p.key){mergeSrc='';renderSessions();return;}
+      if(!mergeSrc){mergeSrc=p.key;renderSessions();return;}
+      const src=PEERS.find(x=>x.key===mergeSrc);
+      if(confirm(`把「${src?.name||mergeSrc}」的画像并入「${p.name}」？\n审核模型会把两份文本整理成一份，源卡随后删除。`)){
+        const r=await fapi(API+'/profiles/merge',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({keep:p.key,drop:mergeSrc})});
+        mergeSrc='';
+        if(!r.ok){alert('合并失败（需要蒸馏服务可用）');return;}
+        await load();
+      }
+    };
     g.appendChild(d);});
   SESS.forEach(s=>{
     const d=document.createElement('div');d.className='sess';
