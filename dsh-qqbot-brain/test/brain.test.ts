@@ -457,10 +457,13 @@ test('assemble: 画像置顶 + 人格与情绪注入', () => {
   const { store } = tmpStore();
   store.addNote('s1', { content: '用户喜欢告五人', importance: 3 }, NOW - DAY);
   store.setProfile('s1', '阿澈画像');
+  store.setEmotion('s2', { v: 0.5, a: 0.6, d: 0.2, label: '开心', mood: '开心', updatedAt: NOW });
   const brain = new Brain({ store, distiller: mockDistiller({}), defaultPersona: '大肥鱼人设', now });
   const ctx = brain.assemble('s1', '推荐首歌');
   assert.equal(ctx.persona, '大肥鱼人设');
-  assert.match(ctx.emotion, /当前情绪/);
+  // 平静态省略情绪行（R10）；有非中性情绪时才渲染注入
+  assert.equal(ctx.emotion, '');
+  assert.match(brain.assemble('s2', 'x').emotion, /当前情绪/);
   assert.ok(ctx.memoryLines[0]!.startsWith('- [画像]'));
 });
 

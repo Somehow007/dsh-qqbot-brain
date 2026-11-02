@@ -65,6 +65,8 @@ export class EmotionEngine {
 
   describe(sessionId: string, now: number): string {
     const s = this.get(sessionId, now);
+    // 平静态（≈中性基线 v=0/a=0.3/d=0）不渲染：这行注入无信息量，省 ~20 tok/轮
+    if (Math.abs(s.v) < 0.1 && Math.abs(s.d) < 0.1 && Math.abs(s.a - 0.3) < 0.1) return '';
     return `当前情绪：${s.label}（v=${s.v.toFixed(1)} a=${s.a.toFixed(1)} d=${s.d.toFixed(1)}）`;
   }
 }

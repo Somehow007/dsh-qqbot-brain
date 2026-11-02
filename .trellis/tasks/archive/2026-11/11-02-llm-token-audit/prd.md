@@ -208,6 +208,9 @@ tools/policies 之前，每轮切断 DeepSeek 前缀缓存，数千 token 稳定
   脉络/巩固三个内部 prompt 用精简人设；宿主注入段不受影响。
 - **R8 query 向量缓存**：injector 按 (sessionId,query) 复用上条查询向量，
   宿主重试 assemble/复读不再重复调 embedding API。
+- **R10 平静态免注入**（归档后补落）：`EmotionEngine.describe` 在 PAD≈中性基线
+  （|v|,|d|<0.1 且 |a-0.3|<0.1）时返回空——emotion section 自动跳过，
+  省 ~20 tok/轮；非中性照常渲染。
 
 ### 验证结论
 
