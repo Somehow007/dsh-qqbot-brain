@@ -23,6 +23,12 @@ export interface NoteEmotion {
 /** 受控情绪类别：蒸馏从该集合挑选，脑图情绪桶与之同名对应 */
 export const MOODS = ['平静', '开心', '兴奋', '害羞', '好奇', '委屈', '炸毛', '记仇', '难过'] as const;
 
+/** mood 的效价符号约定：mood 与 v 正负应一致（平静/好奇无约束项） */
+export const MOOD_VALENCE: Record<string, 1 | -1> = {
+  开心: 1, 兴奋: 1, 害羞: 1,
+  委屈: -1, 炸毛: -1, 记仇: -1, 难过: -1,
+};
+
 /** 一条长期记忆（蒸馏笔记） */
 export interface MemoryNote {
   /** 稳定 id */
@@ -75,6 +81,8 @@ export interface NoteDraft {
   mergeIndex?: number;
   /** 写入时钉上的情绪快照（由 Brain 层注入） */
   emotion?: NoteEmotion;
+  /** 初始强度乘数（Brain 层用于强情绪加权；入库 clamp 到 [0.1, 3]） */
+  strengthBoost?: number;
   /** 派生来源（巩固路径注入）：喂出这条语义记忆的情景记忆 id */
   sourceIds?: string[];
 }

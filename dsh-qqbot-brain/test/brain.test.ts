@@ -402,6 +402,53 @@ test('buildDistillPrompt: mood 枚举与刺激锚点约束情绪判定', () => {
   assert.match(p, /mood.*平静\/开心\/兴奋\/害羞\/好奇\/委屈\/炸毛\/记仇\/难过/s);
   assert.match(p, /被夸\/被撩\/被关心→害羞/);
   assert.match(p, /不要只按角色回复的语气反推/);
+  assert.match(p, /负向类别（委屈\/炸毛\/记仇\/难过）v 为负/);
+});
+
+test('endOfTurn: mood 与 v 符号矛盾时记 debug 日志', async () => {
+  const { store } = tmpStore();
+  const logs: string[] = [];
+  const brain = new Brain({
+    store,
+    now,
+    log: (m) => logs.push(m),
+    distiller: mockDistiller({
+      memories: [],
+      emotion: { label: '心里委屈但装没事', mood: '委屈', v: 0.8, a: 0.5, d: -0.1 },
+    }),
+  });
+  brain.ingest('s1', { userText: '随便你吧', assistantText: '哼，没事', at: NOW });
+  await brain.endOfTurn('s1');
+  assert.ok(logs.some((l) => l.includes('情绪矛盾') && l.includes('委屈')));
+});
+
+test('endOfTurn: 强情绪形成的记忆强度获得加权', async () => {
+  const { store } = tmpStore();
+  const brain = new Brain({
+    store,
+    now,
+    distiller: mockDistiller({
+      memories: [{ content: '用户当众表白了大肥鱼', importance: 3 }],
+      emotion: { label: '害羞到把脸埋进被子', mood: '害羞', v: 0.8, a: 0.8, d: -0.2 },
+    }),
+  });
+  brain.ingest('s1', { userText: '我喜欢你', assistantText: '诶？！', at: NOW });
+  await brain.endOfTurn('s1');
+  // importance=3 → 基准 strength=3，|v|·a=0.64 → ×1.32
+  assert.ok(store.allNotes()[0]!.strength > 3.9, `strength=${store.allNotes()[0]!.strength}`);
+
+  const { store: store2 } = tmpStore();
+  const brain2 = new Brain({
+    store: store2,
+    now,
+    distiller: mockDistiller({
+      memories: [{ content: '用户随口问了句天气', importance: 3 }],
+      emotion: { label: '平静', mood: '平静', v: 0, a: 0.2, d: 0 },
+    }),
+  });
+  brain2.ingest('s1', { userText: '今天天气咋样', assistantText: '还行', at: NOW });
+  await brain2.endOfTurn('s1');
+  assert.ok(store2.allNotes()[0]!.strength <= 3.1, `strength=${store2.allNotes()[0]!.strength}`);
 });
 
 // ── 组装 ──
@@ -543,6 +590,22 @@ test('graph: 记忆写入时钉上情绪快照', async () => {
   assert.ok(n.emotion, '写入时应带情绪快照');
   assert.equal(n.emotion!.label, '得意');
   assert.equal((await brain.graph('s1')).notes[0]!.emotion!.label, '得意');
+});
+
+test('graph: 边集按 graphVersion 缓存，记忆结构变化后失效重算', async () => {
+  const { store } = tmpStore();
+  const brain = new Brain({ store, distiller: mockDistiller({}), now });
+  const g1 = await brain.graph('s1');
+  const g2 = await brain.graph('s1');
+  assert.equal(g1.edges, g2.edges, '记忆未变时应命中边集缓存');
+  brain.addNote('s1', { content: '新记忆触发失效', importance: 3 });
+  const g3 = await brain.graph('s1');
+  assert.notEqual(g3.edges, g1.edges, 'add 后应重算边集');
+  // reinforce 等不动边集的写操作不应失效缓存
+  const n = store.allNotes()[0]!;
+  brain.reinforceNote(n.id);
+  const g4 = await brain.graph('s1');
+  assert.equal(g4.edges, g3.edges, 'reinforce 不应使边集缓存失效');
 });
 
 test('graph edges: 语义边取向量余弦 top-k，近重复不连', async () => {

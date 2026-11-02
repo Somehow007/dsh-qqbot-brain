@@ -1,4 +1,4 @@
-import { DEFAULT_BRAIN_CONFIG } from './types.ts';
+import { DEFAULT_BRAIN_CONFIG, MOOD_VALENCE } from './types.ts';
 import type { BrainConfig, BrainContext, DistillResult, EmotionState, MemoryNote, NoteDraft, NoteEmotion, Turn } from './types.ts';
 import { isUserKey, splitActor, userProfileKey } from './identity.ts';
 import { ageInDays, retention } from './decay.ts';
@@ -248,10 +248,17 @@ export class Brain {
       );
       // 先落本轮情绪：新写出的记忆以「产生它们的这次对话」的情绪盖章
       if (result.emotion) {
-        const s = this.emotion.apply(sessionId, result.emotion, now);
+        const e = result.emotion;
+        const expect = e.mood ? MOOD_VALENCE[e.mood] : undefined;
+        if (expect !== undefined && Math.abs(e.v) > 0.3 && Math.sign(e.v) !== expect) {
+          this.log?.(`情绪矛盾：mood=${e.mood} 但 v=${e.v.toFixed(2)}（${sessionId.slice(0, 8)}…）`);
+        }
+        const s = this.emotion.apply(sessionId, e, now);
         this.store.setEmotion(sessionId, s);
       }
       const stamp = this.emotionStamp(sessionId, now);
+      // 强情绪下形成的记忆更难忘：|v|·a 加权初始强度（最高 ×1.5）
+      const boost = this.emotionBoost(stamp);
       const touched: MemoryNote[] = [];
       // 新增草稿先取向量做写入判重：cos≥dedupeEmbedCos 视为同一事实，强化旧记忆而非再写一条
       const freshVecs = this.embedder?.enabled
@@ -275,7 +282,7 @@ export class Brain {
           touched.push(dup.note);
           continue;
         }
-        const n = this.store.addNote(sessionId, { ...m, emotion: stamp }, now);
+        const n = this.store.addNote(sessionId, { ...m, emotion: stamp, strengthBoost: boost }, now);
         if (vec) this.store.setEmbedding(n.id, vec);
         touched.push(n);
       }
@@ -434,8 +441,9 @@ export class Brain {
     const result = await this.distiller.consolidate(eps, profileText, this.persona());
     const stamp = this.emotionStamp(sessionId, now);
     const sourceIds = eps.map((e) => e.id);
+    const boost = this.emotionBoost(stamp);
     const added = result.memories.map((m) => this.store.addNote(
-      sessionId, { ...m, kind: 'semantic', emotion: stamp, sourceIds }, now,
+      sessionId, { ...m, kind: 'semantic', emotion: stamp, strengthBoost: boost, sourceIds }, now,
     ));
     await this.reviewAndWriteProfiles(sessionId, result, eps.map((n) => n.actor));
     void this.embedNotes(added);
@@ -465,6 +473,11 @@ export class Brain {
   private emotionStamp(sessionId: string, now: number): NoteEmotion {
     const e = this.emotion.get(sessionId, now);
     return { v: e.v, a: e.a, d: e.d, label: e.label, mood: e.mood };
+  }
+
+  /** 强情绪下形成的记忆更难忘：|v|·a → 初始强度乘数 1.0~1.5 */
+  private emotionBoost(stamp: NoteEmotion): number {
+    return 1 + Math.min(1, Math.abs(stamp.v) * stamp.a) * 0.5;
   }
 
   /**
@@ -528,7 +541,9 @@ export class Brain {
 
   addNote(sessionId: string, draft: NoteDraft): MemoryNote {
     const now = this.now();
-    const n = this.store.addNote(sessionId || 'manual', { ...draft, emotion: this.emotionStamp(sessionId || 'manual', now) }, now);
+    const stamp = this.emotionStamp(sessionId || 'manual', now);
+    const n = this.store.addNote(sessionId || 'manual',
+      { ...draft, emotion: stamp, strengthBoost: draft.strengthBoost ?? this.emotionBoost(stamp) }, now);
     void this.embedNotes([n]);
     return n;
   }
@@ -594,7 +609,7 @@ export class Brain {
       fading: retention(n, now) < this.cfg.forgetThreshold,
       emotion: n.emotion,
     }));
-    const { edges, nearDup } = await this.graphEdges(raw);
+    const { edges, nearDup } = await this.graphEdges(raw, sessionId);
     const stats = {
       total: notes.length,
       avgRetention: notes.length
@@ -626,8 +641,17 @@ export class Brain {
    * - semantic：向量余弦 ∈ [0.65, 0.9) 的每节点 top-3；≥0.9 判为近重复不连（判重是独立问题）
    * - facet：记忆向量与人格小节（页面前端同款 ## 拆分）最大余弦 ≥0.55
    * 向量缺失/embedding 未启用时相应边集为空，页面自行回退 ngram/字面推断。
+   * 计算是 O(n²)：按（会话过滤 · store.graphVersion · 人设文本）缓存，
+   * 记忆结构/向量未变时 15s 轮询直接命中。
    */
-  private async graphEdges(notes: MemoryNote[]): Promise<{ edges: { a: string; b: string; kind: 'semantic' | 'facet' | 'derived'; score: number }[]; nearDup: number }> {
+  private edgesCache?: {
+    key: string;
+    value: { edges: { a: string; b: string; kind: 'semantic' | 'facet' | 'derived'; score: number }[]; nearDup: number };
+  };
+
+  private async graphEdges(notes: MemoryNote[], sessionId?: string): Promise<{ edges: { a: string; b: string; kind: 'semantic' | 'facet' | 'derived'; score: number }[]; nearDup: number }> {
+    const key = `${sessionId ?? ''}|${this.store.graphVersion}|${this.persona()}`;
+    if (this.edgesCache?.key === key) return this.edgesCache.value;
     const edges: { a: string; b: string; kind: 'semantic' | 'facet' | 'derived'; score: number }[] = [];
     const present = new Set(notes.map((n) => n.id));
     for (const n of notes) {
@@ -671,7 +695,9 @@ export class Brain {
         if (bi >= 0 && bc >= 0.55) edges.push({ a: n.id, b: `facet:${bi}`, kind: 'facet', score: +bc.toFixed(3) });
       }
     }
-    return { edges, nearDup };
+    const value = { edges, nearDup };
+    this.edgesCache = { key, value };
+    return value;
   }
 
   /** 人格小节向量缓存：key=当前人设文本；人设不变则 /api/state 轮询零成本 */

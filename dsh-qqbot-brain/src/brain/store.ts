@@ -139,6 +139,8 @@ export class BrainStore {
   private activeId = '';
   /** 版本号：任何写入后 +1，检索器据此重建索引 */
   version = 0;
+  /** 边集相关版本：仅记忆内容/结构/向量变化时递增（reinforce/emotion 等不计）——graphEdges 缓存键 */
+  graphVersion = 0;
   private dirtyOps = 0;
   /** 最近操作流水（环形，供"事件流水"页查看真实落盘历史） */
   private opsLog: OpRecord[] = [];
@@ -307,6 +309,8 @@ export class BrainStore {
     appendFileSync(this.file, JSON.stringify(rec) + '\n');
     this.pushOp({ t: rec.t, op });
     this.version++;
+    if (op.op === 'add' || op.op === 'update' || op.op === 'del'
+      || op.op === 'merge' || op.op === 'reset' || op.op === 'embed') this.graphVersion++;
     if (++this.dirtyOps >= this.compactEvery) this.compact();
   }
 
@@ -347,7 +351,8 @@ export class BrainStore {
       importance: Math.min(5, Math.max(1, Math.round(draft.importance ?? 3))),
       kind: draft.kind ?? 'episodic',
       createdAt: now,
-      strength: Math.min(5, Math.max(1, Math.round(draft.importance ?? 3))),
+      strength: Math.min(5, Math.max(1, Math.round(draft.importance ?? 3)))
+        * Math.min(3, Math.max(0.1, draft.strengthBoost ?? 1)),
       hits: 0,
       lastAccessAt: now,
       emotion: draft.emotion ? sanitizeNoteEmotion(draft.emotion) : undefined,

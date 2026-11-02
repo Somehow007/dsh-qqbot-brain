@@ -16,3 +16,6 @@
 - 蒸馏/LLM 调用必须可注入 fetch、可配置关闭、失败静默不阻塞回复。
 - 蒸馏 emotion 的 `mood` 字段是受控枚举（types.ts `MOODS`：平静/开心/兴奋/害羞/好奇/委屈/炸毛/记仇/难过），page.html `EMO_BUCKETS` 的 name 与其一一对应；label 仍是自由短语供注入。解析时非枚举值丢弃（回退 v/a 推断），改动 MOODS 时必须同步 prompt 文案、page 桶表与测试。
 - 多人设存储、`/api/personas` 契约、`persona.md` 镜像和备份兼容的完整检查见 [后端质量约定](./quality-guidelines.md#scenario-brain-persona-selection-and-compatibility)。
+- 记忆初始强度可被 `strengthBoost`（NoteDraft，入库 clamp [0.1,3]）加权：Brain.emotionBoost 按形成时情绪 |v|·a 给 1.0~1.5——强情绪记忆更难忘；情绪只加权 strength，不动 LLM 自评的 importance。
+- `/api/state` 边集缓存键 = `sessionId|store.graphVersion|persona`；graphVersion 仅在 add/update/del/merge/reset/embed 时递增（reinforce/emotion 等不动边集的写不计），改动影响边集的 op 时同步检查该集合。
+- `MOOD_VALENCE`（types.ts）是 mood→效价符号表；mood 与 v 符号矛盾（|v|>0.3）时 endOfTurn 打 debug 日志而不改写——观测期，证据充分后再决定是否收紧为解析层过滤。
