@@ -7,6 +7,7 @@
 
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { DEFAULT_TIME_ZONE } from './brain/types.ts';
 
 export interface LlmConfig {
   /** 是否启用蒸馏（无 apiKey 时自动关闭） */
@@ -82,7 +83,7 @@ export interface BrainPluginConfig {
   personaCore: string;
   /** 记忆数据目录 */
   dataDir: string;
-  /** 情绪/记忆/画像/发言人/脉络注入开关 */
+  /** 情绪/记忆/画像/发言人/脉络/时刻注入开关 */
   injectPersona: boolean;
   injectEmotion: boolean;
   injectDigest: boolean;
@@ -91,6 +92,10 @@ export interface BrainPluginConfig {
   injectAttitude: boolean;
   /** 注入「当前发言人」section（群聊下标识谁在说） */
   injectSpeaker: boolean;
+  /** 注入「当前时刻」section（锚定消息是何时说的） */
+  injectClock: boolean;
+  /** 时间渲染时区（当前时刻行、蒸馏 convo 时间戳；非法值降级系统时区） */
+  timeZone: string;
   /** 蒸馏用的 LLM 配置 */
   llm: LlmConfig;
   /** 语义向量配置 */
@@ -122,6 +127,8 @@ export const DEFAULT_CONFIG: BrainPluginConfig = {
   injectMemory: true,
   injectAttitude: true,
   injectSpeaker: true,
+  injectClock: true,
+  timeZone: DEFAULT_TIME_ZONE,
   llm: {
     enabled: true,
     baseUrl: 'https://api.deepseek.com',

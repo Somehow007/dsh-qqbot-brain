@@ -1,5 +1,11 @@
 import type { DistillResult, EmotionState, MemoryNote, Turn } from './types.ts';
-import { MOODS } from './types.ts';
+import { DEFAULT_TIME_ZONE, MOODS } from './types.ts';
+import { ageLabel, formatClock, formatStamp } from './time.ts';
+
+/** prompt 构建所需的时间上下文：convo 行时间戳 + 末尾「当前时间」锚点 */
+export interface TimeCtx { now: number; timeZone: string }
+
+const defaultTimeCtx = (): TimeCtx => ({ now: Date.now(), timeZone: DEFAULT_TIME_ZONE });
 
 /**
  * 蒸馏器：会话结束后（或每轮末）把对话压缩为记忆笔记 + 情绪增量 + 画像更新。
@@ -47,7 +53,7 @@ mood 参照锚点：被夸/被撩/被关心→害羞；分享好消息/被投喂
 角色傲娇/嘴硬时按内心真实感受给效价（嘴上嫌弃实际开心时 v 仍为正），label 写真实情绪。
 mood 与 v/a 语义须一致：负向类别（委屈/炸毛/记仇/难过）v 为负，正向类别（开心/兴奋/害羞）v 为正。
 
-对话每行形如「发言人：内容」；单聊发言人显示为「用户」，群聊显示为「昵称 (openid)」，memories.actor 写该发言人昵称。
+对话每行形如「[YYYY-MM-DD HH:mm] 发言人：内容」；单聊发言人显示为「用户」，群聊显示为「昵称 (openid)」，memories.actor 写该发言人昵称。
 profiles 字段：仅在画像需要更新时输出，否则省略整个字段。
 - 画像只写对该人长期成立的判断：性格特质、身份背景、与角色的关系定位、稳定偏好/雷区；
   时效性信息（最近课表、当下在忙什么、一次性安排、刚发生的小事）属于记忆，写进 memories 不进画像。
@@ -92,7 +98,7 @@ const CONSOLIDATE_PROMPT = `你是陪伴型聊天角色的记忆巩固模块。�
 
 现有画像：%s
 
-情景记忆：
+情景记忆（[前缀] 为形成时间）：
 %s`;
 
 const PROFILE_REVIEW_PROMPT = `你是长期人物画像的编辑，不是聊天摘要器。以下画像草稿可能混入时效性记忆。
@@ -118,9 +124,10 @@ export function buildDistillPrompt(
   turns: Turn[], persona: string, maxNotes: number,
   existing?: MemoryNote[], currentEmotion?: EmotionState,
   existingProfiles?: { actor?: string; text: string }[],
+  ctx: TimeCtx = defaultTimeCtx(),
 ): string {
   const convo = turns
-    .map((t) => `${t.actor ?? '用户'}：${t.userText}\n角色：${t.assistantText}`)
+    .map((t) => `[${formatStamp(t.at, ctx.timeZone)}] ${t.actor ?? '用户'}：${t.userText}\n角色：${t.assistantText}`)
     .join('\n');
   let prompt = PROMPT.replace('%d', String(maxNotes))
     .replace('%s', persona || '（未设定）')
@@ -136,27 +143,29 @@ export function buildDistillPrompt(
       + '若本轮对话后角色情绪没有明显变化，省略 emotion 字段以保留当前情绪；有明显变化时输出新的 emotion。';
   }
   if (existing?.length) {
-    prompt += `\n\n已有记忆（编号供 merge 使用）：\n${existing
-      .map((n, i) => `${i}. ${n.actor ? `[${n.actor}] ` : ''}${n.content}`)
+    prompt += `\n\n已有记忆（编号供 merge 使用，[前缀] 为形成时间）：\n${existing
+      .map((n, i) => `${i}. [${ageLabel(n.createdAt, ctx.now)}] ${n.actor ? `[${n.actor}] ` : ''}${n.content}`)
       .join('\n')}`;
   }
+  prompt += `\n\n当前时间：${formatClock(ctx.now, ctx.timeZone)}`;
   return prompt;
 }
 
-export function buildConsolidatePrompt(notes: MemoryNote[], profile: string, persona: string): string {
-  const list = notes.map((n) => `- ${n.actor ? `[${n.actor}] ` : ''}${n.content}`).join('\n');
+export function buildConsolidatePrompt(notes: MemoryNote[], profile: string, persona: string, ctx: TimeCtx = defaultTimeCtx()): string {
+  const list = notes.map((n) => `- [${ageLabel(n.createdAt, ctx.now)}] ${n.actor ? `[${n.actor}] ` : ''}${n.content}`).join('\n');
   return CONSOLIDATE_PROMPT.replace('%s', persona || '（未设定）')
     .replace('%s', profile || '（暂无）')
     .replace('%s', list);
 }
 
-export function buildDigestPrompt(turns: Turn[], priorDigest: string, persona: string): string {
+export function buildDigestPrompt(turns: Turn[], priorDigest: string, persona: string, ctx: TimeCtx = defaultTimeCtx()): string {
   const convo = turns
-    .map((t) => `${t.actor ?? '用户'}：${t.userText}\n角色：${t.assistantText}`)
+    .map((t) => `[${formatStamp(t.at, ctx.timeZone)}] ${t.actor ?? '用户'}：${t.userText}\n角色：${t.assistantText}`)
     .join('\n');
   return DIGEST_PROMPT.replace('%s', persona || '（未设定）')
     .replace('%s', priorDigest || '（暂无）')
-    .replace('%s', convo);
+    .replace('%s', convo)
+    + `\n\n当前时间：${formatClock(ctx.now, ctx.timeZone)}`;
 }
 
 export function parseDistillOutput(raw: string): DistillResult {
@@ -219,15 +228,16 @@ export class Distiller {
     turns: Turn[], persona: string,
     existing?: MemoryNote[], currentEmotion?: EmotionState,
     existingProfiles?: { actor?: string; text: string }[],
+    ctx?: TimeCtx,
   ): Promise<DistillResult> {
     if (!this.enabled || turns.length === 0) return { memories: [] };
-    return this.call(buildDistillPrompt(turns, persona, this.cfg.maxNotes, existing, currentEmotion, existingProfiles));
+    return this.call(buildDistillPrompt(turns, persona, this.cfg.maxNotes, existing, currentEmotion, existingProfiles, ctx));
   }
 
   /** 语义巩固：把情景记忆提炼为语义记忆 + 重写画像 */
-  async consolidate(notes: MemoryNote[], profile: string, persona: string): Promise<DistillResult> {
+  async consolidate(notes: MemoryNote[], profile: string, persona: string, ctx?: TimeCtx): Promise<DistillResult> {
     if (!this.enabled || notes.length === 0) return { memories: [] };
-    return this.call(buildConsolidatePrompt(notes, profile, persona));
+    return this.call(buildConsolidatePrompt(notes, profile, persona, ctx));
   }
 
   /** 专门审核画像；失败时不写任何画像，避免未经校验的草稿覆盖旧画像。 */
@@ -274,7 +284,7 @@ export class Distiller {
   }
 
   /** 会话滚动摘要：返回纯文本摘要（失败/未启用返回空串） */
-  async digest(turns: Turn[], priorDigest: string, persona: string): Promise<string> {
+  async digest(turns: Turn[], priorDigest: string, persona: string, ctx?: TimeCtx): Promise<string> {
     if (!this.enabled || turns.length === 0) return '';
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), this.cfg.timeoutMs);
@@ -289,7 +299,7 @@ export class Distiller {
           model: this.cfg.model,
           temperature: 0,
           max_tokens: 500,
-          messages: [{ role: 'user', content: buildDigestPrompt(turns, priorDigest, persona) }],
+          messages: [{ role: 'user', content: buildDigestPrompt(turns, priorDigest, persona, ctx) }],
         }),
         signal: ctrl.signal,
       });

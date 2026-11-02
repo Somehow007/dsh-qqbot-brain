@@ -92,6 +92,7 @@ export async function apply(ctx: unknown, config?: Partial<BrainPluginConfig>): 
       consolidateMinNotes: cfg.consolidation.minNotes,
       digestEveryTurns: cfg.digest.enabled ? cfg.digest.everyTurns : 0,
       digestWindowTurns: cfg.digest.windowTurns,
+      timeZone: cfg.timeZone,
     },
     log,
   });
@@ -105,7 +106,7 @@ export async function apply(ctx: unknown, config?: Partial<BrainPluginConfig>): 
   // ── 注入 + 捕获 ──
   const injector = new PromptInjector(brain, cfg, log);
   injector.register(ctx);
-  const capture = new SessionCapture(brain, injector, log, cfg.debug);
+  const capture = new SessionCapture(brain, injector, log, cfg.debug, cfg.timeZone);
   capture.register(ctx);
 
   // ── 语义巩固定时器：episodic → semantic 周期性提炼 ──
@@ -143,6 +144,7 @@ export async function apply(ctx: unknown, config?: Partial<BrainPluginConfig>): 
   log(`已启动：人格内核(${personaFrom}) ${cfg.injectPersona ? 'on' : 'off'} / `
     + `情绪 ${cfg.injectEmotion ? 'on' : 'off'} / 脉络 ${cfg.injectDigest ? 'on' : 'off'} / `
     + `立场 ${cfg.injectAttitude ? 'on' : 'off'} / 记忆 ${cfg.injectMemory ? 'on' : 'off'} / `
+    + `时刻 ${cfg.injectClock ? 'on' : 'off'} / `
     + `蒸馏 ${distiller.enabled ? 'on' : 'off(无apiKey)'} / `
     + `向量 ${embedder.enabled ? 'on' : 'off(无apiKey)'} / 脑图 ${where} / 数据目录 ${dataDir}`);
 }

@@ -5,7 +5,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Brain } from '../src/brain/index.ts';
 import { BrainStore } from '../src/brain/store.ts';
-import { Distiller, buildDistillPrompt, buildProfileReviewPrompt, parseDistillOutput } from '../src/brain/distill.ts';
+import { Distiller, buildDistillPrompt, buildConsolidatePrompt, buildProfileReviewPrompt, parseDistillOutput } from '../src/brain/distill.ts';
+import { ageLabel, formatClock, formatShort, formatStamp } from '../src/brain/time.ts';
 import { SessionCapture, parseSenderTag } from '../src/capture/events.ts';
 import type { PromptInjector } from '../src/inject/prompt.ts';
 import { retention } from '../src/brain/decay.ts';
@@ -546,7 +547,8 @@ test('capture: turn/end 前的多条用户消息入队拼成一轮，配对后�
   handler(s, { type: 'assistant/message', data: { message: '谁是咸鱼！' } });
   handler(s, { type: 'turn/end', data: {} });
   assert.equal(ingested.length, 1);
-  assert.match(ingested[0]!.userText, /你这只咸鱼\n别骂了别骂了/);
+  // 多条消息逐条带 [HH:mm]，保住每条是啥时候说的
+  assert.match(ingested[0]!.userText, /\[\d{2}:\d{2}\] 你这只咸鱼\n\[\d{2}:\d{2}\] 别骂了别骂了/);
   assert.equal(ingested[0]!.actor, '李四 (ABCDEF1234567891)');
   // 队列已排空：下一轮没有新用户消息，旧消息不重复配对
   handler(s, { type: 'assistant/message', data: { message: '哼' } });
@@ -569,6 +571,54 @@ test('assemble: 记忆行带发言人前缀', () => {
   const brain = new Brain({ store, distiller: mockDistiller({}), now });
   const ctx = brain.assemble('g1', '聚餐');
   assert.match(ctx.memoryLines.join('\n'), /\[张三 \(ABCDEF1234567890\)\] 今晚聚餐/);
+});
+
+// ── 时间归因（「什么时候说」的时间层）──
+
+test('time: formatStamp/formatShort/formatClock/ageLabel 按配置时区渲染', () => {
+  // NOW = 2026-03-24T12:00Z → Asia/Shanghai 2026-03-24 20:00 周二
+  assert.equal(formatStamp(NOW, 'Asia/Shanghai'), '2026-03-24 20:00');
+  assert.equal(formatShort(NOW, 'Asia/Shanghai'), '20:00');
+  assert.equal(formatClock(NOW, 'Asia/Shanghai'), '2026年3月24日 周二 20:00（Asia/Shanghai）');
+  assert.equal(ageLabel(NOW - 30 * 60_000, NOW), '30分钟前');
+  assert.equal(ageLabel(NOW - 3 * 3_600_000, NOW), '3小时前');
+  assert.equal(ageLabel(NOW - 3 * DAY, NOW), '3天前');
+  // 未来时间钳底，非法时区降级不抛
+  assert.equal(ageLabel(NOW + 60_000, NOW), '1分钟前');
+  assert.doesNotThrow(() => formatClock(NOW, 'Mars/Olympus'));
+});
+
+test('assemble: clock 注入当前时刻，记忆行同日细化到小时', () => {
+  const { store } = tmpStore();
+  store.addNote('s1', { content: '两小时前说的那条烤鱼的事', importance: 3 }, NOW - 2 * 3_600_000);
+  const brain = new Brain({ store, distiller: mockDistiller({}), now });
+  const ctx = brain.assemble('s1', '烤鱼');
+  assert.equal(ctx.clock, '2026年3月24日 周二 20:00（Asia/Shanghai）');
+  assert.match(ctx.memoryLines.join('\n'), /\[2小时前记\] 两小时前说的那条烤鱼的事/);
+});
+
+test('buildDistillPrompt: convo 行带时间戳、已有记忆带形成时间、末尾锚定当前时间', () => {
+  const ctx = { now: NOW, timeZone: 'Asia/Shanghai' };
+  const existing = [{
+    id: 'n1', sessionId: 's1', content: '旧记忆一条', importance: 3,
+    kind: 'episodic' as const, createdAt: NOW - 2 * DAY, strength: 1, hits: 0, lastAccessAt: NOW - 2 * DAY,
+  }];
+  const p = buildDistillPrompt(
+    [{ userText: '今晚吃鱼', assistantText: '咕嘟', actor: '张三 (ABCDEF1234567890)', at: NOW }],
+    '大肥鱼', 5, existing, undefined, undefined, ctx,
+  );
+  assert.match(p, /\[2026-03-24 20:00\] 张三 \(ABCDEF1234567890\)：今晚吃鱼/);
+  assert.match(p, /0\. \[2天前\] 旧记忆一条/);
+  assert.match(p, /当前时间：2026年3月24日 周二 20:00（Asia\/Shanghai）/);
+});
+
+test('buildConsolidatePrompt: 情景记忆列表带形成时间标注', () => {
+  const notes = [{
+    id: 'n1', sessionId: 's1', content: '张三爱民谣', importance: 3,
+    kind: 'episodic' as const, createdAt: NOW - 3 * DAY, strength: 1, hits: 0, lastAccessAt: NOW - 3 * DAY,
+  }];
+  const p = buildConsolidatePrompt(notes, '', '大肥鱼', { now: NOW, timeZone: 'Asia/Shanghai' });
+  assert.match(p, /- \[3天前\] 张三爱民谣/);
 });
 
 // ── 可视化数据 ──

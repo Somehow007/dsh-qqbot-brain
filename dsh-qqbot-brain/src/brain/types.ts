@@ -29,6 +29,9 @@ export const MOOD_VALENCE: Record<string, 1 | -1> = {
   委屈: -1, 炸毛: -1, 记仇: -1, 难过: -1,
 };
 
+/** 默认时间渲染时区：群成员在国内，云服务器系统时区通常 UTC，必须显式给 */
+export const DEFAULT_TIME_ZONE = 'Asia/Shanghai';
+
 /** 一条长期记忆（蒸馏笔记） */
 export interface MemoryNote {
   /** 稳定 id */
@@ -145,6 +148,8 @@ export interface BrainContext {
   emotion: string;
   /** 会话脉络摘要（可为空串） */
   digest: string;
+  /** 当前时刻一行（按 timeZone 渲染，供模型锚定相对时间） */
+  clock: string;
   /** 记忆摘录行（已带时间标注），可为空数组 */
   memoryLines: string[];
   /** 态度立场行（kind=attitude 命中条目），可为空数组 */
@@ -194,6 +199,8 @@ export interface BrainConfig {
   dedupeEmbedCos: number;
   /** 物理遗忘：快照时删除 hits=0 且低于遗忘阈值 且 age>=该天数 的记忆（0=不物理删除） */
   evictAfterDays: number;
+  /** 时间渲染时区（当前时刻行 / convo 时间戳；非法值降级系统时区） */
+  timeZone: string;
 }
 
 export const DEFAULT_BRAIN_CONFIG: BrainConfig = {
@@ -216,6 +223,7 @@ export const DEFAULT_BRAIN_CONFIG: BrainConfig = {
   consolidateMinNotes: 4,
   dedupeEmbedCos: 0.9,
   evictAfterDays: 30,
+  timeZone: DEFAULT_TIME_ZONE,
 };
 
 export const DAY_MS = 86_400_000;

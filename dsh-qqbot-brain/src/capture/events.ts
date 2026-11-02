@@ -1,5 +1,7 @@
 import type { Brain } from '../brain/index.ts';
 import type { PromptInjector } from '../inject/prompt.ts';
+import { formatShort } from '../brain/time.ts';
+import { DEFAULT_TIME_ZONE } from '../brain/types.ts';
 
 /**
  * 捕获 ctx.on('session/event') 广播的对话事件：
@@ -80,12 +82,15 @@ export class SessionCapture {
   private injector: PromptInjector;
   private log: (msg: string) => void;
   private debug: boolean;
+  /** 一轮内多条用户消息逐条时间的渲染时区 */
+  private timeZone: string;
 
-  constructor(brain: Brain, injector: PromptInjector, log: (msg: string) => void, debug: boolean) {
+  constructor(brain: Brain, injector: PromptInjector, log: (msg: string) => void, debug: boolean, timeZone = DEFAULT_TIME_ZONE) {
     this.brain = brain;
     this.injector = injector;
     this.log = log;
     this.debug = debug;
+    this.timeZone = timeZone;
   }
 
   register(ctx: unknown): void {
@@ -134,8 +139,13 @@ export class SessionCapture {
         const replies = this.replyBuf.get(sessionId) ?? [];
         this.replyBuf.set(sessionId, []);
         if (pending.length === 0 || replies.length === 0) return;
+        // 一轮内多条消息（连发/插话）逐条嵌 [HH:mm]，保住「每句话是啥时候」；
+        // 单条消息不嵌——蒸馏 convo 的轮级时间戳已覆盖。
+        const userText = pending.length > 1
+          ? pending.map((p) => `[${formatShort(p.at, this.timeZone)}] ${p.text}`).join('\n')
+          : pending[0]!.text;
         this.brain.ingest(sessionId, {
-          userText: pending.map((p) => p.text).join('\n'),
+          userText,
           assistantText: replies.join('\n'),
           actor: pending[pending.length - 1]!.actor,
           at: pending[0]!.at,

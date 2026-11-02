@@ -3,12 +3,13 @@ import { splitActor } from '../brain/identity.ts';
 import type { BrainPluginConfig } from '../config.ts';
 
 /**
- * 通过 system-prompt/assemble waterfall 注入六块 section：
+ * 通过 system-prompt/assemble waterfall 注入七块 section：
  *   brain:persona (order 80) 人格内核 · 最稳定锚点
  *   brain:digest  (order 81) 会话脉络 · 滚动摘要
  *   brain:emotion (order 82) 情绪态一行
  *   brain:attitude(order 83) 态度立场（对人/事/话题的当前看法，慢变量）
  *   brain:memory  (order 84) top-k 记忆摘录（含 [跨群] 召回与画像行）
+ *   brain:clock   (order 85) 当前时刻（锚定「这句话是何时说的」）
  *   brain:speaker (order 86) 当前发言人（群聊）
  * 官方 qqbot:scope-prompt 为 order 90，我们的内核更早、更难被稀释。
  *
@@ -107,6 +108,9 @@ export class PromptInjector {
           order: 84,
           text: `【记忆库摘录】\n${brain.memoryLines.join('\n')}`,
         });
+      }
+      if (this.config.injectClock && brain.clock) {
+        sections.push({ name: 'brain:clock', order: 85, text: `【当前时刻】${brain.clock}` });
       }
       if (this.config.injectSpeaker && actor) {
         sections.push({ name: 'brain:speaker', order: 86, text: `【当前发言人】${actor}` });

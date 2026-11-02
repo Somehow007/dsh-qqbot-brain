@@ -8,7 +8,7 @@
 </p>
 
 ![阶段](https://img.shields.io/badge/阶段-首轮试运行中-orange)
-![单测](https://img.shields.io/badge/单测-90%2F90-brightgreen)
+![单测](https://img.shields.io/badge/单测-102%2F102-brightgreen)
 ![Node](https://img.shields.io/badge/node-20%2B-blue)
 ![性质](https://img.shields.io/badge/性质-私有实验项目-lightgrey)
 
@@ -45,7 +45,7 @@
 ```
 读路径（每轮 LLM 调用前）
 
-QQ 消息 ──► dsh-qqbot ──► system-prompt/assemble ──► Brain.assemble 追加 6 个 section
+QQ 消息 ──► dsh-qqbot ──► system-prompt/assemble ──► Brain.assemble 追加 7 个 section
                                                           │
         ┌─────────────────────────────────────────────────┤
         │ 80 人格内核    persona.md，只读常量                 │
@@ -53,6 +53,7 @@ QQ 消息 ──► dsh-qqbot ──► system-prompt/assemble ──► Brain.a
         │ 82 情绪态      PAD 三维 + 人格化 label              │
         │ 83 当前立场    对发言人/话题的态度记忆              │
         │ 84 记忆摘录    topK 命中 + 发言人画像               │
+        │ 85 当前时刻    锚定「每句话是何时说的」              │
         │ 86 发言人      群聊归因「现在谁在说话」              │
         └─────────────────────────────────────────────────┘
                                                           ▼

@@ -5,8 +5,8 @@
 
 ## 原理
 
-- 每轮 LLM 调用前，经 `system-prompt/assemble` 注入五个 section：
-  `brain:persona`(人格内核, order 80) / `brain:emotion`(情绪态, 82) / `brain:attitude`(当前立场, 83) / `brain:memory`(top-k 记忆, 84) / `brain:speaker`(当前发言人, 86)
+- 每轮 LLM 调用前，经 `system-prompt/assemble` 注入七个 section：
+  `brain:persona`(人格内核, 80) / `brain:digest`(会话脉络, 81) / `brain:emotion`(情绪态, 82) / `brain:attitude`(当前立场, 83) / `brain:memory`(top-k 记忆, 84) / `brain:clock`(当前时刻, 85) / `brain:speaker`(当前发言人, 86)
 - 群聊发言人归因：捕获 `user/message` 时解析宿主打的 `[昵称 (openid)]` 标签写入
   `Turn.actor`，蒸馏出的记忆带发言人，注入的记忆摘录行显示 `[发言人]` 前缀
 - 态度记忆（kind=attitude）：蒸馏产出角色对人/事/话题的「对<对象>：<立场>」条目，

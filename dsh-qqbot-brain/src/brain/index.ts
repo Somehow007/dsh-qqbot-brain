@@ -2,6 +2,7 @@ import { DEFAULT_BRAIN_CONFIG, MOOD_VALENCE } from './types.ts';
 import type { BrainConfig, BrainContext, DistillResult, EmotionState, MemoryNote, NoteDraft, NoteEmotion, Turn } from './types.ts';
 import { isUserKey, splitActor, userProfileKey } from './identity.ts';
 import { ageInDays, retention } from './decay.ts';
+import { ageLabel, formatClock } from './time.ts';
 import { Retriever } from './retrieval.ts';
 import { EmotionEngine, NEUTRAL_EMOTION } from './emotion.ts';
 import { BrainStore, PROFILE_TEXT_CAP } from './store.ts';
@@ -150,9 +151,7 @@ export class Brain {
         attitudeHitIds.add(n.id);
         continue;
       }
-      const d = Math.floor(ageInDays(n, now));
-      const when = d <= 0 ? '今天' : `${d}天前`;
-      memoryLines.push(`- [${when}记] ${n.actor ? `[${n.actor}] ` : ''}${n.content}`);
+      memoryLines.push(`- [${ageLabel(n.createdAt, now)}记] ${n.actor ? `[${n.actor}] ` : ''}${n.content}`);
     }
     if (sp?.nick) {
       const extra = this.store.allNotes()
@@ -177,9 +176,7 @@ export class Brain {
         );
         for (const s of xhits.slice(0, 2)) {
           const n = s.note;
-          const d = Math.floor(ageInDays(n, now));
-          const when = d <= 0 ? '今天' : `${d}天前`;
-          memoryLines.push(`- [跨群·${when}记] ${n.actor ? `[${n.actor}] ` : ''}${n.content}`);
+          memoryLines.push(`- [跨群·${ageLabel(n.createdAt, now)}记] ${n.actor ? `[${n.actor}] ` : ''}${n.content}`);
           const th = s.relSrc === 'emb' ? this.cfg.reinforceMinEmbedCos : this.cfg.reinforceMinCos;
           if (s.rel >= th) {
             this.store.reinforce(n, this.cfg.reinforceStep, this.cfg.strengthCap, now);
@@ -199,6 +196,7 @@ export class Brain {
       persona: this.persona(),
       emotion: this.emotion.describe(sessionId, now),
       digest: this.store.digestOf(sessionId)?.text ?? '',
+      clock: formatClock(now, this.cfg.timeZone),
       memoryLines,
       attitudeLines,
       hits,
@@ -241,6 +239,7 @@ export class Brain {
       const result = await this.distiller.distill(
         turns, this.persona(), existing, this.emotion.get(sessionId, now),
         this.existingProfiles(sessionId, turns.map((t) => t.actor)),
+        { now, timeZone: this.cfg.timeZone },
       );
       this.log?.(
         `蒸馏 ${sessionId.slice(0, 8)}…：记忆 ${result.memories.length} 条 / `
@@ -330,6 +329,7 @@ export class Brain {
       const recent = buf.slice(-this.cfg.digestWindowTurns);
       const text = await this.distiller.digest(
         recent, this.store.digestOf(sessionId)?.text ?? '', this.persona(),
+        { now: this.now(), timeZone: this.cfg.timeZone },
       );
       if (text) {
         this.store.setDigest(sessionId, text, count);
@@ -442,7 +442,7 @@ export class Brain {
     const profileText = this.existingProfiles(sessionId, eps.map((n) => n.actor))
       .map((p) => `${p.actor ?? '会话整体'}：${p.text}`)
       .join('\n');
-    const result = await this.distiller.consolidate(eps, profileText, this.persona());
+    const result = await this.distiller.consolidate(eps, profileText, this.persona(), { now, timeZone: this.cfg.timeZone });
     const stamp = this.emotionStamp(sessionId, now);
     const sourceIds = eps.map((e) => e.id);
     const boost = this.emotionBoost(stamp);
