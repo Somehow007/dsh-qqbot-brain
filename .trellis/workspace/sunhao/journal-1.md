@@ -1120,3 +1120,25 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 53: 人设分轨收尾走查：跨类合并护栏 + 线上 gentle 文本修复
+<!-- trellis-session: v=2 fp=607091de019ffbc2 -->
+
+**Date**: 2026-11-04
+**Task**: 人设分轨收尾走查：跨类合并护栏 + 线上 gentle 文本修复
+**Branch**: `main`
+
+### Summary
+
+完成后走查发现两个残余问题并已修复：a) 用户切回 whale-gentle 后 persona.md 带回 6 处 U+FFFD——store 存量条目不走种子修复，PATCH /api/personas 覆盖后三版本全干净（op 已持久化）；b) 跨类合并边缘口——mergeIndex 可把 attitude 改写到 shared semantic 目标致心态落错轨，findNearDup/sweepNearDups 只挡了 attitude↔attitude 跨人设、attitude↔事实跨类合并会静默吃写入；三处统一为「事实与态度不同角色永不互判重/吸收」，新增 2 用例 129/129 绿并部署。附带教训：npm run typecheck | tail 管道吞 exit code 掩盖过 TS 错误，验证要看原始退出码。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `ef612ff` | 跨类合并护栏：事实与态度不同角色，永不互相判重/吸收 |
+
+### Status
+
+[OK] **Completed**
