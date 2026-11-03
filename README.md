@@ -8,7 +8,7 @@
 </p>
 
 ![阶段](https://img.shields.io/badge/阶段-首轮试运行已复盘-brightgreen)
-![单测](https://img.shields.io/badge/单测-121%2F121-brightgreen)
+![单测](https://img.shields.io/badge/单测-123%2F123-brightgreen)
 ![Node](https://img.shields.io/badge/node-20%2B-blue)
 ![性质](https://img.shields.io/badge/性质-私有实验项目-lightgrey)
 
@@ -115,12 +115,13 @@ QQ 消息 ──► dsh-qqbot ──► system-prompt/assemble
 | 纯字符 n-gram TF-IDF | 88.2% | 40% |
 | + embedding 混合召回（text-embedding-v3 校准） | **100%** | **20%** |
 
-**单测**：`node --test` **121/121** 通过（brain 内核 / filelog / http / page 四个测试文件 + eval 评测集），typecheck + build 全绿。
+**单测**：`node --test` **123/123** 通过（brain 内核 / filelog / http / page 四个测试文件 + eval 评测集），typecheck + build 全绿。
 
 **成本透明**：
 
 - 试运行期 ~250 轮/天 × ~5K tok ≈ 蒸馏输入 **1.2M tok/天**（≈¥90/月量级），embedding 在免费额度内
 - token 审计后落地一轮优化：剥离 `[Chat history]` 重复计费（digest 单笔 17–45K tok 降 60–80%）、section 两段排序保住前缀缓存、`max_tokens` 700→2048 防截断白调、平静态情绪免注入、审核章持久化免重启重审；实测节省待 DeepSeek usage 面板验证
+- **长期成本不发散**：宿主 transcript 随轮次锯齿形膨胀、~80% contextWindow 触发 compaction 骤降重爬（前缀缓存压斜率不改形状）；插件侧全部调用输入有界；唯一单调增长项是记忆条数——被 topK 注入上限 + 30 天遗忘兜住，涨的是本地检索 CPU 而非每轮 token（建模见 `11-03-cost-growth-analysis`）
 
 **一次实战检验**：试运行期间用户做边界测试，蒸馏把不当内容写进了记忆库（46/170 条）。处置链路：export 全量 → 按会话+关键词外科手术式过滤 → `import?mode=replace` 恢复（id/强度/向量全保留）→ 画像重写 → 170→124 条净库；随后把「按时段删除 + 记忆重置保人设」做成脑图页危险区现成功能——**可观测 + 可管理的设计在真事故里走通了**。（顺带发现：越线消息根本没到 bot 手里，是 QQ 平台 C2C 入站风控静默吞掉，属平台黑盒。）
 
@@ -136,7 +137,7 @@ QQ 消息 ──► dsh-qqbot ──► system-prompt/assemble
 
 <p align="center"><img src="docs/img/trial-timeline.png" alt="首轮试运行六天时间线" width="880"></p>
 
-**v0.1.0 · 私有实验项目 · 首轮三天试运行复盘完成，持续迭代中**（2026-10-29 开工，六天 ~126 commits / 45 个开发 session）
+**v0.1.0 · 私有实验项目 · 首轮三天试运行复盘完成，持续迭代中**（2026-10-29 开工，六天 ~135 commits / 49 个开发 session）
 
 - [x] M0–M4：概念样机 → brain 内核 → 插件壳 → 脑图页接真实 API → 云上部署 runbook
 - [x] 记忆质量修复：蒸馏 v2 白名单、检索相关性门控、身份层、滚动摘要、embedding 混合召回
@@ -145,6 +146,7 @@ QQ 消息 ──► dsh-qqbot ──► system-prompt/assemble
 - [x] 情绪系统：mood 受控枚举九桶（修复「只有开心/平静」）、mood↔PAD 护栏、情绪增强记忆权重
 - [x] 时间感知：当前时刻注入 + 对话行时间戳 + 记忆年龄粒度细化
 - [x] 成本审计：前缀缓存保命中、history 拆离、输入有界、攒批/精简版开关
+- [x] 注入延迟：向量获取与宿主装配并行，emb ~0.3s 不再串行阻塞每轮注入
 - [x] 数据管理面：画像卡编辑/删除/重生成/合并、危险区时段删除、记忆重置保人设；线上记忆清洗实战
 - [x] 脑图公网直连：`0.0.0.0:4099` + token（安全组放行，SSH 隧道降级为备选）
 - [ ] **webserver-shim 分支**：`:4099` 共享为 cordis `webServer` 服务，dsh-meme 斗图已本机全链路实测（send_meme → qqbot_send_file 真实投递），待合入上线
@@ -157,7 +159,7 @@ QQ 消息 ──► dsh-qqbot ──► system-prompt/assemble
 4. **蒸馏攒批 / personaDigest 线上 A/B**——成本与质量权衡实测
 5. **记忆关联 / 扩散激活**（图谱边已铺底）、**干扰式遗忘**、**Prospective memory**
 6. **主动开口时机**——「听而不说/主动发言」需宿主上游钩子或平台 intent 权限（已留档）
-7. **MCP sidecar**——把 recall/ingest/assemble 暴露给无 Cordis 机制的 harness（WorkBuddy 调研已留档）
+7. **跳出 dsh**——演进路线已定：HostAdapter 显式化 + `/api/ingest`/`/api/assemble` 补齐 → 库导出（`@brain/core`，价值保留最高）→ HTTP sidecar → MCP 薄壳（降级形态放最后）；dsh 永远 first-class（`11-03-brain-roadmap-beyond-dsh`）
 
 ## 快速开始
 
@@ -216,6 +218,6 @@ npm run build       # 产物在 dist/
 ```
 
 - 全部数据与结论出自 `.trellis/tasks/` 的逐次评估留痕（D3 试运行复盘、token 审计、情绪桶走查、上云/清洗/公网处置等）
-- 开发时间线见 `.trellis/workspace/sunhao/journal-1.md`（45 个 session 全程记录）
+- 开发时间线见 `.trellis/workspace/sunhao/journal-1.md`（49 个 session 全程记录）
 
 License: UNLICENSED（私有项目）
