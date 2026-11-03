@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 45
+- **Total Sessions**: 46
 - **Last Active**: 2026-11-03
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~970 | Active |
+| `journal-1.md` | ~992 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 46 | 2026-11-03 | README 增量更新：D3 复盘+生图提示词 | `0acb9ae` | `main` |
 | 45 | 2026-11-03 | 脑图 footer/节点优化上线 | - | `main` |
 | 44 | 2026-11-03 | 脑图节点视觉收敛 | - | `main` |
 | 43 | 2026-11-03 | 脑图底部图例与脑区标签堆叠修复 | - | `main` |

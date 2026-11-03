@@ -968,3 +968,25 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 46: README 增量更新：D3 复盘+生图提示词
+<!-- trellis-session: v=2 fp=de9c2d5e885e8720 -->
+
+**Date**: 2026-11-03
+**Task**: README 增量更新：D3 复盘+生图提示词
+**Branch**: `main`
+
+### Summary
+
+问题：README(11-02版)滞后于两天内~55个提交的新进展。做法：通读新增归档PRD（two-day-trial-eval D3复盘、llm-token-audit、emotion-bucket-coverage、brain-public-access、cloud-memory-purge、nsfw-message-drop、brain-link-issues、admin-followups）+journal session26-45+feat/webserver-shim分支PRD，重写README——理论表加情绪增强与两段排序；读写图改7section两段式(80/81稳定段+10300-10340易变段)并解释前缀缓存动机；实测效果改D3三维结论表(人格✅/记忆✅质变/上下文✅超预期，742次蒸馏37%丢弃、466→111、digest59次、1.2M tok/天~¥90/月)+eval+成本+清洗实战故事(170→124外科手术)+更新诚实清单(写回竞态/openid/emb马太精修0.62)；当前阶段改复盘完成+shim分支待合入(send_meme→send_file已本机实测)。新增docs/readme-image-prompts.md五张配图生图提示词(架构/时序/记忆生命周期/脑区映射/时间线)与5个IMG-SLOT占位注释，用户拿图后替换。验证：order按prompt.ts核对、D3数据按归档prd核对。后续：图片到位后替换占位；DeepSeek usage实测成本回来后补数据。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `0acb9ae` | docs: README 增量更新——D3 复盘结论、两段式注入、生图提示词 |
+
+### Status
+
+[OK] **Completed**
