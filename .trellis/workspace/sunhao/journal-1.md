@@ -1098,3 +1098,25 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 52: 大肥鱼人设内核 v2 依恋版 + 态度按人设分轨
+<!-- trellis-session: v=2 fp=77ee4416d3891345 -->
+
+**Date**: 2026-11-03
+**Task**: 大肥鱼人设内核 v2 依恋版 + 态度按人设分轨
+**Branch**: `main`
+
+### Summary
+
+需求：新版人设更体贴/懂人/粘主人/可攻略（恋人位 demo 专属），原版备份。排查：拉回线上人设发现 whale-gentle 有用户手改的成人向放宽（全保留）+3 处 U+FFFD 乱码（已修）；攻略线的「好感」持久化靠 attitude 记忆，共享池会让新人设被旧立场剧透。方案：事实共享·态度分轨——MemoryNote.personaId 打标，attitude 只召同人设（attitudeVisible 可见池统一 topK/保底/跨群三口），写侧三护栏防 mergeIndex/findNearDup/sweepNearDups 跨人设泄漏；脑图加按人设筛选+按人设删除（del-persona op）；画像 lastWrittenByPersona 标签。走查修 4 坑：persona-activate 不 bump graphVersion 致命中缓存旧轨、空串 personaId 归不了轨、无人设期全可见兜底、build 只拷 whale-gentle。验证：128/128 测试+typecheck 绿（新增 5 分轨用例）；线上部署后 devotion 注册激活、persona.md 镜像同步、重启保活，whale-gentle/legacy 可切回。后续：攻略弧演化靠 attitude 积累，早期可手动预置初始态度加速。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `a5bafdf` | 人设内核 v2「依恋版」+ 态度按人设分轨：可攻略玩法不被旧人设剧透 |
+
+### Status
+
+[OK] **Completed**
