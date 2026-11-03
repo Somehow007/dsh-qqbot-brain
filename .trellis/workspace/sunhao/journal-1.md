@@ -1076,3 +1076,25 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 51: README 数据刷新：计数同步 + 新归档结论入文
+<!-- trellis-session: v=2 fp=739e4ea94c56697d -->
+
+**Date**: 2026-11-03
+**Task**: README 数据刷新：计数同步 + 新归档结论入文
+**Branch**: `main`
+
+### Summary
+
+问题：配图落地后 README 数字过期（121 测试/126 commits/45 session），且新归档的成本增长分析、跳出 dsh 路线与 emb 并行化提交未入文。排查：实跑 npm test 123/123、git rev-list 135、journal 49 session、webserver-shim 仍未合入。方案：逐项刷新 README 计数、成本段补长期成本结论、路线候选改 H1-H3、时间线图重渲。验证：grep 无旧数字残留、PNG 目检通过。后续：里程碑时统一刷计数字段。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `9f1e7ac` | docs: README 数据刷新——123 测试/135 commits/49 session |
+
+### Status
+
+[OK] **Completed**

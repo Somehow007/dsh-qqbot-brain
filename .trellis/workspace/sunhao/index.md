@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 50
+- **Total Sessions**: 51
 - **Last Active**: 2026-11-03
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1078 | Active |
+| `journal-1.md` | ~1100 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 51 | 2026-11-03 | README 数据刷新：计数同步 + 新归档结论入文 | `9f1e7ac` | `main` |
 | 50 | 2026-11-03 | 云端画像走查：活跃会话压缩棘轮纠偏 | `b474c83` | `main` |
 | 49 | 2026-11-03 | README 配图：手绘 SVG 替代 ChatGPT 生图 | `7c3ecd2` | `main` |
 | 48 | 2026-11-03 | brain 跳出 dsh 的演进路线讨论 | - | `main` |
