@@ -1,0 +1,121 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" font-family="'PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif">
+  <defs>
+    <marker id="ar" markerWidth="11" markerHeight="11" refX="8" refY="4.5" orient="auto">
+      <path d="M0,0 L9,4.5 L0,9 Z" fill="#3B82F6"/>
+    </marker>
+    <marker id="arA" markerWidth="11" markerHeight="11" refX="8" refY="4.5" orient="auto">
+      <path d="M0,0 L9,4.5 L0,9 Z" fill="#D97706"/>
+    </marker>
+    <marker id="arG" markerWidth="11" markerHeight="11" refX="8" refY="4.5" orient="auto">
+      <path d="M0,0 L9,4.5 L0,9 Z" fill="#94A3B8"/>
+    </marker>
+    <style>
+      .box{fill:#EFF6FF;stroke:#3B82F6;stroke-width:1.6}
+      .boxHot{fill:#DBEAFE;stroke:#2563EB;stroke-width:2}
+      .boxA{fill:#FFFBEB;stroke:#D97706;stroke-width:1.6}
+      .boxG{fill:#F8FAFC;stroke:#94A3B8;stroke-width:1.5;stroke-dasharray:7 5}
+      .t{font-size:17px;font-weight:700;fill:#1E3A5F}
+      .s{font-size:12.5px;fill:#64748B}
+      .lbl{font-size:12.5px;fill:#3B82F6;font-weight:600}
+      .lblG{font-size:12.5px;fill:#64748B}
+      .lblA{font-size:12.5px;fill:#B45309;font-weight:600}
+      .ln{stroke:#3B82F6;stroke-width:2.2;fill:none}
+      .lnG{stroke:#94A3B8;stroke-width:1.8;fill:none;stroke-dasharray:6 4}
+      .lnA{stroke:#D97706;stroke-width:2;fill:none;stroke-dasharray:7 5}
+      .num{font-size:11px;font-weight:700;fill:#FFFFFF}
+    </style>
+  </defs>
+
+  <rect width="1600" height="900" fill="#FFFFFF"/>
+  <rect x="520" y="34" width="560" height="56" rx="14" fill="#EBF4FF" stroke="#2563EB" stroke-width="2"/>
+  <text x="800" y="70" text-anchor="middle" font-size="25" font-weight="700" fill="#1D4ED8">记忆的一生 · Ebbinghaus + ACT-R 简化</text>
+
+  <!-- ═══ 主流程上排 ═══ -->
+  <g>
+    <rect class="box" x="120" y="280" width="260" height="140" rx="14"/>
+    <circle cx="140" cy="300" r="10" fill="#3B82F6"/><text class="num" x="140" y="304" text-anchor="middle">1</text>
+    <text class="t" x="250" y="330" text-anchor="middle">轮末蒸馏</text>
+    <text class="s" x="250" y="362" text-anchor="middle">四类白名单</text>
+    <text class="s" x="250" y="384" text-anchor="middle">事实/偏好/承诺/关系</text>
+  </g>
+  <g>
+    <rect class="boxHot" x="480" y="280" width="260" height="140" rx="14"/>
+    <circle cx="500" cy="300" r="10" fill="#2563EB"/><text class="num" x="500" y="304" text-anchor="middle">2</text>
+    <text class="t" x="610" y="330" text-anchor="middle">episodic 情景记忆</text>
+    <text class="s" x="610" y="362" text-anchor="middle">初始强度 = importance</text>
+    <text class="s" x="610" y="384" text-anchor="middle">× 情绪加成（≤+50%）</text>
+  </g>
+  <g>
+    <rect class="box" x="840" y="280" width="260" height="140" rx="14"/>
+    <circle cx="860" cy="300" r="10" fill="#3B82F6"/><text class="num" x="860" y="304" text-anchor="middle">3</text>
+    <text class="t" x="970" y="330" text-anchor="middle">巩固定时器</text>
+    <text class="s" x="970" y="362" text-anchor="middle">≥1 天 · 每小时检查</text>
+    <text class="s" x="970" y="384" text-anchor="middle">只啃未吸收 episodic</text>
+  </g>
+  <g>
+    <rect class="box" x="1200" y="280" width="260" height="140" rx="14"/>
+    <circle cx="1220" cy="300" r="10" fill="#3B82F6"/><text class="num" x="1220" y="304" text-anchor="middle">4</text>
+    <text class="t" x="1330" y="330" text-anchor="middle">semantic 语义记忆</text>
+    <text class="s" x="1330" y="362" text-anchor="middle">sourceIds 记情景来源</text>
+    <text class="s" x="1330" y="384" text-anchor="middle">跨会话召回</text>
+  </g>
+
+  <path class="ln" d="M380 350 H473" marker-end="url(#ar)"/>
+  <path class="ln" d="M740 350 H833" marker-end="url(#ar)"/>
+  <path class="ln" d="M1100 350 H1193" marker-end="url(#ar)"/>
+
+  <!-- ═══ 下排：检索池 → 注入 ═══ -->
+  <g>
+    <rect class="box" x="1200" y="600" width="260" height="140" rx="14"/>
+    <circle cx="1220" cy="620" r="10" fill="#3B82F6"/><text class="num" x="1220" y="624" text-anchor="middle">5</text>
+    <text class="t" x="1330" y="650" text-anchor="middle">检索池 topK</text>
+    <text class="s" x="1330" y="682" text-anchor="middle">rel 门控 · R 只做 boost</text>
+    <text class="s" x="1330" y="704" text-anchor="middle">α·rel·(1+β·R)+γ·imp/5</text>
+  </g>
+  <g>
+    <rect class="box" x="120" y="600" width="260" height="140" rx="14"/>
+    <circle cx="140" cy="620" r="10" fill="#3B82F6"/><text class="num" x="140" y="624" text-anchor="middle">6</text>
+    <text class="t" x="250" y="650" text-anchor="middle">注入下轮 prompt</text>
+    <text class="s" x="250" y="682" text-anchor="middle">+人格/脉络/情绪/立场</text>
+    <text class="s" x="250" y="704" text-anchor="middle">/发言人/时刻</text>
+  </g>
+
+  <!-- semantic → 检索池 -->
+  <path class="ln" d="M1330 420 V593" marker-end="url(#ar)"/>
+  <!-- episodic 直接入池（跨过上排） -->
+  <path class="lnG" d="M610 420 C610 500 1290 480 1330 593" marker-end="url(#arG)"/>
+  <text class="lblG" x="950" y="512" text-anchor="middle">episodic 也直接入池</text>
+  <!-- 检索池 → 注入（下排下方回路） -->
+  <path class="ln" d="M1330 740 V790 H250 V747" marker-end="url(#ar)"/>
+  <!-- 注入 → 蒸馏 回路 -->
+  <path class="ln" d="M250 600 V427" marker-end="url(#ar)"/>
+  <text class="lbl" x="262" y="515">新对话 · 新轮次</text>
+
+  <!-- ═══ episodic 自身修饰 ═══ -->
+  <!-- 命中强化 自环 -->
+  <path class="ln" d="M655 420 C660 470 560 470 560 427" marker-end="url(#ar)"/>
+  <text class="lbl" x="610" y="488" text-anchor="middle">命中强化 S+1（rel≥门槛）</text>
+
+  <!-- 判重徽章 -->
+  <rect class="boxG" x="480" y="150" width="260" height="80" rx="12"/>
+  <text class="t" x="610" y="184" text-anchor="middle" font-size="15">cos≥0.9 判重</text>
+  <text class="s" x="610" y="208" text-anchor="middle">增量改强化 · 存量一键合并</text>
+  <path class="lnG" d="M610 230 V272" marker-end="url(#arG)"/>
+
+  <!-- 遗忘 -->
+  <rect class="boxA" x="480" y="600" width="260" height="120" rx="14"/>
+  <text class="t" x="610" y="646" text-anchor="middle" fill="#B45309">遗忘</text>
+  <text class="s" x="610" y="676" text-anchor="middle">R=e^(−t/S) 衰减</text>
+  <text class="s" x="610" y="700" text-anchor="middle">30 天物理清除 evict</text>
+  <path class="lnA" d="M545 420 C520 480 560 540 590 592" marker-end="url(#arA)"/>
+
+  <!-- attitude + 画像 -->
+  <rect class="boxG" x="1200" y="150" width="260" height="80" rx="12"/>
+  <text class="t" x="1330" y="184" text-anchor="middle" font-size="15">attitude 态度 · 画像</text>
+  <text class="s" x="1330" y="208" text-anchor="middle">慢变量 · 按人/保底召回</text>
+  <path class="lnG" d="M1460 190 H1525 V670 H1467" marker-end="url(#arG)"/>
+
+  <!-- 中央主题 -->
+  <text x="800" y="560" text-anchor="middle" font-size="20" font-weight="700" fill="#1E3A5F">写入 → 用进废退 → 沉淀或遗忘</text>
+  <text x="800" y="590" text-anchor="middle" font-size="13" fill="#64748B">强情绪场景形成的记忆强度更高 · 被吸收的情景不再重复巩固</text>
+</svg>

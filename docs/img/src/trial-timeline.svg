@@ -1,0 +1,106 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" font-family="'PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif">
+  <defs>
+    <marker id="ar" markerWidth="11" markerHeight="11" refX="8" refY="4.5" orient="auto">
+      <path d="M0,0 L9,4.5 L0,9 Z" fill="#3B82F6"/>
+    </marker>
+    <style>
+      .box{fill:#EFF6FF;stroke:#3B82F6;stroke-width:1.6}
+      .boxG{fill:#F8FAFC;stroke:#94A3B8;stroke-width:1.4;stroke-dasharray:6 4}
+      .boxA{fill:#FFFBEB;stroke:#D97706;stroke-width:1.5}
+      .t{font-size:16px;font-weight:700;fill:#1E3A5F}
+      .d{font-size:15px;font-weight:700;fill:#1D4ED8}
+      .s{font-size:12.5px;fill:#64748B}
+      .stem{stroke:#93C5FD;stroke-width:1.6}
+      .main{stroke:#3B82F6;stroke-width:3}
+      .mainD{stroke:#94A3B8;stroke-width:3;stroke-dasharray:10 8}
+    </style>
+  </defs>
+
+  <rect width="1600" height="900" fill="#FFFFFF"/>
+  <rect x="500" y="34" width="600" height="56" rx="14" fill="#EBF4FF" stroke="#2563EB" stroke-width="2"/>
+  <text x="800" y="70" text-anchor="middle" font-size="25" font-weight="700" fill="#1D4ED8">首轮试运行 · 六天时间线</text>
+  <text x="1500" y="130" text-anchor="end" font-size="14" fill="#64748B">6 天 · ~126 commits · 45 session</text>
+
+  <!-- 主线 -->
+  <path class="main" d="M60 560 H1330"/>
+  <path class="mainD" d="M1330 560 H1500" marker-end="url(#ar)"/>
+
+  <!-- 节点卡片：y290-460，茎 460→545，点 y560 -->
+  <!-- N1 10-29 -->
+  <g>
+    <rect class="box" x="75" y="290" width="215" height="170" rx="14"/>
+    <text class="d" x="182" y="326" text-anchor="middle">10-29 立项</text>
+    <text class="s" x="182" y="358" text-anchor="middle">M0–M4 一天走完</text>
+    <text class="s" x="182" y="382" text-anchor="middle">内核 · 插件壳</text>
+    <text class="s" x="182" y="406" text-anchor="middle">脑图页 · 部署文档</text>
+    <path class="stem" d="M182 460 V545"/>
+    <circle cx="182" cy="560" r="9" fill="#3B82F6" stroke="#fff" stroke-width="3"/>
+  </g>
+  <!-- N2 10-30 -->
+  <g>
+    <rect class="box" x="310" y="290" width="215" height="170" rx="14"/>
+    <text class="d" x="417" y="326" text-anchor="middle">10-30 上云</text>
+    <text class="s" x="417" y="358" text-anchor="middle">1C2G 云服务器</text>
+    <text class="s" x="417" y="382" text-anchor="middle">四人宿舍群</text>
+    <text class="s" x="417" y="406" text-anchor="middle">真实挂载运行</text>
+    <path class="stem" d="M417 460 V545"/>
+    <circle cx="417" cy="560" r="9" fill="#3B82F6" stroke="#fff" stroke-width="3"/>
+  </g>
+  <!-- N3 10-31 -->
+  <g>
+    <rect class="box" x="545" y="290" width="215" height="170" rx="14"/>
+    <text class="d" x="652" y="326" text-anchor="middle">10-31 提质</text>
+    <text class="s" x="652" y="358" text-anchor="middle">蒸馏 v2 白名单</text>
+    <text class="s" x="652" y="382" text-anchor="middle">检索相关性门控</text>
+    <text class="s" x="652" y="406" text-anchor="middle">embedding 混合召回</text>
+    <path class="stem" d="M652 460 V545"/>
+    <circle cx="652" cy="560" r="9" fill="#3B82F6" stroke="#fff" stroke-width="3"/>
+    <rect class="boxA" x="545" y="610" width="215" height="58" rx="12"/>
+    <text x="652" y="635" text-anchor="middle" font-size="12.5" font-weight="700" fill="#B45309">检索评测</text>
+    <text x="652" y="656" text-anchor="middle" font-size="12" fill="#B45309">88.2%/40% → 100%/20%</text>
+  </g>
+  <!-- N4 11-01 -->
+  <g>
+    <rect class="box" x="780" y="290" width="215" height="170" rx="14"/>
+    <text class="d" x="887" y="326" text-anchor="middle">11-01 人格</text>
+    <text class="s" x="887" y="358" text-anchor="middle">多版本人设 + 切换</text>
+    <text class="s" x="887" y="382" text-anchor="middle">画像二次审核</text>
+    <text class="s" x="887" y="406" text-anchor="middle">鲸脑皮层脑图</text>
+    <path class="stem" d="M887 460 V545"/>
+    <circle cx="887" cy="560" r="9" fill="#3B82F6" stroke="#fff" stroke-width="3"/>
+  </g>
+  <!-- N5 11-02 -->
+  <g>
+    <rect class="box" x="1015" y="290" width="215" height="170" rx="14"/>
+    <text class="d" x="1122" y="326" text-anchor="middle">11-02 攻坚</text>
+    <text class="s" x="1122" y="358" text-anchor="middle">图谱边 · 判重清扫</text>
+    <text class="s" x="1122" y="382" text-anchor="middle">时间感知 · token 审计</text>
+    <text class="s" x="1122" y="406" text-anchor="middle">记忆清洗 170→124</text>
+    <path class="stem" d="M1122 460 V545"/>
+    <circle cx="1122" cy="560" r="9" fill="#3B82F6" stroke="#fff" stroke-width="3"/>
+  </g>
+  <!-- N6 11-03 -->
+  <g>
+    <rect class="box" x="1250" y="290" width="215" height="170" rx="14" style="fill:#DBEAFE;stroke:#2563EB;stroke-width:2.2"/>
+    <text class="d" x="1357" y="326" text-anchor="middle">11-03 复盘</text>
+    <text class="s" x="1357" y="358" text-anchor="middle">D3 评估三维全 ✅</text>
+    <text class="s" x="1357" y="382" text-anchor="middle">画像管理面 · 公网直连</text>
+    <text class="s" x="1357" y="406" text-anchor="middle">121/121 测试</text>
+    <path class="stem" d="M1357 460 V545"/>
+    <circle cx="1357" cy="560" r="9" fill="#2563EB" stroke="#fff" stroke-width="3"/>
+    <rect class="boxA" x="1250" y="610" width="215" height="58" rx="12"/>
+    <text x="1357" y="635" text-anchor="middle" font-size="12.5" font-weight="700" fill="#B45309">742 次蒸馏 · 37% 丢弃</text>
+    <text x="1357" y="656" text-anchor="middle" font-size="12" fill="#B45309">草稿 466 → 净存 111</text>
+  </g>
+
+  <!-- 虚线延伸：下一步 -->
+  <rect class="boxG" x="1395" y="700" width="180" height="110" rx="14"/>
+  <text class="t" x="1485" y="734" text-anchor="middle" font-size="14">下一步</text>
+  <text class="s" x="1485" y="762" text-anchor="middle">Reflection</text>
+  <text class="s" x="1485" y="786" text-anchor="middle">扩散激活 · 管理面加固</text>
+
+  <!-- 底部注解 -->
+  <rect x="300" y="780" width="1000" height="56" rx="12" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="1.2"/>
+  <text x="800" y="804" text-anchor="middle" font-size="13.5" fill="#64748B">蒸馏白名单「事实/偏好/承诺/关系」· 37% 拌嘴轮被正确丢弃 · digest 会话脉络超预期</text>
+  <text x="800" y="824" text-anchor="middle" font-size="13.5" fill="#64748B">情绪 label 全程人格化 · 跨群召回在线 · 成本 ~¥90/月量级（优化已落地待实测）</text>
+</svg>

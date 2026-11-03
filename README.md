@@ -12,7 +12,7 @@
 ![Node](https://img.shields.io/badge/node-20%2B-blue)
 ![性质](https://img.shields.io/badge/性质-私有实验项目-lightgrey)
 
-<!-- IMG-SLOT 1: docs/img/architecture.png 系统架构总览（见 docs/readme-image-prompts.md） -->
+<p align="center"><img src="docs/img/architecture.png" alt="qqbot-brain 系统架构总览" width="880"></p>
 
 ## 这个项目在探讨什么
 
@@ -48,7 +48,7 @@
 
 ## 它是怎么工作的
 
-<!-- IMG-SLOT 2: docs/img/turn-sequence.png 单轮读写时序图 -->
+<p align="center"><img src="docs/img/turn-sequence.png" alt="一轮对话的读写时序" width="880"></p>
 
 ```
 读路径（每轮 LLM 调用前，注入 7 个 section）
@@ -94,11 +94,11 @@ QQ 消息 ──► dsh-qqbot ──► system-prompt/assemble
 - **semantic 语义**——巩固定时器从老情景里提炼的长期知识，跨会话召回；`sourceIds` 记录情景来源，被吸收的记忆不再重复巩固
 - **attitude 态度**——「对\<对象\>：\<立场\>」条目，人格内核不变但立场被对话塑造；含当前发言人昵称的态度保底唤起
 
-<!-- IMG-SLOT 4: docs/img/brain-regions.png 记忆种类↔脑区映射图（可选） -->
+<p align="center"><img src="docs/img/brain-regions.png" alt="鲸脑皮层：记忆按脑区安放" width="880"></p>
 
 ## 实测效果
 
-<!-- IMG-SLOT 3: docs/img/memory-lifecycle.png 记忆生命周期 -->
+<p align="center"><img src="docs/img/memory-lifecycle.png" alt="记忆的一生：写入→用进废退→沉淀或遗忘" width="880"></p>
 
 **三天宿舍群试运行复盘**（四人 QQ 群 + 私聊，2026-10-30 上线，D3 评估于 11-03）：
 
@@ -134,7 +134,7 @@ QQ 消息 ──► dsh-qqbot ──► system-prompt/assemble
 
 ## 当前阶段
 
-<!-- IMG-SLOT 5: docs/img/trial-timeline.png 试运行时间线 -->
+<p align="center"><img src="docs/img/trial-timeline.png" alt="首轮试运行六天时间线" width="880"></p>
 
 **v0.1.0 · 私有实验项目 · 首轮三天试运行复盘完成，持续迭代中**（2026-10-29 开工，六天 ~126 commits / 45 个开发 session）
 
