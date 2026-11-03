@@ -1142,3 +1142,23 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 54: 脑图移动端适配上线
+<!-- trellis-session: v=2 fp=16f8254925971ede -->
+
+**Date**: 2026-11-04
+**Task**: 脑图移动端适配上线
+**Branch**: `main`
+
+### Summary
+
+问题：手机上节点点不中（SVG无缩放）、点选后检查器在屏外、≤640媒体查询按旧absolute布局已失效、固定stage高度出letterbox。方案：viewBox视图控制（滚轮/捏合缩放到指针点、拖拽平移、35%越界夹取、resetView复位视图+选中）；touch-action:pan-y保纵向滚动；节点加hit触控圈+cap标签可点；点选滚动到检查器；≤1000 stage height:auto让svg按内禀840:600比自撑消letterbox、≤640头部/搜索/结果改static进文档流。验证：npm test 129/129，rsync部署远端md5 01e5bd3d一致、公网200。后续：dblclick复位、overflow触控、iPad中档。
+
+### Git Commits
+
+(No commits - planning session)
+
+### Status
+
+[OK] **Completed**
