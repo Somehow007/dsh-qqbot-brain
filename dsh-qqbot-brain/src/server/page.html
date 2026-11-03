@@ -198,11 +198,6 @@
     .sess .prof{margin-top:8px;line-height:1.6;color:#a8c6d4;overflow-wrap:anywhere}
     .sess .meta{margin-top:8px;font-size:10px;color:var(--faint)}
     .sess.mergesrc{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan) inset}
-    .sess .mergebtn{border:1px solid var(--line2);background:transparent;color:var(--muted);font-size:10px;padding:1px 7px}
-    .sess .mergebtn:hover{border-color:var(--cyan);color:var(--cyan2)}
-    .sess .cardops{float:right;display:flex;gap:4px;margin-left:8px}
-    .sess .cardops .act{margin-right:0}
-    .sess .cardops .danger{border-color:#a05a4f;color:#f0b5a0}
     .sess .prof-name{display:block;width:100%;border:1px solid var(--line2);background:var(--panel2);padding:5px 8px;font-size:12px;color:var(--ink);margin-top:6px;box-sizing:border-box}
     .sess .prof-edit{display:block;width:100%;min-height:110px;border:1px solid var(--line2);background:var(--panel2);padding:8px;font-size:12px;line-height:1.6;color:var(--ink);resize:vertical;margin-top:6px;box-sizing:border-box}
     .danger-zone{border:1px solid #4a2f33;background:rgba(74,47,51,.12);padding:12px 14px;margin-top:14px}
@@ -210,6 +205,7 @@
     .danger-zone .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px;font-size:12px;color:var(--muted)}
     .danger-zone input{border:1px solid var(--line2);background:var(--panel2);padding:5px 8px;font-size:11px;color:var(--ink)}
     .danger-zone .danger{border:1px solid #a05a4f;background:transparent;color:#f0b5a0;padding:5px 12px;font-size:12px}
+    .danger-zone .act{margin-right:0;padding:5px 12px;font-size:12px}
     .danger-zone .danger:hover:not(:disabled){background:#4a2f33}
     .danger-zone .danger:disabled{opacity:.45}
     .ops{font-size:11px;line-height:1.9;max-height:380px;overflow-y:auto}
@@ -1100,8 +1096,16 @@ function renderSessions(){
   people.forEach(p=>{
     const d=document.createElement('div');d.className='sess';
     if(mergeSrc===p.key)d.classList.add('mergesrc');
-    d.innerHTML=`<div class="sid">PERSON ${esc(p.name)}${p.openid?` · ${esc(shortId(p.openid))}…`:''}<span class="cardops"><button class="act" data-a="pedit" type="button">编辑</button><button class="act" data-a="pregen" type="button">重生成</button><button class="act danger" data-a="pdel" type="button">删</button><button class="mergebtn" type="button"></button></span></div>
-      <div class="prof"></div><div class="meta"></div>`;
+    d.innerHTML=`<div class="sid">PERSON ${esc(p.name)}${p.openid?` · ${esc(shortId(p.openid))}…`:''}</div>
+      <div class="prof"></div><div class="meta"></div>
+      <details class="note-edit"><summary>管理这张画像</summary>
+        <div class="erow">
+          <button class="act" data-a="pedit" type="button">编辑</button>
+          <button class="act" data-a="pregen" type="button">重生成</button>
+          <button class="act mergebtn" type="button"></button>
+          <button class="act danger" data-a="pdel" type="button">删除</button>
+        </div>
+      </details>`;
     d.querySelector('.prof').textContent=p.text||'（画像未生成）';
     d.querySelector('.meta').textContent=`见于 ${p.sessions.length} 个会话${p.updatedAt?` · ${fmtT(p.updatedAt)} 更新`:''}`;
     const btn=d.querySelector('.mergebtn');
@@ -1122,8 +1126,15 @@ function renderSessions(){
   SESS.forEach(s=>{
     const d=document.createElement('div');d.className='sess';
     const emo=s.emotion?`情绪 ${s.emotion.label||''}（v=${s.emotion.v?.toFixed(1)} a=${s.emotion.a?.toFixed(1)}）`:'情绪 —';
-    d.innerHTML=`<div class="sid">SESSION ${esc(shortId(s.sessionId))}…<span class="cardops"><button class="act" data-a="pedit" type="button">编辑</button><button class="act" data-a="pregen" type="button">重生成</button><button class="act danger" data-a="pdel" type="button">删</button></span></div>
-      <div class="prof"></div><div class="meta"></div>`;
+    d.innerHTML=`<div class="sid">SESSION ${esc(shortId(s.sessionId))}…</div>
+      <div class="prof"></div><div class="meta"></div>
+      <details class="note-edit"><summary>管理这张画像</summary>
+        <div class="erow">
+          <button class="act" data-a="pedit" type="button">编辑</button>
+          <button class="act" data-a="pregen" type="button">重生成</button>
+          <button class="act danger" data-a="pdel" type="button">删除</button>
+        </div>
+      </details>`;
     d.querySelector('.prof').textContent=s.profile||'（画像未生成——多聊几轮后由蒸馏产出）';
     d.querySelector('.meta').textContent=`${s.noteCount} 条记忆 · ${emo}`;
     wireProfileCard(d,{key:'sess:'+s.sessionId,kind:'session',name:'',text:s.profile,ph:'（画像未生成——多聊几轮后由蒸馏产出）'});
