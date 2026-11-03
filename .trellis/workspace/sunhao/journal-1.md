@@ -990,3 +990,25 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 47: 长期对话成本增长机制分析
+<!-- trellis-session: v=2 fp=5ed416d2f4c1f030 -->
+
+**Date**: 2026-11-03
+**Task**: 长期对话成本增长机制分析
+**Branch**: `main`
+
+### Summary
+
+用户提问长期对话延迟/会话成本如何增长、transcript 是否膨胀、摘要压缩影响。排查：读 brain/index.ts（historyBuffer 60轮封顶）、capture/events.ts（Turn/contextText 500字）、store.ts（jsonl op流水）、inject/prompt.ts（7段注入）及 11-02 token 审计 prd。结论：宿主 transcript 逐字全量回放随轮次线性膨胀、~80%×1M 触发 compaction 形成锯齿形曲线（前缀缓存压扁斜率、compact 后短暂 miss 回涨）；插件侧 distill/digest/注入全部有界不涨；brain 侧无持久 transcript（historyBuffer 内存60轮、jsonl 是op流水非对话记录）。压缩影响：digest+memory+画像+情绪跨 compaction 存活兜底，夹缝损失是白名单外的过程性细节。纯讨论无代码改动，已建 task 归档。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `f8f3241` | docs(trellis): archive cost-growth-analysis discussion |
+
+### Status
+
+[OK] **Completed**
