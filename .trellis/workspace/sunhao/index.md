@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 42
+- **Total Sessions**: 43
 - **Last Active**: 2026-11-03
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~910 | Active |
+| `journal-1.md` | ~930 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 43 | 2026-11-03 | 脑图底部图例与脑区标签堆叠修复 | - | `main` |
 | 42 | 2026-11-03 | 画像管理功能上线部署 | `e6155a5` | `main` |
 | 41 | 2026-11-03 | 画像管理二次走查 | `e6155a5` | `main` |
 | 40 | 2026-11-03 | 宿主侧会话管理：删 RP transcript + 切回旧 session | - | `main` |

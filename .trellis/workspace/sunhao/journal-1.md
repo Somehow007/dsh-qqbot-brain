@@ -908,3 +908,23 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 43: 脑图底部图例与脑区标签堆叠修复
+<!-- trellis-session: v=2 fp=c976418f1c1048f5 -->
+
+**Date**: 2026-11-03
+**Task**: 脑图底部图例与脑区标签堆叠修复
+**Branch**: `main`
+
+### Summary
+
+问题：.stage-foot 图例条 absolute 覆盖在 #brain SVG 底部，与 AMYGDALA/HIPPOCAMPUS 脑区标签、+N 条未显示、悬停摘要文字堆叠。排查：定位为覆盖层本质问题，footer 高度随图例换行变化，挪 SVG 坐标不可靠。方案：.stage 改 flex 纵列，#brain 改 flex:1 占剩余空间，.stage-foot 改 relative 进文档流。验证：npm test 121/121 通过，静态预览确认布局。后续：若追求脑图铺满出血视觉可改给 viewBox 底部加空白带。
+
+### Git Commits
+
+(No commits - planning session)
+
+### Status
+
+[OK] **Completed**
