@@ -283,7 +283,10 @@ export class Brain {
         : null;
       let fi = 0;
       for (const m of result.memories) {
-        const target = m.mergeIndex != null ? existing[m.mergeIndex] : undefined;
+        const cand = m.mergeIndex != null ? existing[m.mergeIndex] : undefined;
+        // 事实与态度是两种角色，跨类不算「同一条记忆」：
+        // 态度改写事实会把心态落到事实所在的旧轨上，反之事实会吃掉本轨态度
+        const target = cand && (cand.kind === 'attitude') === (m.kind === 'attitude') ? cand : undefined;
         if (target) {
           this.store.updateNote(target.id, { content: m.content, importance: m.importance, kind: m.kind });
           this.store.reinforceById(target.id, this.cfg.reinforceStep, this.cfg.strengthCap, now);
@@ -291,7 +294,7 @@ export class Brain {
           continue;
         }
         const vec = freshVecs?.[fi++] ?? null;
-        const dup = vec ? this.findNearDup(vec) : undefined;
+        const dup = vec ? this.findNearDup(vec, m.kind ?? 'episodic') : undefined;
         if (dup) {
           this.store.reinforce(dup.note, this.cfg.reinforceStep, this.cfg.strengthCap, now);
           this.log?.(`判重合并：与「${dup.note.content.slice(0, 20)}」余弦 ${dup.cos.toFixed(2)}，强化旧记忆`);
@@ -692,9 +695,11 @@ export class Brain {
       for (let j = i + 1; j < notes.length; j++) {
         if (vecCosine(notes[i]!.embedding!, notes[j]!.embedding!) >= this.cfg.dedupeEmbedCos
           && find(notes[i]!.id) !== find(notes[j]!.id)) {
-          // 态度分轨：不同人设的态度即使文案近似也不合并（各自的「感觉」是各自的）
+          // 态度分轨：事实与态度不同角色不互并（吸收即丢失）；
+          // 不同人设的态度即使文案近似也不合并（各自的「感觉」是各自的）
           const a = notes[i]!, b = notes[j]!;
-          if (a.kind === 'attitude' && b.kind === 'attitude' && notePersonaId(a) !== notePersonaId(b)) continue;
+          if ((a.kind === 'attitude') !== (b.kind === 'attitude')) continue;
+          if (a.kind === 'attitude' && notePersonaId(a) !== notePersonaId(b)) continue;
           parent.set(find(a.id), find(b.id));
         }
       }
@@ -723,11 +728,13 @@ export class Brain {
   }
 
   /** 写入判重：全库找与新记忆向量余弦最高的既有记忆，≥dedupeEmbedCos 判为同一事实 */
-  private findNearDup(vec: number[]): { note: MemoryNote; cos: number } | undefined {
+  private findNearDup(vec: number[], kind: MemoryNote['kind']): { note: MemoryNote; cos: number } | undefined {
     if (this.cfg.dedupeEmbedCos <= 0) return undefined;
     let best: MemoryNote | undefined, bc = 0;
     for (const n of this.store.allNotes()) {
       if (!n.embedding?.length) continue;
+      // 事实与态度不同角色不互判重（态度被事实吸收=心态静默丢失，反之亦然）
+      if ((n.kind === 'attitude') !== (kind === 'attitude')) continue;
       // 态度分轨：他人设的态度不参与判重（否则新人设写近似立场会被旧轨吸收掉）
       if (!this.attitudeVisible(n)) continue;
       const c = vecCosine(vec, n.embedding);

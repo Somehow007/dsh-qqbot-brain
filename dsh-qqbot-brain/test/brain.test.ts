@@ -378,13 +378,41 @@ test('sweepNearDups: 不同人设的近似态度不合并，同人设的照常�
   const b = store.addNote('s1', { content: '对张三：信任', importance: 3, kind: 'attitude', personaId: 'whale-devotion' }, NOW);
   const c = store.addNote('s1', { content: '对李四：信任', importance: 3, kind: 'attitude', personaId: 'whale-devotion' }, NOW);
   const d = store.addNote('s1', { content: '对李四：很信任', importance: 3, kind: 'attitude', personaId: 'whale-devotion' }, NOW);
-  for (const n of [a, b, c, d]) store.setEmbedding(n.id, [1, 0, 0]);
+  // 跨类不互并：与态度同向量的 semantic 事实不能被态度吸收，也不能吸收态度
+  const e = store.addNote('s1', { content: '对张三：信任', importance: 3, kind: 'semantic', personaId: 'whale-devotion' }, NOW);
+  for (const n of [a, b, c, d, e]) store.setEmbedding(n.id, [1, 0, 0]);
   const brain = new Brain({ store, distiller: mockDistiller({}), now });
   brain.sweepNearDups();
   const rest = store.allNotes();
-  assert.equal(rest.length, 2);
+  assert.equal(rest.length, 3);
   assert.ok(rest.some((n) => n.id === a.id));
   assert.ok(rest.some((n) => n.id === d.id));
+  assert.ok(rest.some((n) => n.id === e.id && n.kind === 'semantic'));
+});
+
+test('endOfTurn: mergeIndex 跨类指回落空——态度输出不改写事实记忆', async () => {
+  const { store } = tmpStore();
+  store.createPersona('温柔版', '温柔', 'whale-gentle');
+  store.createPersona('依恋版', '依恋', 'whale-devotion');
+  store.activatePersona('whale-devotion');
+  // 存量事实可被 existing 指回，但蒸馏产出 attitude 时不能改写到事实轨
+  const fact = store.addNote('s1', { content: '内卷是群里常聊的话题', importance: 3, kind: 'semantic' }, NOW - 3 * DAY);
+  const brain = new Brain({
+    store, now,
+    distiller: mockDistiller({
+      memories: [{ content: '对内卷：没那么反感了', importance: 4, kind: 'attitude', merge: 0 }],
+    }),
+  });
+  brain.ingest('s1', { userText: '内卷好像也有点道理', assistantText: '咕嘟', at: NOW });
+  await brain.endOfTurn('s1');
+  const notes = store.allNotes();
+  assert.equal(notes.length, 2);
+  const kept = notes.find((n) => n.id === fact.id)!;
+  assert.equal(kept.kind, 'semantic');
+  assert.equal(kept.content, '内卷是群里常聊的话题');
+  const added = notes.find((n) => n.id !== fact.id)!;
+  assert.equal(added.kind, 'attitude');
+  assert.equal(added.personaId, 'whale-devotion');
 });
 
 test('purgeNotesByPersona: 按归属人设批量删除，缺 tag 存量按 whale-gentle 计', () => {
