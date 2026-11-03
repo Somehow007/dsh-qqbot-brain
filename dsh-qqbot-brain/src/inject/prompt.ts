@@ -78,23 +78,29 @@ export class PromptInjector {
     return undefined;
   }
 
+  /** 查询向量：同 query 复用缓存（宿主重试/复读不再重复调）；失败回退 lexical */
+  private embedForSession(sessionId: string, query: string): Promise<number[] | undefined> {
+    const cached = this.queryVecCache.get(sessionId);
+    if (cached?.query === query) return Promise.resolve(cached.vec ?? undefined);
+    return this.brain.queryEmbedding(query).then((v) => {
+      this.queryVecCache.set(sessionId, { query, vec: v });
+      return v ?? undefined;
+    }).catch(() => undefined);
+  }
+
   register(ctx: unknown): void {
     const handler: AssembleHandler = async (_assembly, context, next) => {
-      const assembled = await next();
+      // 先解析会话并提前发取向量请求：与宿主装配并行，emb ~0.3s 不再串行阻塞
       const sessionId = this.resolveSessionId(context);
+      const vecP = sessionId
+        ? this.embedForSession(sessionId, this.lastUserText.get(sessionId) ?? '')
+        : Promise.resolve(undefined);
+      const assembled = await next();
       if (!sessionId) return assembled;
 
       const query = this.lastUserText.get(sessionId) ?? '';
       const actor = this.lastActor.get(sessionId);
-      // 有 embedder 时取查询向量走语义检索；失败静默回退 lexical。
-      // 同一 query 复用上条向量：宿主重试 assemble / 复读消息不再重复调 embedding。
-      const cached = this.queryVecCache.get(sessionId);
-      const queryVec = cached?.query === query
-        ? (cached.vec ?? undefined)
-        : await this.brain.queryEmbedding(query).then((v) => {
-            this.queryVecCache.set(sessionId, { query, vec: v });
-            return v ?? undefined;
-          }).catch(() => undefined);
+      const queryVec = await vecP;
       // actor 形如「昵称 (openid)」（昵称本身可能含括号），拆出昵称与 openid 供画像/态度按人取
       const brain = this.brain.assemble(sessionId, query, actor ? splitActor(actor) : undefined, queryVec);
 
