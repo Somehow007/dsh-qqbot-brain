@@ -928,3 +928,23 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 44: 脑图节点视觉收敛
+<!-- trellis-session: v=2 fp=c42a538dc99ec8e0 -->
+
+**Date**: 2026-11-03
+**Task**: 脑图节点视觉收敛
+**Branch**: `main`
+
+### Summary
+
+问题：情绪实心大色点偏大且与人格/记忆的环核语言不搭。方案：page.html 三类节点半径整体下调（情绪5-11→4-8、人格11-16.4→9-13.2、记忆7-8.2→6-7.1），情绪改 ring+core+8%淡底结构复用 .node .ring CSS；不动 layoutSlots box 保证坐标零漂移。验证：npm test 121/121，静态预览复核。后续：empty 桶透明度可再降。
+
+### Git Commits
+
+(No commits - planning session)
+
+### Status
+
+[OK] **Completed**
