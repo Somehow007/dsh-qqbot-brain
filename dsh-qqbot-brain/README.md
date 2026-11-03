@@ -81,6 +81,15 @@ WantedBy=multi-user.target
 - 保完整 op 流水：停服后 `rsync -av ~/brain-data/ server:/var/lib/dsh-brain/`
 - 只带状态：`GET /brain/api/export` → `POST /brain/api/import?mode=replace`
 
+### 数据管理（脑图页）
+
+`/brain` 画像卡与「备份迁移 → 危险区」直接操作，全部经 token 校验：
+
+- `PATCH /brain/api/profiles` `{key,name?,text}` 编辑画像（人工修改即已审，不锁定后续蒸馏）；`DELETE /brain/api/profiles?id=<key>` 删除
+- `POST /brain/api/profiles/regenerate` `{key}` 按该对象记忆重生成（蒸馏起草 + 审核；蒸馏 off / 无记忆 / 审核判空均不改数据）
+- `POST /brain/api/notes/purge` `{from,to}` 按 createdAt 闭区间批量删记忆（op 显式携带 ids，重放不误删后入库的老记忆）
+- `POST /brain/api/reset` 记忆重置：清笔记/画像/情绪/摘要，**保留人设与人设版本**；建议先 `export` 备份
+
 ### 验证清单
 
 1. `tail ~/brain-data/brain.log` 启动行含「数据目录 <绝对路径>」「蒸馏 on」「脑图 127.0.0.1:4099/brain」
