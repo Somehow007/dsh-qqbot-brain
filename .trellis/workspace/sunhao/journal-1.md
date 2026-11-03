@@ -1012,3 +1012,23 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 48: brain 跳出 dsh 的演进路线讨论
+<!-- trellis-session: v=2 fp=91dd4d6d0ed6f7e5 -->
+
+**Date**: 2026-11-03
+**Task**: brain 跳出 dsh 的演进路线讨论
+**Branch**: `main`
+
+### Summary
+
+探讨插件只做 dsh 是否暴殄天物及后续发展：重框问题为「资产 vs 宿主」——真正资产是宿主无关的 brain 内核(~2774行)+工程方法论(eval/审计/可观测)，dsh 只是第一个 deployment。给出 H1 顺手解耦(发言人格式参数化/provider 抽象/HostAdapter 显式化/ingest+assemble 端点)→H2 三形态(npm 库>HTTP sidecar>MCP 壳，按注入能力保留度排序)→H3 平台化(一脑多身/陪伴泛化/可观测护城河)路线；约束：场景筛查先行(WorkBuddy 教训)、sidecar 是降级、dsh 永久 first-class。存档至 archive/2026-11/11-03-brain-roadmap-beyond-dsh。
+
+### Git Commits
+
+(No commits - planning session)
+
+### Status
+
+[OK] **Completed**
