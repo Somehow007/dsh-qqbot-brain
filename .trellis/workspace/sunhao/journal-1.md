@@ -1032,3 +1032,25 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 49: README 配图：手绘 SVG 替代 ChatGPT 生图
+<!-- trellis-session: v=2 fp=70a44fcac9a118c6 -->
+
+**Date**: 2026-11-03
+**Task**: README 配图：手绘 SVG 替代 ChatGPT 生图
+**Branch**: `main`
+
+### Summary
+
+问题：README 五个 IMG-SLOT 待配图，原计划 ChatGPT 生图有中文错字风险。方案：按用户给的示例风格（白底浅蓝卡片）手写 5 张 SVG，headless Chrome 出 PNG。排查：首轮渲染空白因 wrapper 相对路径错；两轮目检修复标签重叠/箭头穿卡片共 5 处。验证：五图目检通过、IMG-SLOT 全替换。后续：脑区图轮廓可再精细、README 数据更新需同步重渲。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `7c3ecd2` | docs: README 五张配图落地——手绘 SVG→PNG 替换 IMG-SLOT |
+
+### Status
+
+[OK] **Completed**

@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 48
+- **Total Sessions**: 49
 - **Last Active**: 2026-11-03
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1034 | Active |
+| `journal-1.md` | ~1056 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 49 | 2026-11-03 | README 配图：手绘 SVG 替代 ChatGPT 生图 | `7c3ecd2` | `main` |
 | 48 | 2026-11-03 | brain 跳出 dsh 的演进路线讨论 | - | `main` |
 | 47 | 2026-11-03 | 长期对话成本增长机制分析 | `f8f3241` | `main` |
 | 46 | 2026-11-03 | README 增量更新：D3 复盘+生图提示词 | `0acb9ae` | `main` |
