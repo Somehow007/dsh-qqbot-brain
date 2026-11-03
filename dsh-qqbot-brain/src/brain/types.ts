@@ -196,7 +196,7 @@ export interface BrainConfig {
   reinforceMinCos: number;
   /** embedding 相关性门槛（启用 embedding 时替代 minCosine；百炼 v3 噪声底~0.4，取 0.47） */
   embedMinCos: number;
-  /** emb 命中强化阈值（emb 余弦分布整体偏高，与 lexical 分开判） */
+  /** emb 命中强化阈值（emb 余弦分布整体偏高且噪声底~0.56，与 lexical 分开判；0.62 卡清晰相关带下沿） */
   reinforceMinEmbedCos: number;
   /** 会话滚动摘要：每累计该轮数触发一次（0=关闭） */
   digestEveryTurns: number;
@@ -233,7 +233,7 @@ export const DEFAULT_BRAIN_CONFIG: BrainConfig = {
   minCosine: 0.04,
   reinforceMinCos: 0.15,
   embedMinCos: 0.47,
-  reinforceMinEmbedCos: 0.5,
+  reinforceMinEmbedCos: 0.62,
   digestEveryTurns: 15,
   digestWindowTurns: 40,
   consolidateMinAgeDays: 1,

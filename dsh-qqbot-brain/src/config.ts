@@ -152,7 +152,7 @@ export const DEFAULT_CONFIG: BrainPluginConfig = {
     model: 'BAAI/bge-m3',
     timeoutMs: 10_000,
   },
-  retrieval: { topK: 6, alpha: 1.0, beta: 0.5, gamma: 0.2, minCosine: 0.04, reinforceMinCos: 0.15, embedMinCos: 0.47, reinforceMinEmbedCos: 0.5 },
+  retrieval: { topK: 6, alpha: 1.0, beta: 0.5, gamma: 0.2, minCosine: 0.04, reinforceMinCos: 0.15, embedMinCos: 0.47, reinforceMinEmbedCos: 0.62 },
   /** 语义巩固：周期性把老情景记忆提炼为语义记忆/重写画像 */
   consolidation: { enabled: true, tickMinutes: 60, cooldownHours: 24, minAgeDays: 1, minNotes: 4 },
   /** 会话滚动摘要：每 15 轮更新一次，输入最近 40 轮（单行 300 字截断） */

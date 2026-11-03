@@ -31,7 +31,7 @@
 
     /* ── 主布局：皮层舞台 + 检查器 ── */
     .layout{display:grid;grid-template-columns:minmax(0,1fr) 360px;height:clamp(600px,calc(100vh - 58px),820px)}
-    .stage{position:relative;overflow:hidden;min-width:0;background:radial-gradient(ellipse 58% 52% at 52% 50%,#0d2f55 0%,#081d36 48%,#040e1c 100%)}
+    .stage{position:relative;overflow:hidden;min-width:0;display:flex;flex-direction:column;background:radial-gradient(ellipse 58% 52% at 52% 50%,#0d2f55 0%,#081d36 48%,#040e1c 100%)}
     .stage:after{content:"";position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 120px #020810;z-index:1}
     .stage-head{position:absolute;left:30px;top:24px;z-index:2;pointer-events:none;max-width:46%}
     .eyebrow{font:10px var(--mono);letter-spacing:.16em;color:var(--cyan)}
@@ -45,9 +45,9 @@
     .result-hit{width:100%;display:block;text-align:left;padding:8px 10px;margin:0 0 6px;border:1px solid var(--line2);background:#0a1f36;color:#cfe3f7;line-height:1.55;overflow-wrap:anywhere;font-size:11px}
     .result-hit span{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
     .result-hit:hover,.result-hit.active{border-color:var(--cyan);background:#0f2a48}
-    #brain{position:absolute;inset:0;width:100%;height:100%;display:block}
+    #brain{flex:1;min-height:0;width:100%;display:block}
     #graphEmpty{position:absolute;left:0;right:0;top:46%;text-align:center;color:#a6c0da;z-index:2;pointer-events:none}
-    .stage-foot{position:absolute;left:30px;right:24px;bottom:16px;display:flex;align-items:flex-end;gap:16px;z-index:2;pointer-events:none}
+    .stage-foot{position:relative;z-index:2;flex:none;display:flex;align-items:flex-end;gap:16px;padding:0 24px 14px 30px;pointer-events:none}
     .stage-foot>*{pointer-events:auto}
     .legend-box{display:flex;flex-direction:column;gap:6px;min-width:0}
     #map-current{font:10px var(--mono);color:#9fbdd8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:520px}
@@ -91,9 +91,9 @@
     .node .halo{opacity:0;transition:opacity .15s;filter:url(#soft)}
     .node:hover .halo,.node:focus-visible .halo,.node.selected .halo,.node.qhit .halo{opacity:.35}
     .node .ring{fill:#0a2038;stroke-width:1.2;stroke-opacity:.55}
-    .node .cap{font-size:11.5px;fill:#bcd6ee;paint-order:stroke;stroke:#04101e;stroke-width:3.5px;stroke-linejoin:round;pointer-events:none}
+    .node .cap{font-size:11px;fill:#bcd6ee;paint-order:stroke;stroke:#04101e;stroke-width:3.5px;stroke-linejoin:round;pointer-events:none}
     .node .cnt{font:9px var(--mono);fill:var(--muted);pointer-events:none}
-    .node.facet .cap{font-size:12.5px;fill:#e2eeff;font-weight:600}
+    .node.facet .cap{font-size:12px;fill:#e2eeff;font-weight:600}
     .node.selected .cap{fill:#fff}
     .node:focus-visible .ring{stroke:#fff}
     .focus .node:not(.lit){opacity:.2}
@@ -763,28 +763,29 @@ function render(){
     const g=svgEl('g',{class:'node '+cls,'data-key':key,transform:`translate(${p.x} ${p.y})`,tabindex:0,role:'button','aria-label':aria});
     build(g);bindMapNode(g,key);ng.append(g);nodeEls.set(key,g);
   };
-  C.facets.forEach(f=>{const cnt=facetCount.get(f.id)||0,r=11+Math.min(cnt,6)*.9;
+  C.facets.forEach(f=>{const cnt=facetCount.get(f.id)||0,r=9+Math.min(cnt,6)*.7;
     add(f.id,'facet','',g=>{
       g.append(svgEl('title',{},f.heading));
-      g.append(svgEl('circle',{class:'halo',r:r+12}));
+      g.append(svgEl('circle',{class:'halo',r:r+10}));
       g.append(svgEl('polygon',{class:'ring',points:hex(r)}));
-      g.append(svgEl('polygon',{class:'core',points:hex(r*.52),opacity:.9}));
-      g.append(svgEl('text',{class:'cap',y:r+15,'text-anchor':'middle'},Array.from(f.title).slice(0,6).join('')));
+      g.append(svgEl('polygon',{class:'core',points:hex(r*.5),opacity:.9}));
+      g.append(svgEl('text',{class:'cap',y:r+14,'text-anchor':'middle'},Array.from(f.title).slice(0,6).join('')));
     },`人格特质：${f.heading}`);});
-  EMO_BUCKETS.forEach(e=>{const cnt=emoCount.get(e.id)||0,r=5+Math.min(cnt,8)*.75,now=e.id===C.current;
+  EMO_BUCKETS.forEach(e=>{const cnt=emoCount.get(e.id)||0,r=4+Math.min(cnt,8)*.5,now=e.id===C.current;
     add(e.id,'emo'+(cnt||now?'':' empty'),'',g=>{
-      g.append(svgEl('circle',{class:'halo',r:r+10,style:`fill:${e.color}`}));
+      g.append(svgEl('circle',{class:'halo',r:r+8,style:`fill:${e.color}`}));
       if(now)g.append(svgEl('circle',{class:'mood-ring',r,style:`stroke:${e.color}`}));
-      g.append(svgEl('circle',{r,style:`fill:${e.color}`,opacity:.9}));
-      g.append(svgEl('text',{class:'cap',y:r+14,'text-anchor':'middle'},e.name));
+      g.append(svgEl('circle',{class:'ring',r,style:`stroke:${e.color};fill:${e.color};fill-opacity:.08`}));
+      g.append(svgEl('circle',{class:'core',r:(r*.5).toFixed(1),style:`fill:${e.color}`,opacity:.9}));
+      g.append(svgEl('text',{class:'cap',y:r+13,'text-anchor':'middle'},e.name));
     },`情绪：${e.name}，${cnt} 段记忆`);});
-  C.shown.forEach(({n,k})=>{const r=7+n.importance*1.2;
+  C.shown.forEach(({n,k})=>{const r=6+n.importance*1.1;
     add(n.id,`mem k-${k}${n.fading?' fading':''}`,'',g=>{
       g.append(svgEl('title',{},n.content));
-      g.append(svgEl('circle',{class:'halo',r:r+8}));
+      g.append(svgEl('circle',{class:'halo',r:r+7}));
       g.append(svgEl('circle',{class:'ring',r}));
       g.append(svgEl('circle',{class:'core',r:(r*.45).toFixed(1)}));
-      g.append(svgEl('text',{class:'cap',x:r+6,y:4},mapLabel(n,C.notes)));
+      g.append(svgEl('text',{class:'cap',x:r+5,y:4},mapLabel(n,C.notes)));
     },`${kindLabel(n.kind)}记忆：${n.content}`);});
   ['semantic','attitude','episodic'].forEach(k=>{const o=$('of-'+k);if(!o)return;o.style.display=overflow[k]?'':'none';o.textContent=`+${overflow[k]} 条未显示 ↗`;});
   const all=STATE.notes,e=STATE.emotion||{};
