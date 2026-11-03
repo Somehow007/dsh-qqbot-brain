@@ -65,7 +65,13 @@
 - **怎么解决的**：① 人设文本按「事实共享·态度分轨」语义模型设计——`MemoryNote.personaId` 写入打标，attitude 只对同人设召回（assemble 用一份 `attitudeVisible` 可见池统一过滤 topK/保底/跨群三口），事实记忆/画像/digest/情绪全共享；写侧三护栏防泄漏（existing 过滤防 mergeIndex 改轨、findNearDup/sweepNearDups 防跨人设判重合并）；存量缺 tag 归 whale-gentle；依恋版新增「心里的位置」+「主人 demo」模块，恋人位 demo 专属。② 管理面按人设管数据：state 透传 personaId、记忆库筛选、危险区按人设删除（`del-persona` op 显式带 ids）。③ 画像加 lastWrittenByPersona 展示标签。④ 上线顺序「先部署代码再激活」，避免空窗期依恋版读到旧轨。
 - **走查发现并已修**：a) retriever 索引按 graphVersion 缓存，persona-activate 不 bump → 切人设命中旧轨缓存（已计入 graphVersion）；b) 无人设期写 personaId='' 会让 `??` 默认失效（store 写入口归一化空串→undefined）；c) 无活动人设时 attitude 全可见兜底（兼容未启用多版本存储）；d) build 脚本只拷 whale-gentle.md（改拷 setup 全部 .md）。
 - **后续优化方向**：依恋版早期攻略弧慢——可用 notes CRUD 手动预置几条初始态度加速；「位置」演化稳定性待线上观察（attitude 积累速率 vs 人设预期）；/api/query 模拟器目前全量视图，如需要可加 persona 视角开关。
-- **验证结论**：本地 128/128 测试绿（新增 5 个分轨用例）+ typecheck 绿；线上已部署（rsync dist+package.json、重启、devotion 注册为第三版本并激活、persona.md 镜像同步、重启后 activeId 保持）、whale-gentle/legacy 原样在列可切回；15 条存量 attitude 均归 whale-gentle，devotion 不可见。
+- **验证结论**：本地 128/129 测试绿 + typecheck/build 绿；线上已部署（rsync dist、重启、三版本在列、persona.md 镜像同步无乱码、重启后激活态保持）、whale-gentle/legacy 可切回；15 条存量 attitude 均归 whale-gentle，devotion 不可见。
+
+### 完成后走查追加（2026-11-03）
+
+- **发现**：a) 用户切回 whale-gentle 后 persona.md 带回 6 处 U+FFFD——store 存量 gentle 条目从未被修过（种子修复不作用于存量），PATCH /api/personas 用仓库修复版覆盖后干净（op 已落 jsonl 持久）；b) 跨类合并边缘口：mergeIndex 可把 attitude 输出改写到 shared semantic（心态落错轨）、findNearDup/sweepNearDups 只挡 attitude↔attitude 跨人设，attitude↔事实跨类合并会静默吃掉写入。
+- **解决**：三处统一为「事实与态度不同角色，永不互相判重/吸收」（commit `ef612ff`）：mergeIndex 目标同角色校验、findNearDup 按 kind 过滤、sweep 配对加跨类跳过；新增 2 个跨类护栏用例，129/129 绿，已部署线上。
+- **注意**：`npm run typecheck | tail` 管道掩盖过一次 TS 错误（tail 吞 exit code），验证命令要看原始退出码。
 
 ## Key Decisions
 
