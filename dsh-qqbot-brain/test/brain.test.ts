@@ -326,6 +326,84 @@ test('endOfTurn: merge 指向已有 attitude 条目时原位更新而非新增',
   assert.equal(store.allNotes()[0]!.kind, 'attitude');
 });
 
+// ── 态度按人设分轨（事实共享·态度分轨）──
+test('assemble: 他人设的 attitude 不召回（topK/保底统一口径），事实记忆不受影响', () => {
+  const { store } = tmpStore();
+  store.createPersona('温柔版', '温柔', 'whale-gentle');
+  store.createPersona('依恋版', '依恋', 'whale-devotion');
+  store.activatePersona('whale-gentle');
+  // 缺 personaId 的存量按 whale-gentle 计；显式打 devotion 标的属另一轨
+  store.addNote('g1', { content: '对张三：嘴上嫌弃其实信任', importance: 4, kind: 'attitude' }, NOW);
+  store.addNote('g1', { content: '对李四：没说过几句话', importance: 4, kind: 'attitude', personaId: 'whale-devotion' }, NOW);
+  store.addNote('g1', { content: '张三上周请客吃了烤鱼', importance: 3 }, NOW);
+  const brain = new Brain({ store, distiller: mockDistiller({}), now });
+  const ctx = brain.assemble('g1', '张三 李四 烤鱼');
+  assert.ok(ctx.attitudeLines.some((l) => l.includes('对张三')));
+  assert.ok(!ctx.attitudeLines.some((l) => l.includes('对李四')));
+  assert.ok(ctx.memoryLines.some((l) => l.includes('烤鱼')));
+  // 切到依恋版：温柔版的态度对张三发言也不保底唤起；依恋版自己的可见
+  store.activatePersona('whale-devotion');
+  const ctx2 = brain.assemble('g1', '张三 烤鱼', '张三');
+  assert.ok(!ctx2.attitudeLines.some((l) => l.includes('对张三')));
+  assert.ok(ctx2.memoryLines.some((l) => l.includes('烤鱼')));
+  const ctx3 = brain.assemble('g1', '李四', '李四');
+  assert.ok(ctx3.attitudeLines.some((l) => l.includes('对李四')));
+});
+
+test('endOfTurn: 新记忆按当前活动人设打 personaId；mergeIndex 指不到他人设态度', async () => {
+  const { store } = tmpStore();
+  store.createPersona('温柔版', '温柔', 'whale-gentle');
+  store.createPersona('依恋版', '依恋', 'whale-devotion');
+  store.activatePersona('whale-devotion');
+  // 温柔版留下的态度：existing 列表已过滤，mergeIndex=0 落空 → 新增而非改写旧轨
+  store.addNote('s1', { content: '对内卷：极度反感', importance: 4, kind: 'attitude' }, NOW - 3 * DAY);
+  const brain = new Brain({
+    store, now,
+    distiller: mockDistiller({
+      memories: [{ content: '对内卷：没那么反感了', importance: 4, kind: 'attitude', merge: 0 }],
+    }),
+  });
+  brain.ingest('s1', { userText: '内卷好像也有点道理', assistantText: '咕嘟', at: NOW });
+  await brain.endOfTurn('s1');
+  const notes = store.allNotes();
+  assert.equal(notes.length, 2);
+  assert.equal(notes[0]!.content, '对内卷：极度反感');
+  assert.equal(notes[1]!.content, '对内卷：没那么反感了');
+  assert.equal(notes[1]!.personaId, 'whale-devotion');
+});
+
+test('sweepNearDups: 不同人设的近似态度不合并，同人设的照常合并', () => {
+  const { store } = tmpStore();
+  const a = store.addNote('s1', { content: '对张三：信任', importance: 3, kind: 'attitude', personaId: 'whale-gentle' }, NOW);
+  const b = store.addNote('s1', { content: '对张三：信任', importance: 3, kind: 'attitude', personaId: 'whale-devotion' }, NOW);
+  const c = store.addNote('s1', { content: '对李四：信任', importance: 3, kind: 'attitude', personaId: 'whale-devotion' }, NOW);
+  const d = store.addNote('s1', { content: '对李四：很信任', importance: 3, kind: 'attitude', personaId: 'whale-devotion' }, NOW);
+  for (const n of [a, b, c, d]) store.setEmbedding(n.id, [1, 0, 0]);
+  const brain = new Brain({ store, distiller: mockDistiller({}), now });
+  brain.sweepNearDups();
+  const rest = store.allNotes();
+  assert.equal(rest.length, 2);
+  assert.ok(rest.some((n) => n.id === a.id));
+  assert.ok(rest.some((n) => n.id === d.id));
+});
+
+test('purgeNotesByPersona: 按归属人设批量删除，缺 tag 存量按 whale-gentle 计', () => {
+  const { store } = tmpStore();
+  store.addNote('s1', { content: '事实A', importance: 3, personaId: 'whale-gentle' }, NOW);
+  store.addNote('s1', { content: '态度A', importance: 3, kind: 'attitude', personaId: 'whale-devotion' }, NOW);
+  store.addNote('s1', { content: '无tag存量事实', importance: 3 }, NOW);
+  const brain = new Brain({ store, distiller: mockDistiller({}), now });
+  assert.equal(brain.purgeNotesByPersona('whale-gentle'), 2);
+  assert.equal(store.allNotes().length, 1);
+  assert.equal(store.allNotes()[0]!.content, '态度A');
+});
+
+test('profile: 画像写入记录 lastWrittenByPersona 标签', () => {
+  const { store } = tmpStore();
+  store.setProfileEntry('u:abc', '张三：爱聊原神', { sessionId: 's1', name: '张三', personaId: 'whale-gentle' });
+  assert.equal(store.profileEntry('u:abc')!.lastWrittenByPersona, 'whale-gentle');
+});
+
 test('buildDistillPrompt: 含态度条目写法说明', () => {
   const p = buildDistillPrompt(
     [{ userText: '你好', assistantText: '咕嘟', at: NOW }], '大肥鱼', 5,

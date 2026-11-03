@@ -5,7 +5,7 @@
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc -p tsconfig.json && node -e \"const fs=require('fs');fs.copyFileSync('src/server/page.html','dist/server/page.html');fs.copyFileSync('src/setup/whale-gentle.md','dist/setup/whale-gentle.md')\"",
+    "build": "tsc -p tsconfig.json && node -e \"const fs=require('fs');fs.copyFileSync('src/server/page.html','dist/server/page.html');for(const f of fs.readdirSync('src/setup'))if(f.endsWith('.md'))fs.copyFileSync('src/setup/'+f,'dist/setup/'+f)\"",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "node --test test/*.test.ts",
     "eval": "node test/eval/run.ts"

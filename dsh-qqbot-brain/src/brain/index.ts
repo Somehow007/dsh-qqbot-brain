@@ -1,4 +1,4 @@
-import { DEFAULT_BRAIN_CONFIG, MOOD_VALENCE } from './types.ts';
+import { DEFAULT_BRAIN_CONFIG, MOOD_VALENCE, notePersonaId } from './types.ts';
 import type { BrainConfig, BrainContext, DistillResult, EmotionState, MemoryNote, NoteDraft, NoteEmotion, Turn } from './types.ts';
 import { isUserKey, normalizeProfileKey, sessionProfileKey, splitActor, userProfileKey } from './identity.ts';
 import { ageInDays, retention } from './decay.ts';
@@ -134,8 +134,11 @@ export class Brain {
   ): BrainContext {
     const now = this.now();
     const sp = typeof speaker === 'string' ? { nick: speaker } : speaker;
+    // 事实共享·态度分轨：检索池先滤掉他人设态度，
+    // topK 命中/强化/昵称保底/跨群召回四处口径自然一致。
+    const visible = this.store.allNotes().filter((n) => this.attitudeVisible(n));
     const scored = this.retriever.query(
-      this.store.allNotes(), sessionId, queryText, now, this.store.graphVersion, queryVec,
+      visible, sessionId, queryText, now, this.store.graphVersion, queryVec,
     );
     for (const s of scored) {
       const th = s.relSrc === 'emb' ? this.cfg.reinforceMinEmbedCos : this.cfg.reinforceMinCos;
@@ -157,7 +160,7 @@ export class Brain {
       memoryLines.push(`- [${ageLabel(n.createdAt, now)}记] ${n.actor ? `[${n.actor}] ` : ''}${n.content}`);
     }
     if (sp?.nick) {
-      const extra = this.store.allNotes()
+      const extra = visible
         .filter((n) => n.kind === 'attitude'
           && !attitudeHitIds.has(n.id) && n.content.includes(sp.nick!))
         .sort((a, b) => retention(b, now) - retention(a, now));
@@ -165,7 +168,7 @@ export class Brain {
       for (const n of extra.slice(0, room)) attitudeLines.push(`- ${n.content}`);
     }
     if (sp && (sp.openid || sp.nick)) {
-      const xpool = this.store.allNotes().filter((n) => {
+      const xpool = visible.filter((n) => {
         if (n.sessionId === sessionId) return false;
         if (n.kind !== 'attitude' && n.kind !== 'semantic') return false;
         if (!n.actor) return false;
@@ -237,10 +240,15 @@ export class Brain {
     this.distilling.add(sessionId);
     try {
       const now = this.now();
-      // 判重：附上当前 top-相关已有记忆，蒸馏结果可用 merge 指回更新而非重复新增
+      const activePid = this.store.activePersonaId();
+      // 判重：附上当前 top-相关已有记忆，蒸馏结果可用 merge 指回更新而非重复新增。
+      // 他人设的 attitude 不进列表——否则 mergeIndex 会改写别的人设的态度轨。
       const queryText = turns.map((t) => t.userText).join(' ');
       const existing = this.retriever
-        .query(this.store.allNotes(), sessionId, queryText, now, this.store.graphVersion)
+        .query(
+          this.store.allNotes().filter((n) => this.attitudeVisible(n)),
+          sessionId, queryText, now, this.store.graphVersion,
+        )
         .slice(0, 8)
         .map((s) => s.note);
       const result = await this.distiller.distill(
@@ -289,7 +297,7 @@ export class Brain {
           this.log?.(`判重合并：与「${dup.note.content.slice(0, 20)}」余弦 ${dup.cos.toFixed(2)}，强化旧记忆`);
           continue;
         }
-        const n = this.store.addNote(sessionId, { ...m, emotion: stamp, strengthBoost: boost }, now);
+        const n = this.store.addNote(sessionId, { ...m, emotion: stamp, strengthBoost: boost, personaId: activePid }, now);
         if (vec) this.store.setEmbedding(n.id, vec);
         else forEmbed.push(n);
       }
@@ -312,6 +320,16 @@ export class Brain {
     } finally {
       this.distilling.delete(sessionId);
     }
+  }
+
+  /**
+   * 态度分轨谓词：attitude 只对「形成它的那个人设」可见。
+   * 无活动人设（未启用多版本的存储/测试态）时全部可见，兼容分轨前行为。
+   */
+  private attitudeVisible(n: MemoryNote): boolean {
+    if (n.kind !== 'attitude') return true;
+    const pid = this.store.activePersonaId();
+    return !pid || notePersonaId(n) === pid;
   }
 
   /** 给一批记忆取向量并落盘（embedder 未启用/调用失败时 no-op） */
@@ -444,9 +462,9 @@ export class Brain {
         if (isUser) {
           const name = (item.actor && splitActor(item.actor).nick)
             || people.find((p) => p.key === key)?.name || '';
-          this.store.setProfileEntry(key, text, { sessionId, name, reviewed: text });
+          this.store.setProfileEntry(key, text, { sessionId, name, reviewed: text, personaId: this.store.activePersonaId() });
         } else {
-          this.store.setProfileEntry(key, text, { sessionId, reviewed: text });
+          this.store.setProfileEntry(key, text, { sessionId, reviewed: text, personaId: this.store.activePersonaId() });
         }
       }
     }
@@ -469,7 +487,7 @@ export class Brain {
     const text = reviewed?.[0]?.trim();
     if (!text) return false;
     const sessions = [...new Set([...keep.sessions, ...drop.sessions])];
-    this.store.setProfileEntry(keepKey, text, { sessionId: sessions[0] ?? '', name: keep.name || drop.name, sessions, reviewed: text });
+    this.store.setProfileEntry(keepKey, text, { sessionId: sessions[0] ?? '', name: keep.name || drop.name, sessions, reviewed: text, personaId: this.store.activePersonaId() });
     this.store.setProfileEntry(dropKey, '', { sessionId: sessions[0] ?? '' });
     return true;
   }
@@ -496,6 +514,7 @@ export class Brain {
       // name 显式传空串即清空；不传（undefined）才沿用旧名
       name: patch.name !== undefined ? patch.name : (entry?.name ?? ''),
       reviewed: text,
+      personaId: this.store.activePersonaId(),
     });
     return true;
   }
@@ -543,6 +562,7 @@ export class Brain {
       name,
       sessions: entry?.sessions ?? (person ? undefined : [k.slice(5)]),
       reviewed: text,
+      personaId: this.store.activePersonaId(),
     });
     return { ok: true };
   }
@@ -550,6 +570,11 @@ export class Brain {
   /** 按时间段删除记忆（createdAt 闭区间）；返回删除条数 */
   purgeNotesInRange(from: number, to: number): number {
     return this.store.deleteNotesInRange(from, to).length;
+  }
+
+  /** 按归属人设批量删除记忆（脑图页危险区·按人设删除）；返回删除条数 */
+  purgeNotesByPersona(personaId: string): number {
+    return this.store.deleteNotesByPersona(personaId).length;
   }
 
   /**
@@ -596,7 +621,9 @@ export class Brain {
     const sourceIds = eps.map((e) => e.id);
     const boost = this.emotionBoost(stamp);
     const added = result.memories.map((m) => this.store.addNote(
-      sessionId, { ...m, kind: 'semantic', emotion: stamp, strengthBoost: boost, sourceIds }, now,
+      sessionId,
+      { ...m, kind: 'semantic', emotion: stamp, strengthBoost: boost, sourceIds, personaId: this.store.activePersonaId() },
+      now,
     ));
     await this.reviewAndWriteProfiles(sessionId, result, eps.map((n) => n.actor));
     void this.embedNotes(added);
@@ -665,7 +692,10 @@ export class Brain {
       for (let j = i + 1; j < notes.length; j++) {
         if (vecCosine(notes[i]!.embedding!, notes[j]!.embedding!) >= this.cfg.dedupeEmbedCos
           && find(notes[i]!.id) !== find(notes[j]!.id)) {
-          parent.set(find(notes[i]!.id), find(notes[j]!.id));
+          // 态度分轨：不同人设的态度即使文案近似也不合并（各自的「感觉」是各自的）
+          const a = notes[i]!, b = notes[j]!;
+          if (a.kind === 'attitude' && b.kind === 'attitude' && notePersonaId(a) !== notePersonaId(b)) continue;
+          parent.set(find(a.id), find(b.id));
         }
       }
     }
@@ -698,6 +728,8 @@ export class Brain {
     let best: MemoryNote | undefined, bc = 0;
     for (const n of this.store.allNotes()) {
       if (!n.embedding?.length) continue;
+      // 态度分轨：他人设的态度不参与判重（否则新人设写近似立场会被旧轨吸收掉）
+      if (!this.attitudeVisible(n)) continue;
       const c = vecCosine(vec, n.embedding);
       if (c > bc) { bc = c; best = n; }
     }
@@ -710,7 +742,7 @@ export class Brain {
     const now = this.now();
     const stamp = this.emotionStamp(sessionId || 'manual', now);
     const n = this.store.addNote(sessionId || 'manual',
-      { ...draft, emotion: stamp, strengthBoost: draft.strengthBoost ?? this.emotionBoost(stamp) }, now);
+      { ...draft, emotion: stamp, strengthBoost: draft.strengthBoost ?? this.emotionBoost(stamp), personaId: draft.personaId ?? this.store.activePersonaId() }, now);
     void this.embedNotes([n]);
     return n;
   }
@@ -775,6 +807,7 @@ export class Brain {
       hits: n.hits,
       fading: retention(n, now) < this.cfg.forgetThreshold,
       emotion: n.emotion,
+      personaId: n.personaId,
     }));
     const { edges, nearDup } = await this.graphEdges(raw, sessionId);
     const stats = {

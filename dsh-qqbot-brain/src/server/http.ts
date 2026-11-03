@@ -152,7 +152,13 @@ export class BrainHttpServer {
         : void res.writeHead(409).end(r.reason ?? 'regenerate failed');
     }
     if (p === `${prefix}/api/notes/purge` && req.method === 'POST') {
-      const o = parseJson<{ from?: number; to?: number }>(await readBody(req));
+      const o = parseJson<{ from?: number; to?: number; personaId?: string }>(await readBody(req));
+      // 按人设删除（危险区）：personaId 优先于时段参数
+      if (o && typeof o.personaId === 'string' && o.personaId.trim()) {
+        const deleted = this.brain.purgeNotesByPersona(o.personaId.trim());
+        this.brain.flush();
+        return json(res, { ok: true, deleted });
+      }
       if (!o || typeof o.from !== 'number' || typeof o.to !== 'number'
         || !Number.isFinite(o.from) || !Number.isFinite(o.to) || o.from > o.to) {
         res.writeHead(400).end('valid from/to required');

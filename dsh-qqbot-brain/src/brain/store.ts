@@ -2,6 +2,7 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeF
 import { dirname, join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type { EmotionState, MemoryNote, NoteDraft, NoteEmotion, ProfileEntry, SessionDigest } from './types.ts';
+import { notePersonaId } from './types.ts';
 import { isSessionKey, isUserKey, normalizeProfileKey, sessionProfileKey, splitActor, userProfileKey } from './identity.ts';
 
 /**
@@ -20,14 +21,15 @@ type Op =
       actor?: string; emotion?: NoteEmotion; sourceIds?: string[];
     } }
   | { op: 'emotion'; sessionId: string; state: EmotionState }
-  | { op: 'profile'; sessionId: string; text: string; key?: string; name?: string; at?: number; sessions?: string[]; reviewed?: string }
+  | { op: 'profile'; sessionId: string; text: string; key?: string; name?: string; at?: number; sessions?: string[]; reviewed?: string; personaId?: string }
   | { op: 'digest'; sessionId: string; text: string; uptoTurn?: number }
   | { op: 'persona'; text: string }
   | { op: 'persona-save'; persona: PersonaEntry }
   | { op: 'persona-activate'; id: string }
   | { op: 'persona-delete'; id: string }
   | { op: 'reset'; keepPersona?: boolean }
-  | { op: 'del-range'; from: number; to: number; ids: string[] };
+  | { op: 'del-range'; from: number; to: number; ids: string[] }
+  | { op: 'del-persona'; personaId: string; ids: string[] };
 
 export interface PersonaEntry { id: string; name: string; text: string }
 
@@ -287,6 +289,7 @@ export class BrainStore {
             .filter(Boolean),
           updatedAt: op.at ?? Date.now(),
           reviewed: op.reviewed ?? prev?.reviewed,
+          lastWrittenByPersona: op.personaId ?? prev?.lastWrittenByPersona,
         });
         break;
       }
@@ -323,6 +326,9 @@ export class BrainStore {
       case 'del-range':
         for (const id of op.ids) this.notes.delete(id);
         break;
+      case 'del-persona':
+        for (const id of op.ids) this.notes.delete(id);
+        break;
     }
   }
 
@@ -337,9 +343,12 @@ export class BrainStore {
     appendFileSync(this.file, JSON.stringify(rec) + '\n');
     this.pushOp({ t: rec.t, op });
     this.version++;
+    // persona-activate 也要 bump：态度分轨下切人设会改变检索可见池，
+    // 不重建索引会命中缓存里的他人设态度（低频操作，重建代价可忽略）
     if (op.op === 'add' || op.op === 'update' || op.op === 'del'
       || op.op === 'merge' || op.op === 'reset' || op.op === 'embed'
-      || op.op === 'del-range') this.graphVersion++;
+      || op.op === 'del-range' || op.op === 'del-persona'
+      || op.op === 'persona-activate') this.graphVersion++;
     if (++this.dirtyOps >= this.compactEvery) this.compact();
   }
 
@@ -386,6 +395,8 @@ export class BrainStore {
       lastAccessAt: now,
       emotion: draft.emotion ? sanitizeNoteEmotion(draft.emotion) : undefined,
       sourceIds: draft.sourceIds?.length ? [...draft.sourceIds] : undefined,
+      // 空串归一化为缺失：无人设期写的 '' 否则会让 notePersonaId 归不到任何轨
+      personaId: draft.personaId || undefined,
     };
     if (!note.content) return note;
     this.persist({ op: 'add', note });
@@ -494,6 +505,18 @@ export class BrainStore {
     return ids;
   }
 
+  /**
+   * 按归属人设批量删除记忆（脑图页「危险区·按人设删除」）。
+   * op 显式携带 id 列表，与 del-range 同理防重放误删后入库记忆。空集不落 op。
+   */
+  deleteNotesByPersona(personaId: string): string[] {
+    const ids = [...this.notes.values()]
+      .filter((n) => notePersonaId(n) === personaId)
+      .map((n) => n.id);
+    if (ids.length) this.persist({ op: 'del-persona', personaId, ids });
+    return ids;
+  }
+
   /** 清空全部记忆数据但保留人设（脑图页「记忆重置」；全清走 importData replace） */
   resetMemory(): void {
     this.persist({ op: 'reset', keepPersona: true });
@@ -574,7 +597,7 @@ export class BrainStore {
   }
 
   /** 按身份键写画像：u:<openid> 或 sess:<id>；name/sessionId/sessions 用于展示与归属追踪 */
-  setProfileEntry(key: string, text: string, meta?: { sessionId?: string; name?: string; sessions?: string[]; reviewed?: string }): void {
+  setProfileEntry(key: string, text: string, meta?: { sessionId?: string; name?: string; sessions?: string[]; reviewed?: string; personaId?: string }): void {
     this.persist({
       op: 'profile',
       sessionId: meta?.sessionId ?? key,
@@ -583,6 +606,7 @@ export class BrainStore {
       sessions: meta?.sessions,
       text,
       reviewed: meta?.reviewed,
+      personaId: meta?.personaId || undefined,
       at: Date.now(),
     });
   }

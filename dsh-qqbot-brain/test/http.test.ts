@@ -97,7 +97,8 @@ test('启动迁移单份人设、加载完整预置、保持用户选择与手�
     await apply(ctx, cfg);
     const restarted = new BrainStore(dir);
     assert.equal(restarted.activePersonaId(), 'whale-gentle');
-    assert.equal(restarted.listPersonas().length, 2);
+    assert.equal(restarted.listPersonas().length, 3);
+    assert.ok(restarted.listPersonas().some((p) => p.id === 'whale-devotion'));
     restarted.activatePersona('legacy');
     assert.equal(restarted.persona(), '手工编辑内容');
   } finally {

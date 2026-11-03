@@ -333,6 +333,7 @@
         <input type="text" id="libQ" placeholder="搜索记忆内容…">
         <select id="libKind"><option value="">全部类型</option><option value="episodic">情景</option><option value="semantic">语义</option><option value="attitude">态度</option></select>
         <select id="libSess"><option value="">全部会话</option></select>
+        <select id="libPersona"><option value="">全部人设</option></select>
         <select id="libFade"><option value="">全部状态</option><option value="fading">将遗忘</option><option value="fresh">鲜活</option></select>
         <select id="libSort">
           <option value="retention">按保持率</option><option value="age">按时间</option>
@@ -394,6 +395,13 @@
           <button class="act" id="purgePreview" type="button">预览数量</button>
           <button class="danger" id="purgeBtn" type="button" disabled>删除</button>
           <span class="stat" id="purgeStat" style="font-size:11px;color:var(--muted)"></span>
+        </div>
+        <div class="row">
+          <span>删除指定人设形成的记忆：</span>
+          <select id="purgePersona" aria-label="按人设删除"></select>
+          <button class="act" id="purgePersonaPreview" type="button">预览数量</button>
+          <button class="danger" id="purgePersonaBtn" type="button" disabled>删除</button>
+          <span class="stat" id="purgePersonaStat" style="font-size:11px;color:var(--muted)"></span>
         </div>
         <div class="row">
           <button class="danger" id="resetMemBtn" type="button">记忆重置（保留人设）</button>
@@ -658,7 +666,7 @@ async function load(){
   REL=buildRelations(STATE.notes,STATE.edges);
   if(personas)showPersonas(personas);
   CORTEX=buildCortex(STATE,OPS,STATE.persona);
-  render(); renderLibrary(); renderSessions(); renderOps();
+  render(); renderLibrary(); renderSessions(); renderOps(); renderPurgePersona();
   // 正在详情面板编辑时不要重绘（会清掉未保存的输入）
   const editing = document.activeElement && document.activeElement.closest('#info-detail');
   if(editing) return;
@@ -1014,11 +1022,13 @@ function panel(key){
 }
 
 // ── Tab：记忆库 ──
+function notePid(n){return n.personaId||'whale-gentle';}
+function personaName(pid){return PERSONAS.personas.find(p=>p.id===pid)?.name||pid;}
 function libFiltered(){
-  const q=$('libQ').value.trim(),k=$('libKind').value,s=$('libSess').value,f=$('libFade').value,sort=$('libSort').value;
+  const q=$('libQ').value.trim(),k=$('libKind').value,s=$('libSess').value,f=$('libFade').value,sort=$('libSort').value,pp=$('libPersona').value;
   let arr=STATE.notes.filter(n=>
     (!q||n.content.includes(q))&&(!k||n.kind===k)&&(!s||n.sessionId===s)&&
-    (!f||(f==='fading'?n.fading:!n.fading)));
+    (!f||(f==='fading'?n.fading:!n.fading))&&(!pp||notePid(n)===pp));
   arr.sort((a,b)=>sort==='age'?b.createdAt-a.createdAt:sort==='importance'?b.importance-a.importance:sort==='hits'?b.hits-a.hits:b.retention-a.retention);
   return arr;
 }
@@ -1026,6 +1036,9 @@ function renderLibrary(){
   const sel=$('libSess'),cur=sel.value;
   sel.replaceChildren(new Option('全部会话',''));
   [...new Set(STATE.notes.map(n=>n.sessionId))].forEach(s=>sel.appendChild(new Option(shortId(s),s,s===cur,s===cur)));
+  const psel=$('libPersona'),pcur=psel.value;
+  psel.replaceChildren(new Option('全部人设',''));
+  [...new Set(STATE.notes.map(notePid))].forEach(pid=>psel.appendChild(new Option(personaName(pid),pid,pid===pcur,pid===pcur)));
   const arr=libFiltered();
   $('libCount').textContent=`${arr.length} / ${STATE.notes.length} 条`;
   const tb=$('libBody');tb.replaceChildren();
@@ -1035,7 +1048,7 @@ function renderLibrary(){
   arr.forEach(n=>{
     const tr=document.createElement('tr');tr.className='data'+(n.fading?' faded':'')+(n.id===SELECTED?' active':'');tr.dataset.key=n.id;
     tr.innerHTML=`<td><button type="button" class="lib-open"><span class="lib-preview"></span></button></td>
-      <td><span class="badge ${n.kind}">${kindLabel(n.kind)}</span>${n.fading?' <span class="badge fade">将遗忘</span>':''}</td>
+      <td><span class="badge ${n.kind}">${kindLabel(n.kind)}</span>${n.kind==='attitude'?` <span class="badge" style="opacity:.7">${personaName(notePid(n))}</span>`:''}${n.fading?' <span class="badge fade">将遗忘</span>':''}</td>
       <td><span class="rbar"><i style="width:${Math.max(2,n.retention*100)}%"></i></span>${(n.retention*100).toFixed(0)}%</td>
       <td>${n.importance}</td><td>${n.hits}</td><td>${n.ageDays}天</td>
       <td><button class="act" data-a="reinf">强化</button><button class="act danger" data-a="del">删</button></td>`;
@@ -1142,7 +1155,7 @@ function renderSessions(){
     g.appendChild(d);});
 }
 // ── Tab：事件流水 ──
-const OP_CN={add:'新增记忆',reinforce:'唤起强化',update:'修改',del:'删除','del-range':'按时段删除',merge:'近重复合并',emotion:'情绪',profile:'画像',persona:'人格',reset:'整库重置'};
+const OP_CN={add:'新增记忆',reinforce:'唤起强化',update:'修改',del:'删除','del-range':'按时段删除','del-persona':'按人设删除',merge:'近重复合并',emotion:'情绪',profile:'画像',persona:'人格',reset:'整库重置'};
 function opDesc(o){
   const op=o.op;
   switch(op.op){
@@ -1207,7 +1220,7 @@ document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
   document.querySelectorAll('.pane').forEach(p=>p.hidden=p.id!=='pane-'+t.dataset.pane);
 });
 $('deck-more').onclick=()=>{document.querySelector('[data-pane=lib]').click();$('pane-lib').scrollIntoView({behavior:'smooth'});};
-['libQ','libKind','libSess','libFade','libSort'].forEach(id=>$(id).addEventListener('input',renderLibrary));
+['libQ','libKind','libSess','libPersona','libFade','libSort'].forEach(id=>$(id).addEventListener('input',renderLibrary));
 $('addForm').onsubmit=async ev=>{
   ev.preventDefault();
   const f=ev.target;
@@ -1342,6 +1355,30 @@ $('purgeBtn').onclick=async()=>{
   const d=await res.json().catch(()=>null);
   $('purgeStat').textContent=res.ok&&d?`已删除 ${d.deleted} 条`:'删除失败：HTTP '+res.status;
   $('purgeBtn').disabled=true;
+  await load();
+};
+// 危险区·按人设删除：事实与态度记忆一起删（「该人设的经历」整体移除），op 显式携带 ids
+function purgePersonaCount(){const pid=$('purgePersona').value;return pid?STATE.notes.filter(n=>notePid(n)===pid).length:0;}
+function renderPurgePersona(){
+  const sel=$('purgePersona'),cur=sel.value;
+  sel.replaceChildren();
+  const pids=[...new Set([...PERSONAS.personas.map(p=>p.id),...STATE.notes.map(notePid)])];
+  pids.forEach(pid=>sel.appendChild(new Option(personaName(pid),pid,pid===cur,pid===cur)));
+}
+$('purgePersonaPreview').onclick=()=>{
+  const c=purgePersonaCount();
+  $('purgePersonaBtn').disabled=!c;
+  $('purgePersonaStat').textContent=c?`${personaName($('purgePersona').value)} 形成的 ${c} 条记忆（事实+态度）将被删除`:'该人设暂无记忆';
+};
+$('purgePersona').onchange=()=>{$('purgePersonaBtn').disabled=true;$('purgePersonaStat').textContent='';};
+$('purgePersonaBtn').onclick=async()=>{
+  const pid=$('purgePersona').value,c=purgePersonaCount();
+  if(!c)return;
+  if(!confirm(`永久删除「${personaName(pid)}」形成的 ${c} 条记忆（事实+态度）？不可撤销，建议先导出备份。`))return;
+  const res=await fapi(API+'/notes/purge',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({personaId:pid})});
+  const d=await res.json().catch(()=>null);
+  $('purgePersonaStat').textContent=res.ok&&d?`已删除 ${d.deleted} 条`:'删除失败：HTTP '+res.status;
+  $('purgePersonaBtn').disabled=true;
   await load();
 };
 $('resetMemBtn').onclick=async()=>{

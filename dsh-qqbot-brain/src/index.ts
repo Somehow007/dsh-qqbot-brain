@@ -103,6 +103,9 @@ export async function apply(ctx: unknown, config?: Partial<BrainPluginConfig>): 
   if (!store.listPersonas().some((p) => p.id === 'whale-gentle')) {
     store.createPersona('鲸鱼娘 · 温柔版', readFileSync(new URL('./setup/whale-gentle.md', import.meta.url), 'utf8'), 'whale-gentle');
   }
+  if (!store.listPersonas().some((p) => p.id === 'whale-devotion')) {
+    store.createPersona('鲸鱼娘 · 依恋版', readFileSync(new URL('./setup/whale-devotion.md', import.meta.url), 'utf8'), 'whale-devotion');
+  }
   // 初次落盘导出：让 persona.md 始终反映当前内核
   if (persona && !readPersonaFile(dataDir)) writePersonaFile(dataDir, persona);
 

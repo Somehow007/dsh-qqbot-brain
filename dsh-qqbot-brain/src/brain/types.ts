@@ -60,6 +60,22 @@ export interface MemoryNote {
   emotion?: NoteEmotion;
   /** 派生来源：巩固（consolidate）时喂入的情景记忆 id（真实的「沉淀自」关系，非推断） */
   sourceIds?: string[];
+  /**
+   * 形成时的活动人设 id（事实共享·态度分轨：kind=attitude 只对同人设召回）。
+   * 缺失 = 分轨功能上线前的存量，一律视为 PRE_TAG_PERSONA_ID 时期形成。
+   */
+  personaId?: string;
+}
+
+/**
+ * 分轨上线前全部记忆的归属人设：当时唯一实际活跃的人设是 whale-gentle
+ * （其前还有寥寥数条 legacy 期态度，误归 whale-gentle 可接受，免去迁移）。
+ */
+export const PRE_TAG_PERSONA_ID = 'whale-gentle';
+
+/** 记忆归属人设：缺 personaId 的存量按 PRE_TAG_PERSONA_ID 计 */
+export function notePersonaId(n: { personaId?: string }): string {
+  return n.personaId ?? PRE_TAG_PERSONA_ID;
 }
 
 /** PAD 情绪状态：v 效价[-1,1] a 唤醒[0,1] d 支配[-1,1] */
@@ -88,6 +104,8 @@ export interface NoteDraft {
   strengthBoost?: number;
   /** 派生来源（巩固路径注入）：喂出这条语义记忆的情景记忆 id */
   sourceIds?: string[];
+  /** 归属人设（Brain 层注入=当前活动人设）；缺省由读侧按 PRE_TAG_PERSONA_ID 计 */
+  personaId?: string;
 }
 
 /**
@@ -107,6 +125,8 @@ export interface ProfileEntry {
    * 持久化替代进程内 reviewedProfiles map——重启后不再每会话重审一遍存量画像。
    */
   reviewed?: string;
+  /** 最近一次重写时的活动人设（仅展示标签：画像共享不分版，但可解释「这段是谁写的」） */
+  lastWrittenByPersona?: string;
 }
 
 /** 蒸馏产出的单条画像（入库前；actor 缺失=会话整体画像） */
