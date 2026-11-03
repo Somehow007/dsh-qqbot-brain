@@ -1161,13 +1161,26 @@ test('buildDistillPrompt: 画像边界提示——时效信息进记忆不进画
   assert.match(p, /时效性信息/);
 });
 
+test('buildProfileReviewPrompt: 审核默认保留而非逢审必改', () => {
+  const p = buildProfileReviewPrompt([{ previous: '稳定画像', candidate: '稳定画像' }]);
+  assert.match(p, /默认原样保留/);
+  assert.match(p, /不为改而改/);
+});
+
+test('buildDistillPrompt: 单聊不再要求会话整体画像', () => {
+  const p = buildDistillPrompt(
+    [{ userText: 'hi', assistantText: '咕嘟', at: NOW }], '大肥鱼', 5,
+  );
+  assert.match(p, /单聊不必输出此条/);
+});
+
 test('buildProfileReviewPrompt: 连旧画像一并审查，不只过滤本轮新增', () => {
   const p = buildProfileReviewPrompt([
     { actor: '张三 (ABCDEF1234567890)', previous: '性格随和，最近课表周二早八', candidate: '性格随和，最近课表周二早八' },
   ]);
-  assert.match(p, /旧画像也必须重新审查/);
+  assert.match(p, /逐条核对原画像和草稿/);
   assert.match(p, /性格随和，最近课表周二早八/);
-  assert.match(p, /稳定的作息习惯可以保留/);
+  assert.match(p, /拿不准的一律保留/);
 });
 
 test('endOfTurn: 画像草稿经二次审核后才落盘，旧画像只含时效信息可清除', async () => {
