@@ -1162,3 +1162,23 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 55: 脑图移动端走查与二次修正上线
+<!-- trellis-session: v=2 fp=e9003f3b676bbda4 -->
+
+**Date**: 2026-11-04
+**Task**: 脑图移动端走查与二次修正上线
+**Branch**: `main`
+
+### Summary
+
+用户反馈移动端效果一般不稳。用 playwright-core channel:chrome + CDP dispatchTouchEvent 真机走查：点选/拖拽/捏合/竖滑/复位链路实测全部正常，真短板是缩放零可发现性（默认视野hit圈仅19-28px）+移动端首屏即缩略图+溢出链接触控细+右键连点误触发。修正：双击缩放（VB.w>430放大2x否则回全图）、ctrls加＋－按钮、≤640初始视野140,120,600,429、+N包of-wrap+hit矩形、鼠标非主键守护、resize夹紧、触屏提示文案。验证：npm test 129/129、headless复测双击/按钮/复位全过、已部署远端md5 3f143a08。测试教训：tap落点触发scrollIntoView会滚走页面，后续手势须elementFromPoint找空白点。
+
+### Git Commits
+
+(No commits - planning session)
+
+### Status
+
+[OK] **Completed**
