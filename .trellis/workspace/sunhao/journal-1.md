@@ -948,3 +948,23 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 45: 脑图 footer/节点优化上线
+<!-- trellis-session: v=2 fp=4b4945678ba9f645 -->
+
+**Date**: 2026-11-03
+**Task**: 脑图 footer/节点优化上线
+**Branch**: `main`
+
+### Summary
+
+上线 footer 覆盖修复+节点收敛：page.html 走 http.ts readFileSync 每请求读盘，rsync dist 到 ubuntu@124.222.65.169:~/dsh-qqbot-brain 即生效免重启；远端 md5 78c6a95d 与本地一致，旧页备份 page.html.bak-1103；公网带 token /brain 200 且返回含新 CSS 标记。部署方式沿用 journal 既有纯 dist rsync 惯例。
+
+### Git Commits
+
+(No commits - planning session)
+
+### Status
+
+[OK] **Completed**
