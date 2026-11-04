@@ -1244,3 +1244,23 @@ P2巩固增强：被语义巩固吸收的episodic打absorbedAt戳退出检索池
 ### Status
 
 [OK] **Completed**
+
+
+## Session 59: 解答三类记忆（情景/语义/态度）的区别
+<!-- trellis-session: v=2 fp=7d03e1511c577255 -->
+
+**Date**: 2026-11-04
+**Task**: 解答三类记忆（情景/语义/态度）的区别
+**Branch**: `main`
+
+### Summary
+
+用户问三类记忆差异与生效方式：读 brain 层源码并对照 ~/brain-data 实际数据，确认检索同池同公式（kind 无感），差异在生产端（蒸馏默认 episodic/巩固产 semantic/蒸馏打标 attitude）与注入端（attitude 独立立场区+保底/跨群/分轨）；观感无差别根因是 semantic 空转且现存 attitude 为错标事件。纯讨论，存档于 11-04-memory-kinds-explained。
+
+### Git Commits
+
+(No commits - planning session)
+
+### Status
+
+[OK] **Completed**

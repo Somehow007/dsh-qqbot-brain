@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 58
+- **Total Sessions**: 59
 - **Last Active**: 2026-11-04
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1246 | Active |
+| `journal-1.md` | ~1266 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 59 | 2026-11-04 | 解答三类记忆（情景/语义/态度）的区别 | - | `main` |
 | 58 | 2026-11-04 | 记忆actor回填全tag与重生成reason细分 | - | `main` |
 | 57 | 2026-11-04 | P2巩固增强上线 | `567529f` | `main` |
 | 56 | 2026-11-04 | 修复画像重生成裸昵称actor归集失败 | - | `main` |
