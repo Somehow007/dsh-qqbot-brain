@@ -25,6 +25,8 @@
 
 **验证**：playwright reduced-motion 模式下真实鼠标事件验证——3px 抖动点击选中且 viewBox 不变、双击不缩放、60px 拖拽平移、空点取消；移动端触摸双击 600→300 仍生效；143/143 测试、typecheck、build 绿；rsync dist/server/page.html 上线（http.ts 每请求读盘免重启），远端 md5 与本地一致。
 
+**修正（2026-11-04 晚间）**：首版上线后用户复测仍「点节点无反应」。真实根因比预估更深一层——pointerdown 时对 brainSvg 调了 `setPointerCapture`，click 按 Pointer Events 规范被重定向到捕获元素（svg 根）→ `closest('.node')` 落空 → 走「点空处取消选中」分支。此前自动化全用 `dispatchEvent('click')` 直接派发到节点、绕过捕获，所以从未暴露；真实鼠标事件必现。修复为**懒捕获**：点按不捕获，累计位移越 8px 阈值或第二指落下（捏合）时才 `setPointerCapture`；触摸有隐式捕获落在节点本身不受影响。用线上真实数据（~/brain-data 拷贝到本地 BrainStore）+ playwright 真实鼠标事件复测：mem/facet/emo 三类节点均正常选中并打开详情，其余回归全过。已部署（远端 md5 `4d7420d6`）。教训：页面交互验证必须用真实输入事件（mouse.down/up），`dispatchEvent` 会绕过 pointer capture 这类 UA 层行为。
+
 **后续优化方向**：选中态光环可以更醒目（当前 .4 光晕在密集区域不够突出）；quiet 节点 .8 透明度在真实 172 条记忆密度下可能需要再调；漂移开关节奏可与 prefers-reduced-motion 完全对齐（目前仅默认关闭）。
 
 ## Key Decisions
