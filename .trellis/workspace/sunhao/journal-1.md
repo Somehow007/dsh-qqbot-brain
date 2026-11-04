@@ -1202,3 +1202,25 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 57: P2巩固增强上线
+<!-- trellis-session: v=2 fp=f0b8e869efe8751b -->
+
+**Date**: 2026-11-04
+**Task**: P2巩固增强上线
+**Branch**: `main`
+
+### Summary
+
+P2巩固增强：被语义巩固吸收的episodic打absorbedAt戳退出检索池（四处入口统一排除，保留存档），「对X：」attitude同对象自动原位归并，蒸馏prompt补同对象唯一约束；133测试全绿已部署
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `567529f` | brain: P2 巩固增强——已吸收 episodic 打戳退池 + attitude 同对象归并 |
+
+### Status
+
+[OK] **Completed**
