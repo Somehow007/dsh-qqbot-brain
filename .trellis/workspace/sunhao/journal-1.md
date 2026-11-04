@@ -1255,7 +1255,7 @@ P2巩固增强：被语义巩固吸收的episodic打absorbedAt戳退出检索池
 
 ### Summary
 
-用户问三类记忆差异与生效方式：读 brain 层源码并对照 ~/brain-data 实际数据，确认检索同池同公式（kind 无感），差异在生产端（蒸馏默认 episodic/巩固产 semantic/蒸馏打标 attitude）与注入端（attitude 独立立场区+保底/跨群/分轨）；观感无差别根因是 semantic 空转且现存 attitude 为错标事件。纯讨论，存档于 11-04-memory-kinds-explained。
+用户问三类记忆差异与生效方式：读 brain 层源码 + SSH 线上取证（ubuntu@124.222.65.169，189 条=128 episodic/46 semantic/15 attitude）。结论：检索同池同公式（kind 无感），差异在生产端（蒸馏默认 episodic/巩固产 semantic/蒸馏打标 attitude）与注入端（attitude 独立立场区+保底/跨群/分轨）。观感无差别的线上根因：attitude 13/15 错标为用户事实、semantic 里反混立场文案、markAbsorbed 当天 15:45 才部署致同一事实跨 kind 重复（馆长×4）、devotion 激活后 15 条 attitude 按分轨设计全部不可见。纯讨论，存档于 11-04-memory-kinds-explained。
 
 ### Git Commits
 

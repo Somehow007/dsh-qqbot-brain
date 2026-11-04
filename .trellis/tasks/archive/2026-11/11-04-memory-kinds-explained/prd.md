@@ -39,11 +39,28 @@ semantic 生产路径独立：定时器（`src/index.ts` consolidation tick）�
 
 意图是「事件流水 / 沉淀常识 / 角色立场」三层；现实是 semantic 空转、attitude 被当 episodic 用、episodic 与 semantic 注入无差别。要让差异真实生效，杠杆在**生产端**（蒸馏 prompt 的 attitude 判定 + 巩固触发率），不在检索端。
 
+## 线上数据验证（2026-11-04，ubuntu@124.222.65.169 只读）
+
+快照 `~/brain-data/brain.snapshot.json`：**189 条 = 128 episodic + 46 semantic + 15 attitude**，向量覆盖 189/189，巩固自 10-31 起已跑 10+ 次（与本地「semantic 空转」相反——线上三层都活了）。
+
+**但边界在真实数据里依然不存在，且比预想更糟：**
+
+1. **attitude 错标率 13/15**：现存态度绝大多数是用户事实/事件——「确诊急性咽炎用药」「王者主玩对抗路」「答应明天交作品」，均未写 `对X：` 格式。仅 2 条合规（对花咲蝶舞的吐槽立场）。
+2. **semantic 里混着立场**：「不粉馆长嫌他吼」「对荤梗装傻转移」「对『由不得你』回怼」——按设计这些才是 attitude。kind 标签在两条生产线上都打偏了，方向相反。
+3. **同一事实跨 kind 重复**：「不粉馆长」同文共存 4 条（1 episodic hits=203 + 3 semantic，其中 2 条逐字相同）。原因：① `markAbsorbed`（退池打戳）今天 15:45 才随 `567529f` 部署，历史 500 个 sourceIds 的源条全部仍在检索池（`absorbed=0`）；② `consolidate()` 入库路径**不判重**（不走 `findNearDup`），多次巩固产出逐字重复的 semantic；③ 11-03 purge 删过一批源条 → 14 个 sourceId 悬空。
+4. **态度层今日起整体不可见**：15 条 attitude 全部无 personaId → 归 `whale-gentle` 轨；devotion 于 ~16:08 被激活（jsonl 里 `persona-activate` op）→ `attitudeVisible` 全滤掉 → 【当前立场】段自此为空（分轨按设计工作，「可攻略玩法不被旧人设剧透」的代价是旧轨态度全灭）。
+5. **历史遗留**：旧 semantic 的源 episodic 不会被追认退池——`markAbsorbed` 只打当次巩固喂入的源，存量 486 条 live 引用需一次性迁移/清扫才能退池，否则重复永远存在。
+
+### 修正后的结论
+
+三层差异在**代码机制上真实存在**（注入分区、保底唤起、跨群通道、分轨、退池），但在**这份数据上**用户感觉没区别是对的：kind 标签被两条 LLM 流水线按各自的理解乱打（蒸馏把事实标成 attitude、巩固把立场写成 semantic）、同一事实多 kind 重复共存、且态度轨刚整体下线。差异存在于机制，不存在于内容。
+
 ### 可选优化方向（未实施）
 
-- 蒸馏端对 attitude 做 `对X：` 格式硬校验，不合格降级回 episodic
-- semantic 注入给不同前缀（如 `[常识]`）或更高保留率/不衰减
-- 检查线上 consolidation 定时器是否实际在跑（`consolidation.enabled` + 数据是否达门槛）
+- 蒸馏端 attitude `对X：` 格式硬校验，不合格降级回 episodic（可治 13/15 错标）
+- `consolidate()` 入库走 `findNearDup` 判重（可治逐字重复 semantic）
+- 一次性迁移：把所有现存 sourceIds 指向的 episodic 补打 `absorbedAt`（或跑 `sweepNearDups` 合并跨 kind 同文）
+- 语义巩固 prompt 明示「立场/看法写 attitude 或不写」，减少把 stance 固化成 semantic
 
 ## Key Files
 
