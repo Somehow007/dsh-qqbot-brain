@@ -1440,3 +1440,25 @@ SSH 线上取证后按用户指示用已有优化标齐数据：PATCH 把 13 条
 ### Status
 
 [OK] **Completed**
+
+
+## Session 68: 星光杯参赛材料打包：报名表+说明书+截图+源码包
+<!-- trellis-session: v=2 fp=60e4c33cbde04226 -->
+
+**Date**: 2026-11-04
+**Task**: 星光杯参赛材料打包：报名表+说明书+截图+源码包
+**Branch**: `main`
+
+### Summary
+
+需求：按赛方要求整理初审材料（报名表+作品材料，命名序号--计算机学院--作品名称，11-05 20:00 截止），要求无开发痕迹无真实隐私。方案：python-docx 填报名表（☑团队参赛/原创承诺11-05/审核意见11-10，创新点补三型分治+分轨+可视化）；写 demo/serve-demo.ts 独立起脑图页灌虚构数据，headless Chrome 截脑图与记忆库实跑图；python-docx 生成 10 节说明书嵌 6 图；rsync 过滤打包源码（.git/.trellis/.devin/AGENTS.md/brain-data 等全排，shipped README 去 trellis 引用）；参赛材料/ gitignored 组装出最终 zip。验证：报名表字段逐一回读、说明书 15 标题 6 图、源码包 84 文件、zip 解压中文名完好。待办：序号重命名、指导教师信息、队长手写签名。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `11af1e3` | demo 独立预览脚本与脑图实跑截图；参赛材料目录入 gitignore |
+
+### Status
+
+[OK] **Completed**
