@@ -1,4 +1,4 @@
-import { DEFAULT_BRAIN_CONFIG, MOOD_VALENCE, notePersonaId } from './types.ts';
+import { DEFAULT_BRAIN_CONFIG, GLOBAL_SESSION_ID, MOOD_VALENCE, notePersonaId } from './types.ts';
 import type { BrainConfig, BrainContext, DistillResult, EmotionState, MemoryNote, NoteDraft, NoteEmotion, Turn } from './types.ts';
 import { isUserKey, normalizeProfileKey, sessionProfileKey, splitActor, userProfileKey } from './identity.ts';
 import { ageInDays, retention } from './decay.ts';
@@ -136,7 +136,7 @@ export class Brain {
     const sp = typeof speaker === 'string' ? { nick: speaker } : speaker;
     // 事实共享·态度分轨：检索池先滤掉他人设态度，
     // topK 命中/强化/昵称保底/跨群召回四处口径自然一致。
-    const visible = this.store.allNotes().filter((n) => this.attitudeVisible(n));
+    const visible = this.store.allNotes().filter((n) => this.attitudeVisible(n) && !n.absorbedAt);
     const scored = this.retriever.query(
       visible, sessionId, queryText, now, this.store.graphVersion, queryVec,
     );
@@ -169,7 +169,8 @@ export class Brain {
     }
     if (sp && (sp.openid || sp.nick)) {
       const xpool = visible.filter((n) => {
-        if (n.sessionId === sessionId) return false;
+        // 全局域已在主检索池中，跨会话通道不再重复计入
+        if (n.sessionId === sessionId || n.sessionId === GLOBAL_SESSION_ID) return false;
         if (n.kind !== 'attitude' && n.kind !== 'semantic') return false;
         if (!n.actor) return false;
         const id = splitActor(n.actor);
@@ -246,7 +247,7 @@ export class Brain {
       const queryText = turns.map((t) => t.userText).join(' ');
       const existing = this.retriever
         .query(
-          this.store.allNotes().filter((n) => this.attitudeVisible(n)),
+          this.store.allNotes().filter((n) => this.attitudeVisible(n) && !n.absorbedAt),
           sessionId, queryText, now, this.store.graphVersion,
         )
         .slice(0, 8)
@@ -286,7 +287,10 @@ export class Brain {
         const cand = m.mergeIndex != null ? existing[m.mergeIndex] : undefined;
         // 事实与态度是两种角色，跨类不算「同一条记忆」：
         // 态度改写事实会把心态落到事实所在的旧轨上，反之事实会吃掉本轨态度
-        const target = cand && (cand.kind === 'attitude') === (m.kind === 'attitude') ? cand : undefined;
+        // attitude 兜底归并：LLM 没给 mergeIndex 时，「对X：」同对象旧态度原位更新，
+        // 立场类记忆按对象唯一——新立场覆盖旧立场，避免同对象态度越攒越多
+        const target = (cand && (cand.kind === 'attitude') === (m.kind === 'attitude') ? cand : undefined)
+          ?? (m.kind === 'attitude' ? this.findAttitudeSameObject(sessionId, m.content, activePid) : undefined);
         if (target) {
           this.store.updateNote(target.id, { content: m.content, importance: m.importance, kind: m.kind });
           this.store.reinforceById(target.id, this.cfg.reinforceStep, this.cfg.strengthCap, now);
@@ -329,6 +333,19 @@ export class Brain {
    * 态度分轨谓词：attitude 只对「形成它的那个人设」可见。
    * 无活动人设（未启用多版本的存储/测试态）时全部可见，兼容分轨前行为。
    */
+  /**
+   * 「对X：」规范格式的态度按对象归并：会话+人设轨内找同对象旧条。
+   * 只认「对」前缀——存量「X：」式人物事实不是立场，折叠会丢信息。
+   */
+  private findAttitudeSameObject(sessionId: string, content: string, pid: string): MemoryNote | undefined {
+    const obj = /^对(.{1,24}?)[：:]/.exec(content.trim())?.[1]?.trim();
+    if (!obj) return undefined;
+    return this.store.allNotes().find((n) =>
+      n.kind === 'attitude' && !n.absorbedAt
+      && n.sessionId === sessionId && (!pid || notePersonaId(n) === pid)
+      && new RegExp(`^对${obj.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[：:]`).test(n.content.trim()));
+  }
+
   private attitudeVisible(n: MemoryNote): boolean {
     if (n.kind !== 'attitude') return true;
     const pid = this.store.activePersonaId();
@@ -539,17 +556,21 @@ export class Brain {
     const k = normalizeProfileKey(key);
     const entry = this.store.profileEntry(k);
     const person = isUserKey(k);
+    // 记忆 actor 多为裸昵称（蒸馏 prompt 只让写昵称，不带 openid）——
+    // 归集须 openid 或昵称双口径命中，与 assemble/mergedUserProfile 一致
+    const nick = entry?.name || (person ? this.store.speakers().get(k.slice(2)) : undefined);
     const evidence = this.store.allNotes()
-      .filter((n) => person
-        ? (n.actor != null && splitActor(n.actor).openid === k.slice(2))
-        : n.sessionId === k.slice(5))
+      .filter((n) => {
+        if (!person) return n.sessionId === k.slice(5);
+        if (n.actor == null) return false;
+        const id = splitActor(n.actor);
+        return id.openid === k.slice(2) || (!!nick && id.nick === nick);
+      })
       .sort((a, b) => a.createdAt - b.createdAt)
       .slice(-60);
     // 记忆佐证即对象存在——entry 缺失（画像未生成过）同样允许重建
     if (!evidence.length) return { ok: false, reason: '该对象暂无可用的记忆' };
-    const name = entry?.name
-      || (person ? this.store.speakers().get(k.slice(2)) : undefined)
-      || k.slice(person ? 2 : 5).slice(0, 8);
+    const name = nick || k.slice(person ? 2 : 5).slice(0, 8);
     const draft = await this.distiller.draftProfile(
       person ? `用户「${name}」` : '本会话群聊整体（用户群像/氛围）',
       evidence, this.personaForPrompts(), { now: this.now(), timeZone: this.cfg.timeZone });
@@ -628,6 +649,8 @@ export class Brain {
       { ...m, kind: 'semantic', emotion: stamp, strengthBoost: boost, sourceIds, personaId: this.store.activePersonaId() },
       now,
     ));
+    // 被吸收的源情景记忆打戳退池：语义版已在库里，流水原件留着只会稀释检索
+    if (added.length) this.store.markAbsorbed(sourceIds, now);
     await this.reviewAndWriteProfiles(sessionId, result, eps.map((n) => n.actor));
     void this.embedNotes(added);
     return result.memories.length;
@@ -733,6 +756,7 @@ export class Brain {
     let best: MemoryNote | undefined, bc = 0;
     for (const n of this.store.allNotes()) {
       if (!n.embedding?.length) continue;
+      if (n.absorbedAt) continue; // 已吸收的存档条不做判重靶——否则新记忆会被强化到不可见的幽灵上
       // 事实与态度不同角色不互判重（态度被事实吸收=心态静默丢失，反之亦然）
       if ((n.kind === 'attitude') !== (kind === 'attitude')) continue;
       // 态度分轨：他人设的态度不参与判重（否则新人设写近似立场会被旧轨吸收掉）
@@ -747,8 +771,8 @@ export class Brain {
 
   addNote(sessionId: string, draft: NoteDraft): MemoryNote {
     const now = this.now();
-    const stamp = this.emotionStamp(sessionId || 'manual', now);
-    const n = this.store.addNote(sessionId || 'manual',
+    const stamp = this.emotionStamp(sessionId || GLOBAL_SESSION_ID, now);
+    const n = this.store.addNote(sessionId || GLOBAL_SESSION_ID,
       { ...draft, emotion: stamp, strengthBoost: draft.strengthBoost ?? this.emotionBoost(stamp), personaId: draft.personaId ?? this.store.activePersonaId() }, now);
     void this.embedNotes([n]);
     return n;
@@ -924,7 +948,7 @@ export class Brain {
   async preview(sessionId: string | undefined, query: string): Promise<MemoryNote[]> {
     const qv = (await this.queryEmbedding(query)) ?? undefined;
     return this.retriever
-      .query(this.store.allNotes(), sessionId, query, this.now(), this.store.graphVersion, qv)
+      .query(this.store.allNotes().filter((n) => !n.absorbedAt), sessionId, query, this.now(), this.store.graphVersion, qv)
       .map((s) => s.note);
   }
 

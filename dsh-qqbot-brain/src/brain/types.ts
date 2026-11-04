@@ -65,6 +65,8 @@ export interface MemoryNote {
    * 缺失 = 分轨功能上线前的存量，一律视为 PRE_TAG_PERSONA_ID 时期形成。
    */
   personaId?: string;
+  /** 被语义巩固吸收的 ms epoch（设置后退出检索池与巩固候选，保留存档） */
+  absorbedAt?: number;
 }
 
 /**
@@ -72,6 +74,9 @@ export interface MemoryNote {
  * （其前还有寥寥数条 legacy 期态度，误归 whale-gentle 可接受，免去迁移）。
  */
 export const PRE_TAG_PERSONA_ID = 'whale-gentle';
+
+/** 全局作用域：不绑定具体会话的记忆（脑图页手动写入默认入此域），检索时对全体会话可见 */
+export const GLOBAL_SESSION_ID = 'manual';
 
 /** 记忆归属人设：缺 personaId 的存量按 PRE_TAG_PERSONA_ID 计 */
 export function notePersonaId(n: { personaId?: string }): string {

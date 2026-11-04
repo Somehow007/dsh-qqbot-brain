@@ -1722,6 +1722,32 @@ test('regenerateProfile: u: 键只归集该 openid 记忆，草稿送审后写�
   assert.equal(store.people().find((p) => p.key === key)!.name, 'demo');
 });
 
+test('regenerateProfile: 记忆 actor 为裸昵称（真实蒸馏格式）时按画像名归集', async () => {
+  const { store } = tmpStore();
+  const key = userProfileKey('B24EA87BAE34ED99C55AD166EDE974DA');
+  store.setProfileEntry(key, '旧画像', { sessionId: 'g1', name: '花咲蝶舞（五笑）' });
+  // 蒸馏 prompt 只让 memories.actor 写昵称——真实落库数据多为裸昵称，无 openid
+  store.addNote('g1', { content: '花咲蝶舞爱发梗图', importance: 4, actor: '花咲蝶舞（五笑）' }, NOW - DAY);
+  store.addNote('g1', { content: '不相干的路人发言', importance: 4, actor: '大肥鱼' }, NOW - DAY);
+  let draftPrompt = '';
+  const distiller = new Distiller(
+    { enabled: true, baseUrl: 'https://x.test', apiKey: 'k', model: 'm', timeoutMs: 1000, maxNotes: 5 },
+    async (_url, init) => {
+      const prompt = (JSON.parse(init.body) as { messages: { content: string }[] }).messages[0]!.content;
+      const content = prompt.includes('人物画像撰稿模块')
+        ? (draftPrompt = prompt, '{"profile":"草稿画像"}')
+        : '{"profiles":[{"index":0,"text":"审核后画像"}]}';
+      return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content } }] }) };
+    },
+  );
+  const brain = new Brain({ store, distiller, now });
+  const r = await brain.regenerateProfile(key);
+  assert.deepEqual(r, { ok: true });
+  assert.ok(draftPrompt.includes('花咲蝶舞爱发梗图'), '裸昵称记忆应被归集');
+  assert.ok(!draftPrompt.includes('不相干的路人发言'), '不应混入他人记忆');
+  assert.match(draftPrompt, /用户「花咲蝶舞（五笑）」/);
+});
+
 test('regenerateProfile: 蒸馏关闭/画像不存在/无记忆/审核判空均不改数据', async () => {
   const { store } = tmpStore();
   const key = userProfileKey('AABBCCDD');
@@ -1776,4 +1802,68 @@ test('resetMemory: 清内存态——assemble 不再注入旧情绪/画像/摘�
   assert.ok(!after.memoryLines.some((l) => l.includes('画像')));
   assert.equal(after.digest, '');
   assert.equal(after.persona, '人设内核');
+});
+
+test('consolidate: 被吸收的 episodic 打戳退出检索池', async () => {
+  const { store } = tmpStore();
+  const ep = store.addNote('s1', { content: '张三喜欢听民谣', importance: 4 }, NOW - 3 * DAY);
+  const distiller = new Distiller(
+    { enabled: true, baseUrl: 'https://x.test', apiKey: 'k', model: 'm', timeoutMs: 1000, maxNotes: 5 },
+    async (_url, init) => {
+      const prompt = (JSON.parse(init.body) as { messages: { content: string }[] }).messages[0]!.content;
+      const content = prompt.includes('长期人物画像的编辑')
+        ? '{"profiles":[]}'
+        : JSON.stringify({ memories: [{ content: '张三爱民谣', importance: 3, actor: '张三' }], profiles: [] });
+      return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content } }] }) };
+    },
+  );
+  const brain = new Brain({ store, distiller, now, config: { consolidateMinNotes: 1 } });
+  await brain.consolidate('s1');
+  assert.ok(store.allNotes().find((n) => n.id === ep.id)?.absorbedAt);
+  // 退池后同词检索不再命中原件，只剩 semantic
+  const ctx = await brain.assemble('s1', '民谣', { nick: '张三' });
+  assert.ok(!ctx.memoryLines.some((l) => l.includes('张三喜欢听民谣')));
+});
+
+test('store: absorb op 持久化，重载后 absorbedAt 保留', () => {
+  const { dir, store } = tmpStore();
+  const n = store.addNote('s1', { content: '张三喜欢听民谣', importance: 3 }, NOW);
+  store.markAbsorbed([n.id, 'ghost'], NOW);
+  assert.ok(store.allNotes().find((x) => x.id === n.id)?.absorbedAt);
+  const re = new BrainStore(dir);
+  re.load();
+  assert.ok(re.allNotes().find((x) => x.id === n.id)?.absorbedAt);
+});
+
+test('endOfTurn: 「对X：」同对象态度自动归并，非对格式不折叠', async () => {
+  const { store } = tmpStore();
+  const old = store.addNote('s1', { content: '对张三：觉得他记性好', importance: 3, kind: 'attitude' }, NOW - DAY);
+  const keep = store.addNote('s1', { content: '张三：爱听民谣', importance: 3, kind: 'attitude' }, NOW - DAY);
+  const distiller = new Distiller(
+    { enabled: true, baseUrl: 'https://x.test', apiKey: 'k', model: 'm', timeoutMs: 1000, maxNotes: 5 },
+    async () => ({
+      ok: true, status: 200,
+      json: async () => ({
+        choices: [{
+          message: {
+            content: JSON.stringify({
+              memories: [
+                { content: '对张三：记性是好，就是爱得意', importance: 4, kind: 'attitude' },
+                { content: '张三：开始学吉他', importance: 3, kind: 'attitude' },
+              ],
+              profiles: [],
+            }),
+          },
+        }],
+      }),
+    }),
+  );
+  const brain = new Brain({ store, distiller, now });
+  brain.ingest('s1', { userText: '张三记性真好', assistantText: '哼，那当然', actor: 'a', at: NOW });
+  await brain.endOfTurn('s1');
+  const atts = store.allNotes().filter((n) => n.kind === 'attitude');
+  const updated = atts.find((n) => n.id === old.id);
+  assert.equal(updated?.content, '对张三：记性是好，就是爱得意'); // 同对象原位更新
+  assert.ok(atts.some((n) => n.content === '张三：开始学吉他')); // 非对格式新增不折叠
+  assert.ok(atts.some((n) => n.id === keep.id && n.content === '张三：爱听民谣'));
 });

@@ -16,6 +16,7 @@ type Op =
   | { op: 'update'; id: string; patch: Partial<Pick<MemoryNote, 'content' | 'importance' | 'kind'>> }
   | { op: 'embed'; id: string; vector: number[] }
   | { op: 'del'; id: string }
+  | { op: 'absorb'; ids: string[]; at: number }
   | { op: 'merge'; keepId: string; dropId: string; patch: {
       strength: number; hits: number; importance: number; createdAt: number; lastAccessAt: number;
       actor?: string; emotion?: NoteEmotion; sourceIds?: string[];
@@ -95,6 +96,7 @@ function sanitizeNote(raw: unknown, now: number): MemoryNote | undefined {
     sourceIds: Array.isArray(n.sourceIds) && n.sourceIds.length
       ? n.sourceIds.filter((id): id is string => typeof id === 'string' && !!id)
       : undefined,
+    absorbedAt: num(n.absorbedAt, 0) || undefined,
   };
 }
 
@@ -260,6 +262,12 @@ export class BrainStore {
         break;
       }
       case 'del': this.notes.delete(op.id); break;
+      case 'absorb':
+        for (const id of op.ids) {
+          const n = this.notes.get(id);
+          if (n) n.absorbedAt = op.at;
+        }
+        break;
       case 'merge': {
         const n = this.notes.get(op.keepId);
         if (n) Object.assign(n, op.patch);
@@ -401,6 +409,12 @@ export class BrainStore {
     if (!note.content) return note;
     this.persist({ op: 'add', note });
     return note;
+  }
+
+  /** 巩固吸收：给源情景记忆打 absorbedAt 戳，退出检索池与巩固候选（保留存档可查） */
+  markAbsorbed(ids: string[], at: number): void {
+    const live = ids.filter((id) => this.notes.has(id));
+    if (live.length) this.persist({ op: 'absorb', ids: live, at });
   }
 
   /**

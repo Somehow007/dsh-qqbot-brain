@@ -2,7 +2,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { Brain } from '../brain/index.ts';
+import { GLOBAL_SESSION_ID, type Brain } from '../brain/index.ts';
 import { retention } from '../brain/decay.ts';
 import type { HttpConfig } from '../config.ts';
 
@@ -193,7 +193,7 @@ export class BrainHttpServer {
       readBody(req).then((body) => {
         const o = parseJson<{ content?: string; importance?: number; kind?: 'episodic' | 'semantic' | 'attitude'; sessionId?: string; actor?: string }>(body) ?? {};
         if (!o.content?.trim()) { res.writeHead(400).end('content required'); return; }
-        const note = this.brain.addNote(o.sessionId ?? 'manual', {
+        const note = this.brain.addNote(o.sessionId ?? GLOBAL_SESSION_ID, {
           content: o.content, importance: o.importance, kind: o.kind, actor: o.actor,
         });
         return json(res, { ok: true, note });

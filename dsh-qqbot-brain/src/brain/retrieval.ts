@@ -1,3 +1,4 @@
+import { GLOBAL_SESSION_ID } from './types.ts';
 import type { BrainConfig, MemoryNote } from './types.ts';
 import { retention } from './decay.ts';
 import { vecCosine } from './embed.ts';
@@ -118,8 +119,11 @@ export class Retriever {
     queryVec?: number[],
     opts?: { pool?: MemoryNote[]; indexKey?: string },
   ): ScoredNote[] {
+    // 会话记忆 + 全局域（手动写入等无会话归属的条目对全体会话可见）
     const pool = opts?.pool
-      ?? (sessionId ? allNotes.filter((n) => n.sessionId === sessionId) : allNotes);
+      ?? (sessionId
+        ? allNotes.filter((n) => n.sessionId === sessionId || n.sessionId === GLOBAL_SESSION_ID)
+        : allNotes);
     if (pool.length === 0 || !text.trim()) return [];
     const idx = this.indexFor(pool, opts?.indexKey ?? sessionId ?? '__all__', version);
 

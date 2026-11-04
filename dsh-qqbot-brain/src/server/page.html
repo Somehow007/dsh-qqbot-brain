@@ -45,7 +45,7 @@
     .result-hit{width:100%;display:block;text-align:left;padding:8px 10px;margin:0 0 6px;border:1px solid var(--line2);background:#0a1f36;color:#cfe3f7;line-height:1.55;overflow-wrap:anywhere;font-size:11px}
     .result-hit span{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
     .result-hit:hover,.result-hit.active{border-color:var(--cyan);background:#0f2a48}
-    #brain{flex:1;min-height:0;width:100%;display:block}
+    #brain{flex:1;min-height:0;width:100%;display:block;touch-action:pan-y;user-select:none}
     #graphEmpty{position:absolute;left:0;right:0;top:46%;text-align:center;color:#a6c0da;z-index:2;pointer-events:none}
     .stage-foot{position:relative;z-index:2;flex:none;display:flex;align-items:flex-end;gap:16px;padding:0 24px 14px 30px;pointer-events:none}
     .stage-foot>*{pointer-events:auto}
@@ -88,10 +88,13 @@
     .focus .edge:not(.lit){stroke-opacity:.05}
     .focus .edge.cross:not(.lit){stroke-opacity:0}
     .node{cursor:pointer;outline:none;transition:opacity .15s}
+    .hit{fill:#000;fill-opacity:0;stroke:none;pointer-events:all}
+    .of-wrap{cursor:pointer}
+    .of-wrap:hover .overflow{fill:#fff}
     .node .halo{opacity:0;transition:opacity .15s;filter:url(#soft)}
     .node:hover .halo,.node:focus-visible .halo,.node.selected .halo,.node.qhit .halo{opacity:.35}
     .node .ring{fill:#0a2038;stroke-width:1.2;stroke-opacity:.55}
-    .node .cap{font-size:11px;fill:#bcd6ee;paint-order:stroke;stroke:#04101e;stroke-width:3.5px;stroke-linejoin:round;pointer-events:none}
+    .node .cap{font-size:11px;fill:#bcd6ee;paint-order:stroke;stroke:#04101e;stroke-width:3.5px;stroke-linejoin:round}
     .node .cnt{font:9px var(--mono);fill:var(--muted);pointer-events:none}
     .node.facet .cap{font-size:12px;fill:#e2eeff;font-weight:600}
     .node.selected .cap{fill:#fff}
@@ -246,8 +249,8 @@
     .bottom{display:block;padding:0 26px;margin-top:18px}
     .vault{margin:26px 26px 0}
     .fnote{margin:18px 26px 0}
-    @media(max-width:1000px){.legend{display:none}.layout{grid-template-columns:1fr;height:auto}.stage{height:clamp(480px,78vw,640px)}.side{border-left:0;border-top:1px solid var(--line);overflow:visible}.portrait{height:240px}.portrait img{left:auto;right:0;width:min(100%,440px);-webkit-mask-image:linear-gradient(90deg,transparent,#000 45%);mask-image:linear-gradient(90deg,transparent,#000 45%)}.status span:not(:first-child){display:none}}
-    @media(max-width:640px){.stage{height:calc(236px + 71.4vw)}#brain{top:160px;bottom:auto;height:71.4vw}.stage-head{max-width:none;right:24px}.stage-head p{display:none}.search{top:112px;left:24px;right:24px;width:auto}.hits{top:154px;left:24px;right:24px;width:auto;max-height:60%}.legend{display:none}.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.toolbar input[type=text]{width:100%}}
+    @media(max-width:1000px){.legend{display:none}.layout{grid-template-columns:1fr;height:auto}.stage{height:auto}#brain{flex:none;height:auto}.side{border-left:0;border-top:1px solid var(--line);overflow:visible}.portrait{height:240px}.portrait img{left:auto;right:0;width:min(100%,440px);-webkit-mask-image:linear-gradient(90deg,transparent,#000 45%);mask-image:linear-gradient(90deg,transparent,#000 45%)}.status span:not(:first-child){display:none}}
+    @media(max-width:640px){.stage-head{position:static;max-width:none;padding:16px 22px 0}.stage-head p{display:none}h1{font-size:20px}.search{position:static;margin:10px 22px 0;width:auto}.hits{position:static;margin:8px 22px 0;width:auto;max-height:240px}.legend{display:none}.stage-foot{flex-wrap:wrap;gap:8px 14px;padding:0 22px 12px}.ctrls{flex-wrap:wrap;gap:6px}#map-current{max-width:none}.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.toolbar input[type=text]{width:100%}}
     @media(max-width:480px){.cards{grid-template-columns:1fr}.sess-grid{grid-template-columns:1fr}}
     @media (prefers-reduced-motion:reduce){.spark,.mote,.mood-ring,.dot{animation:none}}
 </style>
@@ -270,6 +273,7 @@
         <h1>大肥鱼的心智图谱</h1>
       </div>
       <label class="search">⌕ <input id="query" placeholder="说一句话，看会唤起哪些记忆…" autocomplete="off" aria-label="搜索记忆"></label>
+      <select id="qSess" title="模拟哪个会话的唤起：全部会话=跨会话检索池，单个会话=该会话+全局记忆（接近真实注入）" style="font-size:11px"></select>
       <div class="hits" id="results" hidden></div>
       <svg id="brain" viewBox="100 20 840 600" preserveAspectRatio="xMidYMid meet" role="group" aria-label="鲸脑皮层：点选节点查看记忆、情绪与人格的关联">
         <defs>
@@ -295,6 +299,8 @@
           </div>
         </div>
         <div class="ctrls">
+          <button class="ctrl" id="zoomIn" type="button" aria-label="放大视图">＋</button>
+          <button class="ctrl" id="zoomOut" type="button" aria-label="缩小视图">－</button>
           <button class="ctrl" id="particleToggle" type="button" aria-pressed="true">漂浮 · 开</button>
           <button class="ctrl" id="signalToggle" type="button" aria-pressed="true">神经信号 · 开</button>
           <button class="ctrl" id="resetView" type="button">复位</button>
@@ -350,6 +356,7 @@
         <input name="content" placeholder="手动写入一条记忆，如「用户家猫叫年糕」" required maxlength="200">
         <select name="kind"><option value="episodic">情景</option><option value="semantic">语义</option><option value="attitude">态度</option></select>
         <select name="importance"><option value="2">重要度2</option><option value="3" selected>重要度3</option><option value="4">重要度4</option><option value="5">重要度5</option></select>
+        <select name="sess" id="addSess" title="归属：全部会话=全局，任何会话都能唤起；或只归属某个会话"></select>
         <button type="submit">写入记忆</button>
       </form>
     </div>
@@ -432,6 +439,16 @@ const kindGlyph=k=>KIND_GLYPH[k]??'忆';
 const ngrams=s=>{s=s.replace(/\s/g,'');const o=[];for(const n of[2,3])for(let i=0;i<=s.length-n;i++)o.push(s.slice(i,i+n));return o};
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const shortId=s=>s.slice(0,8);
+const sessLabel=s=>s==='manual'?'全局':shortId(s);
+// 会话下拉统一填充：空值=全部会话；skipGlobal 用于写入表单（全局即空值，不再单列）
+function fillSessSelect(sel,{skipGlobal=false,allLabel='全部会话'}={}){
+  const cur=sel.value;
+  sel.replaceChildren(new Option(allLabel,''));
+  SESS.forEach(s=>{
+    if(skipGlobal&&s.sessionId==='manual')return;
+    sel.appendChild(new Option(sessLabel(s.sessionId),s.sessionId,s.sessionId===cur,s.sessionId===cur));
+  });
+}
 const fmtT=t=>{const d=new Date(t);return `${String(d.getMonth()+1)}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`};
 const cleanText=s=>String(s).replace(/\s+/g,' ').trim();
 function distinctStart(note,notes){
@@ -579,7 +596,7 @@ function companionLine(kind,count,name){
   return '……才不是在等你来看我的脑子呢。点一个神经元，带你逛。';
 }
 function bindMapNode(g,key){
-  g.addEventListener('click',ev=>{ev.stopPropagation();panel(key);});
+  g.addEventListener('click',ev=>{ev.stopPropagation();panel(key);if(innerWidth<=1000)$('info-title').scrollIntoView({behavior:'smooth'});});
   g.addEventListener('keydown',ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();panel(key);}});
   g.addEventListener('mouseenter',()=>{$('map-current').textContent=mapSummary(key);});
   g.addEventListener('mouseleave',()=>{$('map-current').textContent=mapSummary(SELECTED);});
@@ -594,7 +611,7 @@ function nameOf(k){
   const n=STATE.notes.find(x=>x.id===k);return n?previewText(n,STATE.notes):'';
 }
 function mapSummary(key){
-  if(!key||!STATE)return '悬停或点选节点查看';
+  if(!key||!STATE)return matchMedia('(pointer:coarse)').matches?'点选节点查看 · 捏合/双击缩放':'悬停或点选节点查看';
   const t=keyKind(key);
   if(t==='facet')return `人格 · ${nameOf(key)} · ${neighbors(key).length} 段记忆`;
   if(t==='emotion')return `情绪 · ${nameOf(key)} · ${neighbors(key).length} 段记忆（推断）`;
@@ -738,12 +755,14 @@ let insideBrain=()=>true;
     t.append(svgEl('tspan',{x,dy:0},en),svgEl('tspan',{x,dy:16,class:'cn'},cn));
     lab.append(t);
     if(kind){
-      const o=svgEl('text',{x:ox??x,y:oy??y+32,class:'overflow','data-kind':kind,id:'of-'+kind,role:'button',tabindex:0});
-      o.style.display='none';
+      const og=svgEl('g',{class:'of-wrap',role:'button',tabindex:0,'data-kind':kind});
+      const o=svgEl('text',{x:ox??x,y:oy??y+32,class:'overflow',id:'of-'+kind});
+      og.append(svgEl('rect',{x:(ox??x)-8,y:(oy??y+32)-14,width:118,height:20,class:'hit'}),o);
+      og.style.display='none';
       const open=()=>{document.querySelector('[data-pane=lib]').click();$('libKind').value=kind;renderLibrary();$('pane-lib').scrollIntoView({behavior:'smooth'});};
-      o.addEventListener('click',ev=>{ev.stopPropagation();open();});
-      o.addEventListener('keydown',ev=>{if(ev.key==='Enter')open();});
-      lab.append(o);
+      og.addEventListener('click',ev=>{ev.stopPropagation();open();});
+      og.addEventListener('keydown',ev=>{if(ev.key==='Enter')open();});
+      lab.append(og);
     }
   });
 })();
@@ -778,6 +797,7 @@ function render(){
       g.append(svgEl('polygon',{class:'ring',points:hex(r)}));
       g.append(svgEl('polygon',{class:'core',points:hex(r*.5),opacity:.9}));
       g.append(svgEl('text',{class:'cap',y:r+14,'text-anchor':'middle'},Array.from(f.title).slice(0,6).join('')));
+      g.append(svgEl('circle',{class:'hit',r:30}));
     },`人格特质：${f.heading}`);});
   EMO_BUCKETS.forEach(e=>{const cnt=emoCount.get(e.id)||0,r=4+Math.min(cnt,8)*.5,now=e.id===C.current;
     add(e.id,'emo'+(cnt||now?'':' empty'),'',g=>{
@@ -786,6 +806,7 @@ function render(){
       g.append(svgEl('circle',{class:'ring',r,style:`stroke:${e.color};fill:${e.color};fill-opacity:.08`}));
       g.append(svgEl('circle',{class:'core',r:(r*.5).toFixed(1),style:`fill:${e.color}`,opacity:.9}));
       g.append(svgEl('text',{class:'cap',y:r+13,'text-anchor':'middle'},e.name));
+      g.append(svgEl('circle',{class:'hit',r:22}));
     },`情绪：${e.name}，${cnt} 段记忆`);});
   C.shown.forEach(({n,k})=>{const r=6+n.importance*1.1;
     add(n.id,`mem k-${k}${n.fading?' fading':''}`,'',g=>{
@@ -794,8 +815,9 @@ function render(){
       g.append(svgEl('circle',{class:'ring',r}));
       g.append(svgEl('circle',{class:'core',r:(r*.45).toFixed(1)}));
       g.append(svgEl('text',{class:'cap',x:r+5,y:4},mapLabel(n,C.notes)));
+      g.append(svgEl('circle',{class:'hit',r:20}));
     },`${kindLabel(n.kind)}记忆：${n.content}`);});
-  ['semantic','attitude','episodic'].forEach(k=>{const o=$('of-'+k);if(!o)return;o.style.display=overflow[k]?'':'none';o.textContent=`+${overflow[k]} 条未显示 ↗`;});
+  ['semantic','attitude','episodic'].forEach(k=>{const o=$('of-'+k);if(!o)return;o.parentElement.style.display=overflow[k]?'':'none';o.textContent=`+${overflow[k]} 条未显示 ↗`;});
   const all=STATE.notes,e=STATE.emotion||{};
   $('graphEmpty').hidden=!!all.length;
   $('sN').textContent=STATE.stats.total;
@@ -1035,7 +1057,9 @@ function libFiltered(){
 function renderLibrary(){
   const sel=$('libSess'),cur=sel.value;
   sel.replaceChildren(new Option('全部会话',''));
-  [...new Set(STATE.notes.map(n=>n.sessionId))].forEach(s=>sel.appendChild(new Option(shortId(s),s,s===cur,s===cur)));
+  [...new Set(STATE.notes.map(n=>n.sessionId))].forEach(s=>sel.appendChild(new Option(sessLabel(s),s,s===cur,s===cur)));
+  fillSessSelect($('addSess'),{skipGlobal:true,allLabel:'全部会话（全局）'});
+  fillSessSelect($('qSess'));
   const psel=$('libPersona'),pcur=psel.value;
   psel.replaceChildren(new Option('全部人设',''));
   [...new Set(STATE.notes.map(notePid))].forEach(pid=>psel.appendChild(new Option(personaName(pid),pid,pid===pcur,pid===pcur)));
@@ -1140,7 +1164,7 @@ function renderSessions(){
   SESS.forEach(s=>{
     const d=document.createElement('div');d.className='sess';
     const emo=s.emotion?`情绪 ${s.emotion.label||''}（v=${s.emotion.v?.toFixed(1)} a=${s.emotion.a?.toFixed(1)}）`:'情绪 —';
-    d.innerHTML=`<div class="sid">SESSION ${esc(shortId(s.sessionId))}…</div>
+    d.innerHTML=`<div class="sid">SESSION ${s.sessionId==='manual'?'全局':esc(shortId(s.sessionId))+'…'}</div>
       <div class="prof"></div><div class="meta"></div>
       <details class="note-edit"><summary>管理这张画像</summary>
         <div class="erow">
@@ -1225,7 +1249,7 @@ $('addForm').onsubmit=async ev=>{
   ev.preventDefault();
   const f=ev.target;
   await fapi(API+'/notes',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({content:f.content.value,kind:f.kind.value,importance:+f.importance.value})});
+    body:JSON.stringify({content:f.content.value,kind:f.kind.value,importance:+f.importance.value,sessionId:f.sess.value||undefined})});
   f.content.value='';await load();};
 $('personaSelect').onchange=ev=>{
   const next=ev.target.value;
@@ -1390,9 +1414,60 @@ $('resetMemBtn').onclick=async()=>{
   else alert('重置失败：HTTP '+r.status);
   await load();
 };
+// ── 视图：滚轮/触控板捏合缩放、拖拽平移、双指捏合；竖向滑动留给页面（touch-action:pan-y）──
+const VB_HOME={x:100,y:20,w:840,h:600},VB={...VB_HOME},brainSvg=$('brain');
+const setView=()=>brainSvg.setAttribute('viewBox',`${VB.x.toFixed(1)} ${VB.y.toFixed(1)} ${VB.w.toFixed(1)} ${VB.h.toFixed(1)}`);
+function clampView(){
+  VB.w=Math.min(1200,Math.max(190,VB.w));VB.h=VB.w*VB_HOME.h/VB_HOME.w;
+  const mx=VB_HOME.w*.35,my=VB_HOME.h*.35;
+  VB.x=Math.min(VB_HOME.x+VB_HOME.w+mx-VB.w,Math.max(VB_HOME.x-mx,VB.x));
+  VB.y=Math.min(VB_HOME.y+VB_HOME.h+my-VB.h,Math.max(VB_HOME.y-my,VB.y));
+}
+function viewScale(){const r=brainSvg.getBoundingClientRect(),s=Math.min(r.width/VB.w,r.height/VB.h);return{s,ox:r.left+(r.width-VB.w*s)/2,oy:r.top+(r.height-VB.h*s)/2};}
+const toSvg=(px,py)=>{const{s,ox,oy}=viewScale();return{x:VB.x+(px-ox)/s,y:VB.y+(py-oy)/s};};
+function panBy(dx,dy){const{s}=viewScale();VB.x-=dx/s;VB.y-=dy/s;clampView();setView();}
+function zoomAt(px,py,f){
+  const p=toSvg(px,py),w0=VB.w;
+  VB.w=Math.min(1200,Math.max(190,VB.w*f));VB.h=VB.w*VB_HOME.h/VB_HOME.w;
+  const k=VB.w/w0;
+  VB.x=p.x-(p.x-VB.x)*k;VB.y=p.y-(p.y-VB.y)*k;
+  clampView();setView();
+}
+brainSvg.addEventListener('wheel',ev=>{ev.preventDefault();const st=ev.ctrlKey?1.05:1.12;zoomAt(ev.clientX,ev.clientY,ev.deltaY>0?st:1/st);},{passive:false});
+const ptrs=new Map();let viewMoved=false,pinchPrev=null,lastTap={t:0,x:0,y:0};
+brainSvg.addEventListener('pointerdown',ev=>{if(ev.pointerType==='mouse'&&ev.button!==0)return;try{brainSvg.setPointerCapture(ev.pointerId);}catch{}ptrs.set(ev.pointerId,[ev.clientX,ev.clientY]);if(ptrs.size===1)viewMoved=false;pinchPrev=null;});
+brainSvg.addEventListener('pointermove',ev=>{
+  const prev=ptrs.get(ev.pointerId);if(!prev)return;
+  ptrs.set(ev.pointerId,[ev.clientX,ev.clientY]);
+  if(ptrs.size===1){
+    const dx=ev.clientX-prev[0],dy=ev.clientY-prev[1];
+    if(viewMoved||dx*dx+dy*dy>9){viewMoved=true;panBy(dx,dy);}
+  }else if(ptrs.size===2){
+    const [p,q]=[...ptrs.values()],mid=[(p[0]+q[0])/2,(p[1]+q[1])/2],dist=Math.hypot(p[0]-q[0],p[1]-q[1]);
+    if(pinchPrev){zoomAt(mid[0],mid[1],pinchPrev.dist/dist);panBy(mid[0]-pinchPrev.mid[0],mid[1]-pinchPrev.mid[1]);}
+    pinchPrev={mid,dist};viewMoved=true;
+  }
+});
+const ptrEnd=ev=>{
+  ptrs.delete(ev.pointerId);if(ptrs.size<2)pinchPrev=null;
+  if(ev.type!=='pointerup'||!ev.isPrimary||ptrs.size>0||viewMoved||(ev.pointerType==='mouse'&&ev.button!==0))return;
+  const dx=ev.clientX-lastTap.x,dy=ev.clientY-lastTap.y;
+  if(ev.timeStamp-lastTap.t<340&&dx*dx+dy*dy<900){
+    viewMoved=true;lastTap.t=0;
+    if(VB.w>430)zoomAt(ev.clientX,ev.clientY,.5);else{Object.assign(VB,VB_HOME);setView();}
+  }else lastTap={t:ev.timeStamp,x:ev.clientX,y:ev.clientY};
+};
+brainSvg.addEventListener('pointerup',ptrEnd);
+brainSvg.addEventListener('pointercancel',ptrEnd);
+brainSvg.addEventListener('click',ev=>{if(viewMoved){viewMoved=false;ev.stopImmediatePropagation();ev.preventDefault();}},true);
+addEventListener('resize',()=>{clampView();setView();});
+if(matchMedia('(max-width:640px)').matches){Object.assign(VB,{x:140,y:120,w:600,h:429});setView();}
+const zoomCenter=f=>{const r=brainSvg.getBoundingClientRect();zoomAt(r.left+r.width/2,r.top+r.height/2,f);};
+$('zoomIn').onclick=()=>zoomCenter(1/1.5);
+$('zoomOut').onclick=()=>zoomCenter(1.5);
 // ── 复位 / 信号开关 ──
 $('brandAvatar').onclick=()=>panel(null);
-$('resetView').onclick=()=>panel(null);
+$('resetView').onclick=()=>{Object.assign(VB,VB_HOME);setView();panel(null);};
 $('brain').addEventListener('click',ev=>{if(!ev.target.closest('.node')&&!ev.target.closest('.overflow'))panel(null);});
 document.addEventListener('keydown',ev=>{if(ev.key==='Escape'&&SELECTED&&!(ev.target instanceof Element&&ev.target.closest('input,textarea,select')))panel(null);});
 function updateSignalBtn(){$('signalToggle').textContent='神经信号 · '+(signalOn?'开':'关');$('signalToggle').setAttribute('aria-pressed',String(signalOn));}
@@ -1427,6 +1502,7 @@ $('particleToggle').onclick=()=>{particlesOn=!particlesOn;localStorage.setItem('
 updateParticleBtn();
 
 let queryVersion=0;
+$('qSess').addEventListener('change',()=>$('query').dispatchEvent(new Event('input')));
 $('query').addEventListener('input',async ev=>{
   const q=ev.target.value.trim();
   const version=++queryVersion;
@@ -1434,7 +1510,8 @@ $('query').addEventListener('input',async ev=>{
   document.querySelectorAll('#edges .edge').forEach(p=>p.classList.remove('qlit'));
   document.querySelectorAll('#nodes .qhit').forEach(g=>g.classList.remove('qhit'));
   if(!q){box.hidden=true;box.replaceChildren();setCompanion();return;}
-  const r=await (await fapi(API+'/query?q='+encodeURIComponent(q))).json();
+  const qs=$('qSess').value;
+  const r=await (await fapi(API+'/query?q='+encodeURIComponent(q)+(qs?'&session='+encodeURIComponent(qs):''))).json();
   if(version!==queryVersion)return;
   const ids=new Set(r.hits.map(h=>h.id));
   nodeEls.forEach((g,k)=>g.classList.toggle('qhit',ids.has(k)));
