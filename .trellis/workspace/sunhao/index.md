@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 55
+- **Total Sessions**: 56
 - **Last Active**: 2026-11-04
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1184 | Active |
+| `journal-1.md` | ~1204 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 56 | 2026-11-04 | 修复画像重生成裸昵称actor归集失败 | - | `main` |
 | 55 | 2026-11-04 | 脑图移动端走查与二次修正上线 | - | `main` |
 | 54 | 2026-11-04 | 脑图移动端适配上线 | - | `main` |
 | 53 | 2026-11-04 | 人设分轨收尾走查：跨类合并护栏 + 线上 gentle 文本修复 | `ef612ff` | `main` |

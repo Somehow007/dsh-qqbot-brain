@@ -1182,3 +1182,23 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 56: 修复画像重生成裸昵称actor归集失败
+<!-- trellis-session: v=2 fp=3e4ea1e2a820d68c -->
+
+**Date**: 2026-11-04
+**Task**: 修复画像重生成裸昵称actor归集失败
+**Branch**: `main`
+
+### Summary
+
+问题：脑图页用户画像点重生成弹「该对象暂无可用的记忆」。排查：regenerateProfile 对 u: 键只按 splitActor().openid 过滤佐证记忆，而蒸馏 prompt 让 memories.actor 只写昵称——真实 brain.jsonl 里 9 条记忆仅 1 条带全 tag，裸昵称全部漏掉致 evidence 为空返回 409。方案：改为 openid 或昵称双口径归集（nick 取 entry.name || speakers().get(openid)），与 assemble/mergedUserProfile 既有口径一致。验证：typecheck 干净，测试 130/130 通过（含新增裸昵称归集用例）。后续：可考虑蒸馏落库时回填全 tag 统一身份格式；「蒸馏调用失败」reason 语义可再细分。
+
+### Git Commits
+
+(No commits - planning session)
+
+### Status
+
+[OK] **Completed**
