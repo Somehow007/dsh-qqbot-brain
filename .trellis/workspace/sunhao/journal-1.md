@@ -1330,3 +1330,25 @@ SSH 线上取证后按用户指示用已有优化标齐数据：PATCH 把 13 条
 ### Status
 
 [OK] **Completed**
+
+
+## Session 63: 确认黄色边界测试轮的人格版本归属
+<!-- trellis-session: v=2 fp=cdf1e0e5dfc2f91c -->
+
+**Date**: 2026-11-04
+**Task**: 确认黄色边界测试轮的人格版本归属
+**Branch**: `main`
+
+### Summary
+
+用户 11-04 做了模拟恋爱黄色边界测试（性关系场景，18:37–18:50），需确认跑在温柔版还是依恋版。查 brain.jsonl 的 persona-activate 流水：15:10 激活温柔版，测试轮全程落在温柔版区间；19:35–19:36 三次切换后依恋版生效至今。结论：本轮边界数据归属温柔版（whale-gentle）；当前 activePersonaId=whale-devotion。另注：本轮露骨消息全部到达回复，QQ 风控未拦。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `25271cf` | chore(task): restore task.json for 11-04-nsfw-test-persona-attribution |
+
+### Status
+
+[OK] **Completed**
