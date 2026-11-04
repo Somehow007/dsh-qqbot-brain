@@ -24,3 +24,20 @@ export const isSessionKey = (key: string): boolean => key.startsWith('sess:');
 export function normalizeProfileKey(key: string): string {
   return isUserKey(key) || isSessionKey(key) ? key : sessionProfileKey(key);
 }
+
+/**
+ * 记忆落库身份规整：蒸馏产出的 actor 常只写裸昵称——用「真实出现过的
+ * 昵称→全tag」映射回填，让 note.actor 尽量落为「昵称 (openid)」。
+ * 已是全 tag 或 tags 里查不到该昵称时返回原文（去首尾空白）。
+ * tags 为可信来源：本轮 turns 的 actor / 巩固源记忆的 actor。
+ */
+export function resolveActorTag(actor: string | undefined, tags: (string | undefined)[]): string | undefined {
+  if (!actor || splitActor(actor).openid) return actor;
+  const want = actor.trim();
+  for (const t of tags) {
+    if (!t) continue;
+    const id = splitActor(t);
+    if (id.openid && id.nick === want) return t;
+  }
+  return want || undefined;
+}

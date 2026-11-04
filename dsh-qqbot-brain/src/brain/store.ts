@@ -13,7 +13,7 @@ import { isSessionKey, isUserKey, normalizeProfileKey, sessionProfileKey, splitA
 type Op =
   | { op: 'add'; note: MemoryNote }
   | { op: 'reinforce'; id: string; strength: number; hits: number; lastAccessAt: number }
-  | { op: 'update'; id: string; patch: Partial<Pick<MemoryNote, 'content' | 'importance' | 'kind'>> }
+  | { op: 'update'; id: string; patch: Partial<Pick<MemoryNote, 'content' | 'importance' | 'kind' | 'sourceIds'>> }
   | { op: 'embed'; id: string; vector: number[] }
   | { op: 'del'; id: string }
   | { op: 'absorb'; ids: string[]; at: number }
@@ -253,6 +253,7 @@ export class BrainStore {
           if (op.patch.content != null) n.content = op.patch.content.trim().slice(0, 200);
           if (op.patch.importance != null) n.importance = Math.min(5, Math.max(1, Math.round(op.patch.importance)));
           if (op.patch.kind != null) n.kind = op.patch.kind;
+          if (op.patch.sourceIds != null) n.sourceIds = op.patch.sourceIds;
         }
         break;
       }
@@ -485,7 +486,7 @@ export class BrainStore {
     return this.notes.get(id);
   }
 
-  updateNote(id: string, patch: Partial<Pick<MemoryNote, 'content' | 'importance' | 'kind'>>): boolean {
+  updateNote(id: string, patch: Partial<Pick<MemoryNote, 'content' | 'importance' | 'kind' | 'sourceIds'>>): boolean {
     if (!this.notes.has(id)) return false;
     this.persist({ op: 'update', id, patch });
     return true;

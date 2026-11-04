@@ -248,6 +248,9 @@ export class BrainHttpServer {
       });
       return;
     }
+    if (p === `${prefix}/api/absorb-covered` && req.method === 'POST') {
+      return json(res, { ok: true, absorbed: this.brain.absorbCovered() });
+    }
     if (p === `${prefix}/api/query`) {
       const sessionId = url.searchParams.get('session') ?? undefined;
       const q = url.searchParams.get('q') ?? '';

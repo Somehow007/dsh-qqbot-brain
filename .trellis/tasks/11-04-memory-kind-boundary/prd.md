@@ -32,3 +32,4 @@
 
 - 相关档案：`11-04-memory-kinds-explained`（走查取证全文）、`11-02-brain-dedup-sweep`（dedup/mergeNotes 设施）、`567529f`（markAbsorbed + 同对象归并，当日已部署）
 - 数据安全：R1 只加 `absorbedAt` 戳不删数据，op 流水可审计可重放
+- 进度（2026-11-04）：R1-R4 全部实现（design.md 落地方案），`npm test` 118/118、`tsc` 通过。**部署暂缓**：dist 会连带工作区未提交的在途改动（resolveActorTag、page.html 美化改版），用户选择先不部署。部署后启动即自动追溯退池（`absorbCovered` 幂等），亦可 `POST /api/absorb-covered` 手动重跑。

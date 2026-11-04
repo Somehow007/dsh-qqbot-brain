@@ -78,6 +78,13 @@ export const PRE_TAG_PERSONA_ID = 'whale-gentle';
 /** 全局作用域：不绑定具体会话的记忆（脑图页手动写入默认入此域），检索时对全体会话可见 */
 export const GLOBAL_SESSION_ID = 'manual';
 
+/**
+ * 立场类记忆的规范行文：「对<对象>：<立场>」。
+ * 同对象归并（findAttitudeSameObject）与入库格式校验共用同一出处——
+ * 只认「对」前缀，存量「X：」式人物事实不是立场。
+ */
+export const ATTITUDE_OBJECT_RE = /^对(.{1,24}?)[：:]/;
+
 /** 记忆归属人设：缺 personaId 的存量按 PRE_TAG_PERSONA_ID 计 */
 export function notePersonaId(n: { personaId?: string }): string {
   return n.personaId ?? PRE_TAG_PERSONA_ID;

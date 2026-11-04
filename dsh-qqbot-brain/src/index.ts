@@ -109,6 +109,13 @@ export async function apply(ctx: unknown, config?: Partial<BrainPluginConfig>): 
   // 初次落盘导出：让 persona.md 始终反映当前内核
   if (persona && !readPersonaFile(dataDir)) writePersonaFile(dataDir, persona);
 
+  // 追溯退池：markAbsorbed 只打当次巩固的源，启动时幂等补历史批次——
+  // 任何「写了 sourceIds 没打戳」的残留态（含旧数据/中途崩溃）由此自愈
+  {
+    const absorbed = brain.absorbCovered();
+    if (absorbed > 0) log(`追溯退池：${absorbed} 条已覆盖情景记忆退出检索池`);
+  }
+
   // ── 注入 + 捕获 ──
   const injector = new PromptInjector(brain, cfg, log);
   injector.register(ctx);

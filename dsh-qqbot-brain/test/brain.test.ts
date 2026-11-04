@@ -910,13 +910,22 @@ test('graph edges: 无向量时为空数组，facet 边经 embedder 匹配', asy
 });
 
 // ── 画像按人建模 ──
-import { splitActor, userProfileKey } from '../src/brain/identity.ts';
+import { splitActor, resolveActorTag, userProfileKey } from '../src/brain/identity.ts';
 import { appendFileSync, writeFileSync } from 'node:fs';
 
 test('splitActor: 拆出昵称与 openid，昵称含括号也能取到末尾 id 组', () => {
   assert.deepEqual(splitActor('张三 (ABCDEF1234567890)'), { nick: '张三', openid: 'ABCDEF1234567890' });
   assert.deepEqual(splitActor('小鱼 (夜猫子) (ABCDEF1234567890)'), { nick: '小鱼 (夜猫子)', openid: 'ABCDEF1234567890' });
   assert.deepEqual(splitActor('裸昵称'), { nick: '裸昵称', openid: undefined });
+});
+
+test('resolveActorTag: 裸昵称回填全 tag；已带 openid/查无此人原样', () => {
+  const tags = ['花咲蝶舞（五笑） (ABCDEF1234567890)', 'demo (FEDCBA0987654321)'];
+  assert.equal(resolveActorTag('花咲蝶舞（五笑）', tags), '花咲蝶舞（五笑） (ABCDEF1234567890)');
+  assert.equal(resolveActorTag('demo (FEDCBA0987654321)', tags), 'demo (FEDCBA0987654321)');
+  assert.equal(resolveActorTag('路人甲', tags), '路人甲');
+  assert.equal(resolveActorTag(undefined, tags), undefined);
+  assert.equal(resolveActorTag('  ', tags), undefined);
 });
 
 test('store: 画像按 u:/sess: 键存取，people() 区分人与会话', () => {
@@ -1046,6 +1055,27 @@ test('endOfTurn: LLM 幻觉的 openid 被校正到同昵称的真实发言人', 
   const people = store.people().filter((p) => p.kind === 'person');
   assert.equal(people.length, 1);
   assert.equal(people[0]!.openid, 'ABCDEF1234567890'); // 落到真实 openid，不是幻觉值
+});
+
+test('endOfTurn: 蒸馏记忆裸昵称 actor 回填为本轮真实 昵称(openid) 全 tag', async () => {
+  const { store } = tmpStore();
+  const brain = new Brain({
+    store, now,
+    distiller: mockDistiller({
+      memories: [
+        { content: '五笑爱整活', importance: 3, actor: '花咲蝶舞（五笑）' },
+        { content: 'demo 是群主', importance: 3, actor: 'demo (FEDCBA0987654321)' },
+        { content: '路人随口一句', importance: 3, actor: '路人甲' },
+      ],
+    }),
+  });
+  brain.ingest('g1', { userText: 'hi', assistantText: '咕嘟', actor: '花咲蝶舞（五笑） (ABCDEF1234567890)', at: NOW });
+  brain.ingest('g1', { userText: 'hi2', assistantText: '咕嘟', actor: 'demo (FEDCBA0987654321)', at: NOW });
+  await brain.endOfTurn('g1');
+  const actors = store.allNotes().map((n) => n.actor);
+  assert.ok(actors.includes('花咲蝶舞（五笑） (ABCDEF1234567890)'), '裸昵称应回填全 tag');
+  assert.ok(actors.includes('demo (FEDCBA0987654321)'), '已带全 tag 原样保留');
+  assert.ok(actors.includes('路人甲'), '查无对应发言人时原样保留裸昵称');
 });
 
 test('endOfTurn: openid 与昵称都对不上 → 退化为会话级画像不造幽灵人', async () => {
@@ -1748,6 +1778,37 @@ test('regenerateProfile: 记忆 actor 为裸昵称（真实蒸馏格式）时按
   assert.match(draftPrompt, /用户「花咲蝶舞（五笑）」/);
 });
 
+test('regenerateProfile: 起草判空与调用失败是两种 reason，均不改数据', async () => {
+  const { store } = tmpStore();
+  const key = userProfileKey('AABBCCDD');
+  store.setProfileEntry(key, '原画像', { sessionId: 's1', name: 'x' });
+  store.addNote('s1', { content: 'x 爱钓鱼', importance: 3, actor: 'x (AABBCCDD)' }, NOW);
+  const mkBrain = (fetchImpl: ConstructorParameters<typeof Distiller>[1]) => new Brain({
+    store, now,
+    distiller: new Distiller(
+      { enabled: true, baseUrl: 'https://x.test', apiKey: 'k', model: 'm', timeoutMs: 1000, maxNotes: 5 },
+      fetchImpl,
+    ),
+  });
+  // 模型成功但判定无可提炼内容 → 不算「调用失败」
+  const emptyDraft = mkBrain(async () => ({
+    ok: true, status: 200,
+    json: async () => ({ choices: [{ message: { content: '{"profile":""}' } }] }),
+  }));
+  assert.deepEqual(await emptyDraft.regenerateProfile(key),
+    { ok: false, reason: '起草认为没有可提炼的稳定内容，未改动' });
+  // 网络/服务错误 → 调用失败
+  const failCall = mkBrain(async () => ({ ok: false, status: 500, json: async () => ({}) }));
+  assert.deepEqual(await failCall.regenerateProfile(key), { ok: false, reason: '蒸馏调用失败' });
+  // 输出无法解析 → 按失败论
+  const badJson = mkBrain(async () => ({
+    ok: true, status: 200,
+    json: async () => ({ choices: [{ message: { content: '（非 JSON 输出）' } }] }),
+  }));
+  assert.deepEqual(await badJson.regenerateProfile(key), { ok: false, reason: '蒸馏调用失败' });
+  assert.equal(store.profileOf(key), '原画像');
+});
+
 test('regenerateProfile: 蒸馏关闭/画像不存在/无记忆/审核判空均不改数据', async () => {
   const { store } = tmpStore();
   const key = userProfileKey('AABBCCDD');
@@ -1804,6 +1865,27 @@ test('resetMemory: 清内存态——assemble 不再注入旧情绪/画像/摘�
   assert.equal(after.persona, '人设内核');
 });
 
+test('consolidate: 语义记忆裸昵称 actor 沿用源记忆全 tag', async () => {
+  const { store } = tmpStore();
+  store.addNote('s1', { content: '张三喜欢听民谣', importance: 4, actor: '张三 (ABCDEF1234567890)' }, NOW - 3 * DAY);
+  const distiller = new Distiller(
+    { enabled: true, baseUrl: 'https://x.test', apiKey: 'k', model: 'm', timeoutMs: 1000, maxNotes: 5 },
+    async (_url, init) => {
+      const prompt = (JSON.parse(init.body) as { messages: { content: string }[] }).messages[0]!.content;
+      const content = prompt.includes('长期人物画像的编辑')
+        ? '{"profiles":[]}'
+        : JSON.stringify({ memories: [{ content: '张三爱民谣', importance: 3, actor: '张三' }], profiles: [] });
+      return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content } }] }) };
+    },
+  );
+  const brain = new Brain({ store, distiller, now, config: { consolidateMinNotes: 1 } });
+  await brain.consolidate('s1');
+  assert.equal(
+    store.allNotes().find((n) => n.kind === 'semantic')?.actor,
+    '张三 (ABCDEF1234567890)',
+  );
+});
+
 test('consolidate: 被吸收的 episodic 打戳退出检索池', async () => {
   const { store } = tmpStore();
   const ep = store.addNote('s1', { content: '张三喜欢听民谣', importance: 4 }, NOW - 3 * DAY);
@@ -1835,7 +1917,7 @@ test('store: absorb op 持久化，重载后 absorbedAt 保留', () => {
   assert.ok(re.allNotes().find((x) => x.id === n.id)?.absorbedAt);
 });
 
-test('endOfTurn: 「对X：」同对象态度自动归并，非对格式不折叠', async () => {
+test('endOfTurn: 「对X：」同对象态度自动归并，非对格式降级为事实', async () => {
   const { store } = tmpStore();
   const old = store.addNote('s1', { content: '对张三：觉得他记性好', importance: 3, kind: 'attitude' }, NOW - DAY);
   const keep = store.addNote('s1', { content: '张三：爱听民谣', importance: 3, kind: 'attitude' }, NOW - DAY);
@@ -1864,6 +1946,127 @@ test('endOfTurn: 「对X：」同对象态度自动归并，非对格式不折�
   const atts = store.allNotes().filter((n) => n.kind === 'attitude');
   const updated = atts.find((n) => n.id === old.id);
   assert.equal(updated?.content, '对张三：记性是好，就是爱得意'); // 同对象原位更新
-  assert.ok(atts.some((n) => n.content === '张三：开始学吉他')); // 非对格式新增不折叠
+  // 非「对X：」格式的 attitude 输出是错标事实，入库护栏降级为 episodic；
+  // 存量旧条（keep）是用户/旧版数据，不受影响
+  assert.ok(store.allNotes().some((n) => n.content === '张三：开始学吉他' && n.kind === 'episodic'));
+  assert.ok(!atts.some((n) => n.content === '张三：开始学吉他'));
   assert.ok(atts.some((n) => n.id === keep.id && n.content === '张三：爱听民谣'));
+});
+
+// ── 三类边界加固（11-04-memory-kind-boundary）──
+
+test('endOfTurn: 畸形 attitude 降级 episodic，不污染旧态度', async () => {
+  const { store } = tmpStore();
+  const old = store.addNote('s1', { content: '对张三：嫌他得意', importance: 3, kind: 'attitude' }, NOW - DAY);
+  const distiller = new Distiller(
+    { enabled: true, baseUrl: 'https://x.test', apiKey: 'k', model: 'm', timeoutMs: 1000, maxNotes: 5 },
+    async () => ({
+      ok: true, status: 200,
+      json: async () => ({
+        choices: [{
+          message: {
+            content: JSON.stringify({
+              memories: [{ content: '张三：王者主玩对抗路', importance: 3, kind: 'attitude', merge: 0 }],
+              profiles: [],
+            }),
+          },
+        }],
+      }),
+    }),
+  );
+  const brain = new Brain({ store, distiller, now });
+  brain.ingest('s1', { userText: '张三王者对抗路', assistantText: '哦', actor: 'a', at: NOW });
+  await brain.endOfTurn('s1');
+  const n = store.allNotes().find((x) => x.content === '张三：王者主玩对抗路');
+  assert.equal(n?.kind, 'episodic'); // 错标事实落回事实轨
+  assert.equal(store.noteById(old.id)?.content, '对张三：嫌他得意'); // 旧态度不被改写
+});
+
+test('absorbCovered: 历史 sourceIds 的存活源追溯退池，幂等且检索不可见', async () => {
+  const { store } = tmpStore();
+  const e1 = store.addNote('s1', { content: '张三喜欢听民谣', importance: 3 }, NOW - 3 * DAY);
+  const e2 = store.addNote('s1', { content: '李四爱打篮球', importance: 3 }, NOW - 3 * DAY);
+  const sem = store.addNote('s1', { content: '张三音乐口味偏民谣', importance: 4, kind: 'semantic', sourceIds: [e1.id, 'ghost-id'] }, NOW - 2 * DAY);
+  const brain = new Brain({ store, distiller: mockDistiller({}), now });
+  assert.equal(brain.absorbCovered(), 1); // e1 退池；悬空 ghost 与未覆盖 e2 不动
+  assert.ok(store.noteById(e1.id)?.absorbedAt);
+  assert.ok(!store.noteById(e2.id)?.absorbedAt);
+  assert.ok(!store.noteById(sem.id)?.absorbedAt);
+  assert.equal(brain.absorbCovered(), 0); // 幂等
+  const ctx = brain.assemble('s1', '张三 民谣');
+  assert.ok(!ctx.hits.some((n) => n.id === e1.id)); // 退池源不再被召回
+});
+
+test('sweepNearDups: absorbed 存档条不参团，活摘要不被并进存档', () => {
+  const { store } = tmpStore();
+  const a = store.addNote('s1', { content: '同一条事实原文', importance: 3 }, NOW);
+  const b = store.addNote('s1', { content: '同一条事实原文', importance: 3 }, NOW);
+  store.setEmbedding(a.id, [1, 0, 0]);
+  store.setEmbedding(b.id, [1, 0, 0]);
+  store.markAbsorbed([a.id], NOW); // a 为已退池的巩固源
+  const brain = new Brain({ store, distiller: mockDistiller({}), now });
+  const r = brain.sweepNearDups();
+  assert.equal(r.merged, 0);
+  assert.ok(store.noteById(b.id) && !store.noteById(b.id)!.absorbedAt);
+});
+
+test('consolidate: 产出与库内 semantic 同义→判重合并不新增，源仍退池且谱系并入旧条', async () => {
+  const { store } = tmpStore();
+  const existing = store.addNote('s1', { content: '角色不粉馆长嫌他直播吼', importance: 4, kind: 'semantic', sourceIds: ['old-src'] }, NOW - 5 * DAY);
+  store.setEmbedding(existing.id, [1, 0, 0]);
+  const e1 = store.addNote('s1', { content: '花咲蝶舞问角色喜不喜欢馆长，角色答不粉', importance: 3 }, NOW - 3 * DAY);
+  const fake = {
+    enabled: true,
+    embed: async (texts: string[]) => texts.map(() => [1, 0, 0]),
+    embedOne: async () => null,
+  };
+  const distiller = new Distiller(
+    { enabled: true, baseUrl: 'https://x.test', apiKey: 'k', model: 'm', timeoutMs: 1000, maxNotes: 5 },
+    async (_url, init) => {
+      const prompt = (JSON.parse(init.body) as { messages: { content: string }[] }).messages[0]!.content;
+      const content = prompt.includes('长期人物画像的编辑')
+        ? '{"profiles":[]}'
+        : JSON.stringify({ memories: [{ content: '角色不粉馆长嫌他吼', importance: 4 }], profiles: [] });
+      return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content } }] }) };
+    },
+  );
+  const brain = new Brain({ store, distiller, embedder: fake as never, now, config: { consolidateMinNotes: 1 } });
+  assert.equal(await brain.consolidate('s1'), 0); // 判重命中，不新增
+  assert.ok(store.noteById(e1.id)?.absorbedAt); // 源被覆盖仍退池
+  const sem = store.noteById(existing.id)!;
+  assert.ok(sem.sourceIds!.includes(e1.id)); // 「沉淀自」谱系并入旧条
+  assert.ok(sem.hits > 0); // 旧条被强化而非复读新增
+});
+
+test('consolidate: 合规「对X：」立场输出落 attitude 并归源条众数人设轨', async () => {
+  const { store } = tmpStore();
+  store.createPersona('温柔版', '温柔', 'whale-gentle');
+  store.createPersona('依恋版', '依恋', 'whale-devotion');
+  store.activatePersona('whale-devotion'); // 巩固跑在 devotion 期
+  // 两条源都是 whale-gentle 时期（无 personaId → 归 whale-gentle 轨）
+  store.addNote('s1', { content: '角色答不粉馆长嫌他直播吼', importance: 3 }, NOW - 3 * DAY);
+  store.addNote('s1', { content: '又聊到馆长全程吼看不下去', importance: 3 }, NOW - 3 * DAY);
+  const distiller = new Distiller(
+    { enabled: true, baseUrl: 'https://x.test', apiKey: 'k', model: 'm', timeoutMs: 1000, maxNotes: 5 },
+    async (_url, init) => {
+      const prompt = (JSON.parse(init.body) as { messages: { content: string }[] }).messages[0]!.content;
+      const content = prompt.includes('长期人物画像的编辑')
+        ? '{"profiles":[]}'
+        : JSON.stringify({
+            memories: [
+              { content: '对馆长：嫌他直播全程吼、嘴太脏，不粉', importance: 4, kind: 'attitude' },
+              { content: '花咲蝶舞爱拿主播考角色', importance: 3 },
+            ],
+            profiles: [],
+          });
+      return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content } }] }) };
+    },
+  );
+  const brain = new Brain({ store, distiller, now, config: { consolidateMinNotes: 1 } });
+  assert.equal(await brain.consolidate('s1'), 2);
+  const att = store.allNotes().find((n) => n.kind === 'attitude')!;
+  assert.match(att.content, /^对馆长[：:]/);
+  assert.equal(att.personaId, 'whale-gentle'); // 归源条众数人设而非活动的 devotion
+  const sem = store.allNotes().find((n) => n.kind === 'semantic')!;
+  assert.equal(sem.personaId, 'whale-devotion'); // semantic provenance 仍记活动人设
 });

@@ -1,6 +1,6 @@
-import { DEFAULT_BRAIN_CONFIG, GLOBAL_SESSION_ID, MOOD_VALENCE, notePersonaId } from './types.ts';
+import { ATTITUDE_OBJECT_RE, DEFAULT_BRAIN_CONFIG, GLOBAL_SESSION_ID, MOOD_VALENCE, notePersonaId } from './types.ts';
 import type { BrainConfig, BrainContext, DistillResult, EmotionState, MemoryNote, NoteDraft, NoteEmotion, Turn } from './types.ts';
-import { isUserKey, normalizeProfileKey, sessionProfileKey, splitActor, userProfileKey } from './identity.ts';
+import { isUserKey, normalizeProfileKey, resolveActorTag, sessionProfileKey, splitActor, userProfileKey } from './identity.ts';
 import { ageInDays, retention } from './decay.ts';
 import { ageLabel, formatClock } from './time.ts';
 import { Retriever } from './retrieval.ts';
@@ -19,7 +19,7 @@ export { BrainStore } from './store.ts';
 export { Distiller } from './distill.ts';
 export { Embedder } from './embed.ts';
 export { retention, ageInDays } from './decay.ts';
-export { splitActor, userProfileKey, sessionProfileKey } from './identity.ts';
+export { splitActor, resolveActorTag, userProfileKey, sessionProfileKey } from './identity.ts';
 
 export interface BrainOptions {
   config?: Partial<BrainConfig>;
@@ -242,6 +242,7 @@ export class Brain {
     try {
       const now = this.now();
       const activePid = this.store.activePersonaId();
+      const actors = turns.map((t) => t.actor);
       // 判重：附上当前 top-相关已有记忆，蒸馏结果可用 merge 指回更新而非重复新增。
       // 他人设的 attitude 不进列表——否则 mergeIndex 会改写别的人设的态度轨。
       const queryText = turns.map((t) => t.userText).join(' ');
@@ -254,7 +255,7 @@ export class Brain {
         .map((s) => s.note);
       const result = await this.distiller.distill(
         turns, this.personaForPrompts(), existing, this.emotion.get(sessionId, now),
-        this.existingProfiles(sessionId, turns.map((t) => t.actor)),
+        this.existingProfiles(sessionId, actors),
         { now, timeZone: this.cfg.timeZone },
       );
       this.log?.(
@@ -284,6 +285,13 @@ export class Brain {
         : null;
       let fi = 0;
       for (const m of result.memories) {
+        // 格式护栏：attitude 必须「对<对象>：<立场>」；LLM 常把用户事实错标为
+        // attitude（线上实测 13/15），畸形条降级 episodic——不自动补「对」前缀，
+        // 「X：确诊咽炎」补前缀会伪造立场。
+        if (m.kind === 'attitude' && !ATTITUDE_OBJECT_RE.test(m.content.trim())) {
+          this.log?.(`态度格式不符，按事实入库：${m.content.slice(0, 24)}…`);
+          m.kind = 'episodic';
+        }
         const cand = m.mergeIndex != null ? existing[m.mergeIndex] : undefined;
         // 事实与态度是两种角色，跨类不算「同一条记忆」：
         // 态度改写事实会把心态落到事实所在的旧轨上，反之事实会吃掉本轨态度
@@ -304,7 +312,10 @@ export class Brain {
           this.log?.(`判重合并：与「${dup.note.content.slice(0, 20)}」余弦 ${dup.cos.toFixed(2)}，强化旧记忆`);
           continue;
         }
-        const n = this.store.addNote(sessionId, { ...m, emotion: stamp, strengthBoost: boost, personaId: activePid }, now);
+        // actor 只写了昵称时回填本轮真实全 tag——否则按 openid 归集（画像重生成、跨群召回）会漏条
+        const n = this.store.addNote(sessionId, {
+          ...m, actor: resolveActorTag(m.actor, actors), emotion: stamp, strengthBoost: boost, personaId: activePid,
+        }, now);
         if (vec) this.store.setEmbedding(n.id, vec);
         else forEmbed.push(n);
       }
@@ -319,7 +330,7 @@ export class Brain {
           }
         }
       }
-      await this.reviewAndWriteProfiles(sessionId, result, turns.map((t) => t.actor));
+      await this.reviewAndWriteProfiles(sessionId, result, actors);
       // 新/改记忆补语义向量（失败静默，检索回退 lexical）
       await this.embedNotes(forEmbed);
       // 滚动摘要：累计轮数到阈值则更新「会话脉络」
@@ -338,7 +349,7 @@ export class Brain {
    * 只认「对」前缀——存量「X：」式人物事实不是立场，折叠会丢信息。
    */
   private findAttitudeSameObject(sessionId: string, content: string, pid: string): MemoryNote | undefined {
-    const obj = /^对(.{1,24}?)[：:]/.exec(content.trim())?.[1]?.trim();
+    const obj = ATTITUDE_OBJECT_RE.exec(content.trim())?.[1]?.trim();
     if (!obj) return undefined;
     return this.store.allNotes().find((n) =>
       n.kind === 'attitude' && !n.absorbedAt
@@ -574,7 +585,9 @@ export class Brain {
     const draft = await this.distiller.draftProfile(
       person ? `用户「${name}」` : '本会话群聊整体（用户群像/氛围）',
       evidence, this.personaForPrompts(), { now: this.now(), timeZone: this.cfg.timeZone });
-    if (draft == null) return { ok: false, reason: '蒸馏调用失败' };
+    // draft 三态：undefined=调用失败；''=模型判定无可提炼内容；非空=送审
+    if (draft === undefined) return { ok: false, reason: '蒸馏调用失败' };
+    if (!draft) return { ok: false, reason: '起草认为没有可提炼的稳定内容，未改动' };
     const reviewed = await this.distiller.reviewProfiles([
       { actor: name, previous: entry?.text ?? '', candidate: draft },
     ]);
@@ -631,29 +644,88 @@ export class Brain {
     const now = this.now();
     const covered = this.consolidatedIds(sessionId);
     const eps = this.store.allNotes().filter(
-      (n) => n.sessionId === sessionId && n.kind === 'episodic'
+      (n) => n.sessionId === sessionId && n.kind === 'episodic' && !n.absorbedAt
         && ageInDays(n, now) >= this.cfg.consolidateMinAgeDays
         && !covered.has(n.id),
     );
     if (eps.length < this.cfg.consolidateMinNotes) return 0;
+    const epActors = eps.map((n) => n.actor);
     // 现有画像（会话级 + 涉及发言人的个人画像）一并喂入，巩固在旧画像上修订
-    const profileText = this.existingProfiles(sessionId, eps.map((n) => n.actor))
+    const profileText = this.existingProfiles(sessionId, epActors)
       .map((p) => `${p.actor ?? '会话整体'}：${p.text}`)
       .join('\n');
     const result = await this.distiller.consolidate(eps, profileText, this.personaForPrompts(), { now, timeZone: this.cfg.timeZone });
     const stamp = this.emotionStamp(sessionId, now);
     const sourceIds = eps.map((e) => e.id);
     const boost = this.emotionBoost(stamp);
-    const added = result.memories.map((m) => this.store.addNote(
-      sessionId,
-      { ...m, kind: 'semantic', emotion: stamp, strengthBoost: boost, sourceIds, personaId: this.store.activePersonaId() },
-      now,
-    ));
-    // 被吸收的源情景记忆打戳退池：语义版已在库里，流水原件留着只会稀释检索
-    if (added.length) this.store.markAbsorbed(sourceIds, now);
-    await this.reviewAndWriteProfiles(sessionId, result, eps.map((n) => n.actor));
-    void this.embedNotes(added);
-    return result.memories.length;
+    const activePid = this.store.activePersonaId();
+    // 立场归属：巩固出的 attitude 归源条众数人设轨——立场属于形成它的那个人设，
+    // 不该记到「巩固碰巧跑在谁头上」的活动人设；semantic 仅作 provenance 仍记 activePid
+    const srcPersonaCount = new Map<string, number>();
+    for (const e of eps) {
+      const p = notePersonaId(e);
+      srcPersonaCount.set(p, (srcPersonaCount.get(p) ?? 0) + 1);
+    }
+    const srcPersona = [...srcPersonaCount.entries()]
+      .sort((a, b) => b[1] - a[1])[0]?.[0] ?? activePid;
+    // 入库判重：候选先批量取向量，与库内 cos>=dedupeEmbedCos 判同义转强化——
+    // 历史上多轮巩固对同批源产过逐字重复的 semantic（线上实测），源退池后此处兜底产出侧
+    const vecs = this.embedder?.enabled && result.memories.length
+      ? await this.embedder.embed(result.memories.map((m) => m.content))
+      : null;
+    const noVec: MemoryNote[] = [];
+    let kept = 0;
+    for (let i = 0; i < result.memories.length; i++) {
+      const m = result.memories[i]!;
+      // 巩固可产立场条：合规「对X：」落 attitude，其余一律 semantic（与 endOfTurn 同口径格式护栏）
+      const kind: MemoryNote['kind'] =
+        m.kind === 'attitude' && ATTITUDE_OBJECT_RE.test(m.content.trim()) ? 'attitude' : 'semantic';
+      const vec = vecs?.[i] ?? null;
+      const dup = vec ? this.findNearDup(vec, kind) : undefined;
+      if (dup) {
+        this.store.reinforce(dup.note, this.cfg.reinforceStep, this.cfg.strengthCap, now);
+        // 谱系不丢：本批源的「沉淀自」指针并入旧条
+        this.store.updateNote(dup.note.id, {
+          sourceIds: [...new Set([...(dup.note.sourceIds ?? []), ...sourceIds])],
+        });
+        this.log?.(`巩固判重合并：与「${dup.note.content.slice(0, 20)}」同义，强化并收编来源`);
+        continue;
+      }
+      const n = this.store.addNote(
+        sessionId,
+        // 语义记忆沿用源记忆全 tag（巩固输出同样常只写昵称）
+        { ...m, actor: resolveActorTag(m.actor, epActors), kind, emotion: stamp, strengthBoost: boost, sourceIds, personaId: kind === 'attitude' ? srcPersona : activePid },
+        now,
+      );
+      if (vec) this.store.setEmbedding(n.id, vec);
+      else noVec.push(n);
+      kept++;
+    }
+    // 覆盖关系按「喂入」成立：无论产出判重合并还是新增，源都退出检索池
+    if (result.memories.length) this.store.markAbsorbed(sourceIds, now);
+    await this.reviewAndWriteProfiles(sessionId, result, epActors);
+    await this.embedNotes(noVec);
+    return kept;
+  }
+
+  /**
+   * 追溯退池：把所有现存 semantic 笔记 sourceIds 指向的存活 episodic 打 absorbedAt。
+   * markAbsorbed 只处理当次巩固的源——本方法补功能上线前的历史巩固批次；
+   * 幂等可重入（已打戳/悬空/非 episodic 的引用自动跳过），插件启动与手动入口共用。
+   */
+  absorbCovered(): number {
+    const now = this.now();
+    const ids = new Set<string>();
+    for (const n of this.store.allNotes()) {
+      if (n.kind !== 'semantic') continue;
+      for (const s of n.sourceIds ?? []) {
+        const t = this.store.noteById(s);
+        if (t && t.kind === 'episodic' && !t.absorbedAt) ids.add(s);
+      }
+    }
+    if (!ids.size) return 0;
+    this.store.markAbsorbed([...ids], now);
+    return ids.size;
   }
 
   /** 该会话已被 semantic 笔记吸收（sourceIds 收录）的笔记 id 集合 */
@@ -676,7 +748,7 @@ export class Brain {
     }
     const eligible = new Map<string, number>();
     for (const n of this.store.allNotes()) {
-      if (n.kind !== 'episodic' || covered.has(n.id)) continue;
+      if (n.kind !== 'episodic' || n.absorbedAt || covered.has(n.id)) continue;
       if (ageInDays(n, now) < this.cfg.consolidateMinAgeDays) continue;
       eligible.set(n.sessionId, (eligible.get(n.sessionId) ?? 0) + 1);
     }
@@ -706,7 +778,9 @@ export class Brain {
    * 其余经 merge op 合并字段后删除。无向量记忆不参与（无法判定）。
    */
   sweepNearDups(): { clusters: number; merged: number; pairs: { keep: string; drop: string }[] } {
-    const notes = this.store.allNotes().filter((n) => n.embedding?.length);
+    // 已退池的 absorbed 条不参与：否则可能与活摘要成簇且 keep 选中存档条，
+    // 把还在检索池的摘要并进不可见存档（静默丢失）
+    const notes = this.store.allNotes().filter((n) => n.embedding?.length && !n.absorbedAt);
     const parent = new Map<string, string>();
     const find = (x: string): string => {
       let r = x;
@@ -839,6 +913,8 @@ export class Brain {
       fading: retention(n, now) < this.cfg.forgetThreshold,
       emotion: n.emotion,
       personaId: n.personaId,
+      /** 已被语义巩固吸收退池的存档条（可视化区分/验收用） */
+      absorbed: !!n.absorbedAt,
     }));
     const { edges, nearDup } = await this.graphEdges(raw, sessionId);
     const stats = {

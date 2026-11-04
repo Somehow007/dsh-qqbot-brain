@@ -101,6 +101,8 @@ const CONSOLIDATE_PROMPT = `你是陪伴型聊天角色的记忆巩固模块。�
 画像中长期成立的内容默认保留：没有把握判定过时的不要删，不为改而改。
 画像对象只限真实用户：禁止给「角色自己」写画像；无 actor 的会话级条目写用户群像/氛围。
 可保留 1-2 个标志性细节作人物锚点（固定外号、长期梗），不要流水账。
+例外：若某条是「角色」对人/事/话题的立场看法（而非客观事实），给该项加 "kind": "attitude"，
+content 必须写成「对<对象>：<立场>」（如对某人的态度写对象昵称）；普通事实省略 kind。
 角色设定：%s
 
 现有画像：%s
@@ -281,14 +283,23 @@ export class Distiller {
     return this.call(buildConsolidatePrompt(notes, profile, persona, ctx));
   }
 
-  /** 从既有记忆为单个对象起草画像（脑图页「重生成」入口）；失败/未启用返回 undefined */
+  /**
+   * 从既有记忆为单个对象起草画像（脑图页「重生成」入口）。
+   * 返回三态：undefined=调用失败/输出无法解析；''=模型判定无可提炼的稳定内容；非空=草稿。
+   */
   async draftProfile(subject: string, notes: MemoryNote[], persona: string, ctx?: TimeCtx): Promise<string | undefined> {
     if (!this.enabled || notes.length === 0) return undefined;
     const c = ctx ?? defaultTimeCtx();
     const list = notes.map((n) => `- [${ageLabel(n.createdAt, c.now)}] ${n.content}`).join('\n');
-    const result = await this.call(
+    const raw = await this.callRaw(
       fillSlots(PROFILE_DRAFT_PROMPT, [subject, persona || '（未设定）', list]));
-    return result.profile;
+    if (raw === undefined) return undefined;
+    const m = raw.match(/\{[\s\S]*\}/);
+    if (!m) return undefined;
+    try {
+      const p = (JSON.parse(m[0]) as { profile?: unknown }).profile;
+      return typeof p === 'string' ? p.trim() : '';
+    } catch { return undefined; }
   }
 
   /** 专门审核画像；失败时不写任何画像，避免未经校验的草稿覆盖旧画像。 */
@@ -364,7 +375,8 @@ export class Distiller {
     }
   }
 
-  private async call(prompt: string): Promise<DistillResult> {
+  /** 原始问答：返回模型正文；失败/超时/非 2xx 返回 undefined（与「模型输出空」区分） */
+  private async callRaw(prompt: string): Promise<string | undefined> {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), this.cfg.timeoutMs);
     try {
@@ -383,16 +395,20 @@ export class Distiller {
         }),
         signal: ctrl.signal,
       });
-      if (!res.ok) return { memories: [] };
+      if (!res.ok) return undefined;
       const data = (await res.json()) as {
         choices?: Array<{ message?: { content?: string } }>;
       };
-      const text = data.choices?.[0]?.message?.content ?? '';
-      return parseDistillOutput(text);
+      return data.choices?.[0]?.message?.content ?? '';
     } catch {
-      return { memories: [] };
+      return undefined;
     } finally {
       clearTimeout(timer);
     }
+  }
+
+  private async call(prompt: string): Promise<DistillResult> {
+    const text = await this.callRaw(prompt);
+    return text === undefined ? { memories: [] } : parseDistillOutput(text);
   }
 }
