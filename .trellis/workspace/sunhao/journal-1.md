@@ -1264,3 +1264,25 @@ P2巩固增强：被语义巩固吸收的episodic打absorbedAt戳退出检索池
 ### Status
 
 [OK] **Completed**
+
+
+## Session 60: 线上记忆标齐+三类边界加固任务
+<!-- trellis-session: v=2 fp=df49edb58652bab0 -->
+
+**Date**: 2026-11-04
+**Task**: 线上记忆标齐+三类边界加固任务
+**Branch**: `main`
+
+### Summary
+
+SSH 线上取证后按用户指示用已有优化标齐数据：PATCH 把 13 条错标 attitude 改回 episodic（同时解除 whale-gentle 态度轨对 devotion 的遮蔽）、POST /api/dedup 合并 13 簇 17 条近重复（189→172，馆长×4→源+摘要各一）。剩余三缺口无现有机制，建任务 11-04-memory-kind-boundary：R1 历史 sourceIds 追溯退池、R2 蒸馏 attitude 格式硬校验、R3 巩固入库判重（可选 R4 巩固 prompt 立场引导）。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `bb7e920` | chore: record production findings in memory-kinds-explained |
+
+### Status
+
+[OK] **Completed**
