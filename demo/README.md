@@ -23,6 +23,14 @@
 
 ## 加载方式
 
+独立预览（无需 dsh，临时数据目录，每次启动新鲜状态）：
+
+```bash
+node --experimental-strip-types demo/serve-demo.ts   # → http://127.0.0.1:4099/brain
+```
+
+或灌入任意运行实例：
+
 ```bash
 curl -X POST "http://<host>:4099/brain/api/import?mode=replace" \
   -H "Content-Type: application/json" --data-binary @brain-export.demo.json
@@ -30,6 +38,8 @@ curl -X POST "http://<host>:4099/brain/api/import?mode=replace" \
 
 `replace` 会清空目标大脑现有数据（先导出真实数据备份）。恢复/迁移细节见
 [docs/brain-backup-restore.md](../docs/brain-backup-restore.md)。
+
+`screenshots/` 为灌入 demo 数据后的脑图实跑截图。
 
 ## 再生成
 
