@@ -1224,3 +1224,23 @@ P2巩固增强：被语义巩固吸收的episodic打absorbedAt戳退出检索池
 ### Status
 
 [OK] **Completed**
+
+
+## Session 58: 记忆actor回填全tag与重生成reason细分
+<!-- trellis-session: v=2 fp=1fafa91885c4994c -->
+
+**Date**: 2026-11-04
+**Task**: 记忆actor回填全tag与重生成reason细分
+**Branch**: `main`
+
+### Summary
+
+承接 11-04-actor 修复时发现的两个欠账：①蒸馏/巩固落库的 note.actor 只有裸昵称（prompt 只让写昵称），靠 openid 匹配的下游先天缺数据——新增 resolveActorTag()，endOfTurn/consolidate 写入时用本轮 turns/源记忆的真实全tag回填，只做写路径不动存量；②draftProfile 把「调用失败」与「模型判空」都折叠成 undefined——distill 拆出 callRaw，三态返回后 regenerateProfile 分流「蒸馏调用失败」/「起草认为没有可提炼的稳定内容」。验证：typecheck 干净，137/137 测试通过（新增 resolveActorTag 单测、endOfTurn/consolidate 回填、三态 reason 共 4 条）。后续：存量裸昵称记忆可做受条件约束的一次性迁移，暂不做。
+
+### Git Commits
+
+(No commits - planning session)
+
+### Status
+
+[OK] **Completed**
