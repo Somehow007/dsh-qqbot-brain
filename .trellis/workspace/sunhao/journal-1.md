@@ -1396,3 +1396,25 @@ SSH 线上取证后按用户指示用已有优化标齐数据：PATCH 把 13 条
 ### Status
 
 [OK] **Completed**
+
+
+## Session 66: 大脑全量备份回本机 + 备份恢复手册
+<!-- trellis-session: v=2 fp=38d2c9fff4b0f4a8 -->
+
+**Date**: 2026-11-04
+**Task**: 大脑全量备份回本机 + 备份恢复手册
+**Branch**: `main`
+
+### Summary
+
+问题：参赛材料需公开安全数据，线上恋人线+真人隐私不能用但要私留、日后新 profile 可恢复。排查：核实 BrainExport 往返保真度，发现 sanitizeNote 丢 personaId（导入会把 persona 轨记忆误归旧人设）；核实主检索池按 sessionId 过滤，新会话默认只剩跨会话 actor 通道。方案：线上 export 187 notes 落盘 brain-data/（gitignored）；修 sanitizeNote 保留 personaId + 扩展往返测试；写 docs/brain-backup-restore.md 手册（结构/导出导入/可见性规则/新 profile 换 sessionId SOP/坑清单），README 挂指针。验证：备份 JSON 校验通过、143 测试全绿、线上零改动。后续：造虚构演示数据集替换本机数据。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `01b49cf` | 备份恢复手册 + 修 sanitizeNote 丢 personaId：导入不再把 persona 轨记忆误归旧人设 |
+
+### Status
+
+[OK] **Completed**

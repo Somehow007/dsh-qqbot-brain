@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 65
+- **Total Sessions**: 66
 - **Last Active**: 2026-11-04
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1398 | Active |
+| `journal-1.md` | ~1420 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 66 | 2026-11-04 | 大脑全量备份回本机 + 备份恢复手册 | `01b49cf` | `main` |
 | 65 | 2026-11-04 | 效果评估：记忆三类加固实盘 + 跨人设记忆可见性 | `4f17d44` | `main` |
 | 64 | 2026-11-04 | 脑图点击失效真因：pointer capture 重定向 click | `228ba6c` | `main` |
 | 63 | 2026-11-04 | 确认黄色边界测试轮的人格版本归属 | `25271cf` | `main` |
