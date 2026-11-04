@@ -1374,3 +1374,25 @@ SSH 线上取证后按用户指示用已有优化标齐数据：PATCH 把 13 条
 ### Status
 
 [OK] **Completed**
+
+
+## Session 65: 效果评估：记忆三类加固实盘 + 跨人设记忆可见性
+<!-- trellis-session: v=2 fp=618eff19ce2d4dc4 -->
+
+**Date**: 2026-11-04
+**Task**: 效果评估：记忆三类加固实盘 + 跨人设记忆可见性
+**Branch**: `main`
+
+### Summary
+
+评估 490e87b 三类加固上线效果：R1 退池 110 条 episodic（检索池 77）、R3 巩固判重触发 3 次合并，R2/R4 armed 无样本；发现一条 semantic 主体写串。另确认人设切换可见性：personaId 只管 attitude 分轨，事实/画像/digest/情绪跨人设共享——依恋版带着完整恋爱史（第一次亲密 imp4-5、亲吻约定、恋人关系确立）运行，零损失。附带发现 task.py create 因 git remote show origin 网络调用卡顿，--base-branch main 可跳过。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `4f17d44` | chore(task): archive 11-04-memory-kind-effect-persona-visibility |
+
+### Status
+
+[OK] **Completed**
