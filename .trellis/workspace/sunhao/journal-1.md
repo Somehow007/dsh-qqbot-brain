@@ -1418,3 +1418,25 @@ SSH 线上取证后按用户指示用已有优化标齐数据：PATCH 把 13 条
 ### Status
 
 [OK] **Completed**
+
+
+## Session 67: 虚构演示数据集：动漫社学园祭 BrainExport
+<!-- trellis-session: v=2 fp=714e905eff56e2bb -->
+
+**Date**: 2026-11-04
+**Task**: 虚构演示数据集：动漫社学园祭 BrainExport
+**Branch**: `main`
+
+### Summary
+
+需求：参赛材料需公开安全数据，真实恋人线/真人隐私不可用，需全虚构 BrainExport 可直接 import。方案：写确定性生成器 demo/generate_demo_export.py（uuid5 定 id、固定时刻表），构造动漫社学园祭双会话场景——群聊筹备线+私聊备考陪伴线；38 条记忆覆盖三类，10 条 absorbed 带 sourceIds 巩固链，4 条 attitude 分属 bright/cozy 两轨展示人设分轨，配 3 人设/5 画像/2 digest/2 情绪/1 manual 全局记忆，时间线两周强度散布自然。验证：BrainStore.importData replace 往返——38 导入 0 跳过、personaId 轨保留、画像/digest/情绪全入；线上真实数据零接触。产出 demo/brain-export.demo.json + README（展示点对照表+加载方式），根 README 挂条目。后续：本机实例灌 demo 可截图脑图页做参赛配图。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `7fd31b5` | 虚构演示数据集：动漫社学园祭场景 38 条记忆覆盖三类/巩固链/人设分轨，可直接 import 用于公开展示 |
+
+### Status
+
+[OK] **Completed**
