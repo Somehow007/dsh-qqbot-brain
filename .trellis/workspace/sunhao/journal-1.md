@@ -1308,3 +1308,25 @@ SSH 线上取证后按用户指示用已有优化标齐数据：PATCH 把 13 条
 ### Status
 
 [OK] **Completed**
+
+
+## Session 62: 脑图点击无响应与PC误触缩放修复+节点发光化
+<!-- trellis-session: v=2 fp=f67cf1016dd78a75 -->
+
+**Date**: 2026-11-04
+**Task**: 脑图点击无响应与PC误触缩放修复+节点发光化
+**Branch**: `main`
+
+### Summary
+
+问题：用户反馈线上 /brain PC 端点节点没反应、点按莫名放大、节点样式不好看。排查：pointermove 单次位移>3px 即 viewMoved，PC 鼠标点按手抖普遍超 3px → 捕获阶段 click 拦截把节点 click 吃掉；ptrEnd 双击缩放（340ms/30px）未排除鼠标 → 重复点击触发 zoomAt(0.5)。方案：指针改累计位移死区（pend 累加>8px 才平移且一次应用累计量无跳变），双击缩放限定 pointerType==='touch'（PC 保留滚轮/＋/－）；节点样式改发光亮点——核心半径 .45→.6、类型色填充 .1→.16、常驻光晕分层（全量 .09/带标签 .18/悬停 .4）、quiet .8 fading .68、核心 filter 软化。验证：playwright reduced-motion 关漂移后真实鼠标事件过——3px 抖动点击选中、双击 vb 不变、60px 拖拽平移、空点取消；移动端触摸双击 600→300 仍生效；143/143 测试+typecheck+build 绿；rsync page.html 上线免重启（每请求读盘），远端 md5 abbd1743 一致。后续：选中态光环可更醒目；真实 172 条密度下 quiet 透明度待观察。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `014540f` | 脑图指针修复：8px 死区防吞点击/鼠标不触发双击缩放，节点改发光亮点风格 |
+
+### Status
+
+[OK] **Completed**
