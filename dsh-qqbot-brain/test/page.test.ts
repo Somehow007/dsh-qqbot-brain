@@ -12,7 +12,7 @@ type Pad = { v: number; a: number; d?: number; label?: string; mood?: string };
 type EmoOp = { t: number; op: { op: string; sessionId?: string; state?: Pad } };
 type Facet = { id: string; title: string; heading: string; body: string };
 type Box = [number, number, number, number];
-const { cleanText, nodeLabel, mapLabel, previewText, buildRelations, relationWhy, emotionBucket, emotionOps, matchEmotion, personaFacets, matchFacet, layoutSlots, companionLine } = runInNewContext(`${helpers}; ({cleanText,nodeLabel,mapLabel,previewText,buildRelations,relationWhy,emotionBucket,emotionOps,matchEmotion,personaFacets,matchFacet,layoutSlots,companionLine})`) as {
+const { cleanText, nodeLabel, mapLabel, previewText, buildRelations, relationWhy, emotionBucket, emotionOps, matchEmotion, personaFacets, matchFacet, layoutSlots, labelPick, companionLine } = runInNewContext(`${helpers}; ({cleanText,nodeLabel,mapLabel,previewText,buildRelations,relationWhy,emotionBucket,emotionOps,matchEmotion,personaFacets,matchFacet,layoutSlots,labelPick,companionLine})`) as {
   cleanText: (text: string) => string;
   nodeLabel: (note: { id: string; content: string }, notes: { id: string; content: string }[]) => string;
   mapLabel: (note: { id: string; content: string }, notes: { id: string; content: string }[]) => string;
@@ -25,6 +25,7 @@ const { cleanText, nodeLabel, mapLabel, previewText, buildRelations, relationWhy
   personaFacets: (text: string) => Facet[];
   matchFacet: (note: { content: string }, facets: Facet[]) => { facet: string; score: number; words: string[] } | null;
   layoutSlots: (zone: { cx: number; cy: number; rx: number; ry: number }, n: number, box: (x: number, y: number) => Box, inside: (x: number, y: number) => boolean, taken: Box[]) => { x: number; y: number }[];
+  labelPick: (items: { id: string; retention: number; importance: number; kind?: string }[], n: number, per?: number) => Set<string>;
   companionLine: (kind: string | null, count: number, name?: string) => string;
 };
 
@@ -246,6 +247,31 @@ test('脑区槽位：标签框互不重叠、不越出轮廓，结果确定', ()
   taken.forEach(b => assert.ok(inside(b[0], b[1]) && inside(b[2], b[3])));
   assert.equal(JSON.stringify(layoutSlots(zone, 8, box, inside, [])), JSON.stringify(slots), '同输入同输出');
   assert.equal(layoutSlots(zone, 3, box, () => false, []).length, 0, '放不下时返回空');
+});
+
+test('常驻标签按保持率×重要度取前 n 条，同分按 id 定序且不改原数组', () => {
+  const items = [
+    { id: 'c', retention: 0.9, importance: 2 },
+    { id: 'a', retention: 0.5, importance: 4 },
+    { id: 'b', retention: 0.5, importance: 4 },
+    { id: 'd', retention: 0.2, importance: 5 },
+  ];
+  const before = items.map(x => x.id).join();
+  assert.deepEqual([...labelPick(items, 2)], ['a', 'b']);
+  assert.deepEqual([...labelPick([...items].reverse(), 2)], ['a', 'b'], '输入顺序不影响结果');
+  assert.equal(labelPick(items, 10).size, 4);
+  assert.equal(labelPick([], 8).size, 0);
+  assert.equal(items.map(x => x.id).join(), before);
+  // 每类保底：分数最低的 semantic 也能拿到常驻标签，总数仍不超过 n
+  const mixed = [
+    { id: 'e1', retention: 0.9, importance: 5, kind: 'episodic' },
+    { id: 'e2', retention: 0.8, importance: 5, kind: 'episodic' },
+    { id: 'e3', retention: 0.7, importance: 5, kind: 'episodic' },
+    { id: 's1', retention: 0.1, importance: 1, kind: 'semantic' },
+  ];
+  assert.deepEqual([...labelPick(mixed, 2)].sort(), ['e1', 'e2']);
+  assert.deepEqual([...labelPick(mixed, 2, 1)].sort(), ['e1', 's1']);
+  assert.equal(labelPick(mixed, 3, 2).size, 3);
 });
 
 test('节点短标签去掉公共主语，陪伴文案随类型变化', () => {

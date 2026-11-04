@@ -42,6 +42,17 @@ Cross-layer links are **frontend inferences** and must be labelled as such in th
 
 Pure helpers (`ngrams` … before `function bindMapNode`) are extracted by `test/page.test.ts`; keep new pure functions inside that range and free of DOM access.
 
+### Brain page: visual system and label density (2026-11-04)
+
+- **Tokens first.** Use the `:root` variables instead of literals: type scale `--fs-xs/sm/md/base/h3/h2/h1` (10/11/12/13/15/18/26px — no 9px or fractional sizes), `--radius` (2px; the speech bubble and pills stay round on purpose), `--hair` for hairline dividers, `--glass` for translucent panels. Small text colours must stay ≥ 4.5:1 on `--panel`: `--muted #7f9dbb` ≈ 6.5:1, `--faint #6c8aa8` ≈ 5:1. Re-check with a contrast calculation when changing either.
+- **Selects are globally restyled** (`appearance:none` + inline-SVG chevron with `!important` on the background longhands). When styling a select, set `background-color`, not the `background` shorthand.
+- **Map label LOD.** Memory nodes not in `labelPick(placedNotes, LABEL_N=8, per=2)` get class `quiet` and hide their `.cap`. Labels reappear on hover, focus, selection, lit neighbour, search hit (`.qhit`), or when `setView()` marks `#brain.zoomed` (`VB.w < ZOOM_LABEL_W=580`). Only pass notes that actually received a slot (`pos.has(id)`), or the label budget is wasted on overflowed notes. Slot boxes still reserve label space, so revealed labels never overlap.
+- **Inspector overview.** `meterGroup()` draws bars only for non-zero counts (plus the current mood); zero-count facets or emotions collapse into a `.chips` line of clickable buttons. Do not reintroduce one bar per bucket.
+- **Map controls** live in the `.ctrls` toolbar. Toggles show their state via `aria-pressed` (cyan dot) with short text (`漂浮` / `信号`), and the full state goes in `aria-label`. The session selector `#qSess` belongs inside `.search`.
+- **Stability.** Node drift amplitude is 1.3 for memories / 1 for others. Larger values make labels and click targets visibly wobble.
+- **Mobile ≤ 640.** `table.lib` collapses into stacked rows (`td[data-label]` prefixes; actions pinned top-right). Add `data-label` to any new numeric column. ≤ 1000: the portrait is a 120px strip.
+- **Visual verification.** Use a temporary demo server: a `BrainStore` in a tmp dir, seeded notes, `BrainHttpServer` on a spare port. Screenshot it with `playwright-core` (`channel:'chrome'`) at 1440/1280/900/640/390. Assert `scrollWidth == innerWidth`, the visible `.mem .cap` count, and no console errors.
+
 The persona editor reads `GET /api/personas` and keeps local `editingPersonaId` and `personaBaseline`. A 15-second `load()` must update the list/active indicator without replacing unsaved name or text. Switch or new-entry actions prompt before discarding drafts; saving a non-active entry must not change the active bot persona. The backup button should download the full `/api/export` payload, not synthesize a backup from `/api/state` (which omits version history and digest metadata).
 
 ---
