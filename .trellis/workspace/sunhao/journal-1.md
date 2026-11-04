@@ -1352,3 +1352,25 @@ SSH 线上取证后按用户指示用已有优化标齐数据：PATCH 把 13 条
 ### Status
 
 [OK] **Completed**
+
+
+## Session 64: 脑图点击失效真因：pointer capture 重定向 click
+<!-- trellis-session: v=2 fp=d778d0e8a5cf01e9 -->
+
+**Date**: 2026-11-04
+**Task**: 脑图点击失效真因：pointer capture 重定向 click
+**Branch**: `main`
+
+### Summary
+
+问题：上线后用户复测点节点仍无反应。排查：用线上 brain-data 本地起真实数据服务+playwright 真实鼠标事件复现——点击到达 svg 但 click 被 setPointerCapture 重定向到 svg 根（Pointer Events 规范行为），closest('.node') 落空走取消选中；此前 dispatchEvent('click') 测试绕过捕获从未暴露。方案：懒捕获——点按不捕获，位移越 8px 阈值或双指捏合才 setPointerCapture。验证：真实数据三类节点点击选中+详情渲染、抖动/双击/拖拽/空点/移动端双击回归全过；已部署远端 md5 4d7420d6。教训：交互验证要用真实输入事件。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `228ba6c` | 脑图点击真修：setPointerCapture 重定向 click 到 svg 根导致节点点击失效，改懒捕获 |
+
+### Status
+
+[OK] **Completed**
