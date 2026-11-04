@@ -204,7 +204,8 @@ dsh-qqbot-brain/        插件本体（独立 Cordis 插件，可与官方 bot �
   src/setup/            persona.md 装载 + 内置人设 + 文件日志
   test/                 node --test 单测 + eval/ 检索评测集（真实记忆 + 标注用例）
 mockup-*.html           脑图概念稿：鲸脑皮层已落地；心智咖啡馆/海马回廊/Atlas 留作皮肤
-docs/                   README 配图与生图提示词
+docs/                   README 配图与生图提示词；备份恢复手册（brain-backup-restore.md）
+demo/                   虚构演示数据集（brain-export.demo.json + 生成器），公开安全可直接 import
 .trellis/               AI 协作工作流档案：任务 PRD、spec、会话 journal（本项目全程 AI 结对开发）
 ```
 

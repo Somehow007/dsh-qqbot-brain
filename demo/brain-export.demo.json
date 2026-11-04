@@ -1,0 +1,649 @@
+{
+  "version": 1,
+  "exportedAt": 1793802600000,
+  "persona": "你是「小屿」，鲸鱼娘形象的校园 AI 助手。\n## 性格\n安静慵懒，说话慢半拍，像趴在窗台晒太阳；关心人的方式是轻轻蹭一下。\n## 边界\n不催不急，但答应的事会记得很牢；吐槽只用气声说。",
+  "personas": [
+    {
+      "id": "legacy",
+      "name": "初始人格",
+      "text": "一个普通的群助手，回答社团事务问题。"
+    },
+    {
+      "id": "campus-bright",
+      "name": "晴天·明快版",
+      "text": "你是「小屿」，鲸鱼娘形象的校园 AI 助手，住在动漫社的群聊里。\n## 性格\n明快外向，接梗快，喜欢用海洋生物打比方，句尾偶尔带「咕噜」。\n## 边界\n对群友热情但有分寸；催稿用玩笑的方式，不让人难堪。"
+    },
+    {
+      "id": "campus-cozy",
+      "name": "雨天·慵懒版",
+      "text": "你是「小屿」，鲸鱼娘形象的校园 AI 助手。\n## 性格\n安静慵懒，说话慢半拍，像趴在窗台晒太阳；关心人的方式是轻轻蹭一下。\n## 边界\n不催不急，但答应的事会记得很牢；吐槽只用气声说。"
+    }
+  ],
+  "activePersonaId": "campus-cozy",
+  "notes": [
+    {
+      "id": "e2876c4a-b792-5148-b05f-c2f7ced4854b",
+      "sessionId": "95bd7c13-fee9-54c7-9023-732b91b86881",
+      "actor": "苏叶 (b2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7)",
+      "content": "苏叶认领海报设计，说两天内发电子版到群里",
+      "importance": 3,
+      "kind": "episodic",
+      "createdAt": 1792584840000,
+      "strength": 3,
+      "hits": 0,
+      "lastAccessAt": 1792584840000,
+      "personaId": "campus-bright",
+      "absorbedAt": 1793196000000
+    },
+    {
+      "id": "aca8b15e-3533-50ee-a824-3b63743873de",
+      "sessionId": "95bd7c13-fee9-54c7-9023-732b91b86881",
+      "actor": "林小满 (a1f2c3d4e5f6a7b8c9d0e1f2a3b4c5d6)",
+      "content": "林小满报名负责摊位看板手绘，说想画鲸鱼主题",
+      "importance": 3,
+      "kind": "episodic",
+      "createdAt": 1792674120000,
+      "strength": 3,
+      "hits": 0,
+      "lastAccessAt": 1792674120000,
+      "personaId": "campus-bright",
+      "absorbedAt": 1793196000000
+    },
+    {
+      "id": "f71baa7e-a244-58b9-863a-650b4634cff7",
+      "sessionId": "95bd7c13-fee9-54c7-9023-732b91b86881",
+      "actor": "苏叶 (b2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7)",
+      "content": "苏叶找熟人的印刷店砍价，海报+传单砍下来一百五",
+      "importance": 3,
+      "kind": "episodic",
+      "createdAt": 1793176800000,
+      "strength": 3,
+      "hits": 0,
+      "lastAccessAt": 1793176800000,
+      "personaId": "campus-bright",
+      "absorbedAt": 1793545800000
+    },
+    {
+      "id": "1905b90c-bdfe-54aa-b9b5-83bc52397f31",
+      "sessionId": "95bd7c13-fee9-54c7-9023-732b91b86881",
+      "actor": "陈默 (c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8)",
+      "content": "陈默淘到二手投影灯泡只花三十块，当场换上能用了",
+      "importance": 2,
+      "kind": "episodic",
+      "createdAt": 1792912800000,
+      "strength": 2,
+      "hits": 0,
+      "lastAccessAt": 1792912800000,
+      "personaId": "campus-bright",
+      "absorbedAt": 1793545800000
+    },
+    {
+      "id": "b861d5f3-6855-50c9-85d0-8985fbf0af78",
+      "sessionId": "95bd7c13-fee9-54c7-9023-732b91b86881",
+      "actor": "陈默 (c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8)",
+      "content": "预算表做出来超支二百，陈默提议砍掉气球和彩带",
+      "importance": 3,
+      "kind": "episodic",
+      "createdAt": 1793109900000,
+      "strength": 3,
+      "hits": 0,
+      "lastAccessAt": 1793109900000,
+      "personaId": "campus-bright",
+      "absorbedAt": 1793545800000
+    },
+    {
+      "id": "7397c928-6a95-5f29-ac13-9bb8a278b2e3",
+      "sessionId": "95bd7c13-fee9-54c7-9023-732b91b86881",
+      "content": "学园祭当天摊位营业额破千，比去年翻了一倍",
+      "importance": 5,
+      "kind": "episodic",
+      "createdAt": 1793529000000,
+      "strength": 5,
+      "hits": 0,
+      "lastAccessAt": 1793529000000,
+      "personaId": "campus-bright",
+      "absorbedAt": 1793545800000,
+      "emotion": {
+        "v": 0.8,
+        "a": 0.9,
+        "d": 0.3,
+        "label": "兴奋",
+        "mood": "兴奋"
+      }
+    },
+    {
+      "id": "1834c3e6-045a-535a-bb78-bcdfeca706ff",
+      "sessionId": "95bd7c13-fee9-54c7-9023-732b91b86881",
+      "actor": "苏叶 (b2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7)",
+      "content": "苏叶的海报拖到第三天晚上才发，全群等了他两天",
+      "importance": 3,
+      "kind": "episodic",
+      "createdAt": 1792854720000,
+      "strength": 3,
+      "hits": 0,
+      "lastAccessAt": 1792854720000,
+      "personaId": "campus-bright",
+      "absorbedAt": 1793277000000
+    },
+    {
+      "id": "deac43be-d164-5f3a-9f0b-3d465bf49b1a",
+      "sessionId": "95bd7c13-fee9-54c7-9023-732b91b86881",
+      "actor": "苏叶 (b2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7)",
+      "content": "周六排练苏叶又迟到四十分钟，说公交坐过站",
+      "importance": 3,
+      "kind": "episodic",
+      "createdAt": 1792910460000,
+      "strength": 3,
+      "hits": 0,
+      "lastAccessAt": 1792910460000,
+      "personaId": "campus-bright",
+      "absorbedAt": 1793277000000
+    },
+    {
+      "id": "3599d291-06e5-5638-937e-30d95d41b01a",
+      "sessionId": "95bd7c13-fee9-54c7-9023-732b91b86881",
+      "content": "学园祭摊位分工：林小满看板手绘，苏叶海报与印刷砍价，陈默设备与预算",
+      "importance": 4,
+      "kind": "semantic",
+      "createdAt": 1793196000000,
+      "strength": 5,
+      "hits": 4,
+      "lastAccessAt": 1793711700000,
+      "personaId": "campus-bright",
+      "sourceIds": [
+        "e2876c4a-b792-5148-b05f-c2f7ced4854b",
+        "aca8b15e-3533-50ee-a824-3b63743873de",
+        "f71baa7e-a244-58b9-863a-650b4634cff7"
+      ]
+    },
+    {
+      "id": "be8a4fee-9d6f-5cc9-bddc-ed0fe420208c",
+      "sessionId": "95bd7c13-fee9-54c7-9023-732b91b86881",
+      "content": "学园祭复盘：营业额破千，印刷砍价与二手灯泡让超支的预算回正",
+      "importance": 4,
+      "kind": "semantic",
+      "createdAt": 1793545800000,
+      "strength": 5,
+      "hits": 2,
+      "lastAccessAt": 1793621100000,
+      "personaId": "campus-bright",
+      "sourceIds": [
+        "1905b90c-bdfe-54aa-b9b5-83bc52397f31",
+        "b861d5f3-6855-50c9-85d0-8985fbf0af78",
+        "f71baa7e-a244-58b9-863a-650b4634cff7",
+        "7397c928-6a95-5f29-ac13-9bb8a278b2e3"
+      ],
+      "emotion": {
+        "v": 0.7,
+        "a": 0.6,
+        "d": 0.4,
+        "label": "满足",
+        "mood": "开心"
+      }
+    },
+    {
+      "id": "e94b15f3-5239-557a-8201-72b990679f1f",
+      "sessionId": "95bd7c13-fee9-54c7-9023-732b91b86881",
+      "content": "苏叶干活靠谱但习惯性迟到，重要节点要给他预留缓冲时间",
+      "importance": 3,
+      "kind": "semantic",
+      "createdAt": 1793277000000,
+      "strength": 4,
+      "hits": 3,
+      "lastAccessAt": 1793706120000,
+      "personaId": "campus-bright",
+      "sourceIds": [
+        "1834c3e6-045a-535a-bb78-bcdfeca706ff",
+        "deac43be-d164-5f3a-9f0b-3d465bf49b1a"
+      ]
+    },
+    {
+      "id": "2de788cc-2e0d-50eb-b5a1-615dfc338f09",
+      "sessionId": "95bd7c13-fee9-54c7-9023-732b91b86881",
+      "actor": "陈默 (c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8)",
+      "content": "陈默发现摊位投影机灯泡老化，得在学园祭前换掉",
+      "importance": 4,
+      "kind": "episodic",
+      "createdAt": 1792585860000,
+      "strength": 4,
+      "hits": 1,
+      "lastAccessAt": 1792912800000,
+      "personaId": "campus-bright"
+    },
+    {
+      "id": "64693b39-e09c-5220-b37c-323c8ffcce61",
+      "sessionId": "95bd7c13-fee9-54c7-9023-732b91b86881",
+      "actor": "林小满 (a1f2c3d4e5f6a7b8c9d0e1f2a3b4c5d6)",
+      "content": "林小满的看板草稿被大家夸比去年好看，她发了三个鞠躬表情",
+      "importance": 2,
+      "kind": "episodic",
+      "createdAt": 1793022480000,
+      "strength": 2,
+      "hits": 1,
+      "lastAccessAt": 1793369400000,
+      "personaId": "campus-bright",
+      "emotion": {
+        "v": 0.6,
+        "a": 0.5,
+        "d": 0.0,
+        "label": "害羞又开心",
+        "mood": "害羞"
+      }
+    },
+    {
+      "id": "9548b561-75b2-5785-b835-55cd9f2a8c07",
+      "sessionId": "95bd7c13-fee9-54c7-9023-732b91b86881",
+      "content": "庆功订了披萨，苏叶主动请全群奶茶赔罪迟到",
+      "importance": 3,
+      "kind": "episodic",
+      "createdAt": 1793535300000,
+      "strength": 3,
+      "hits": 0,
+      "lastAccessAt": 1793535300000,
+      "personaId": "campus-cozy"
+    },
+    {
+      "id": "85244840-6c81-5a79-bd57-56d7f79753c3",
+      "sessionId": "95bd7c13-fee9-54c7-9023-732b91b86881",
+      "actor": "陈默 (c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8)",
+      "content": "陈默修好投影，放映环节全程没出岔子",
+      "importance": 4,
+      "kind": "episodic",
+      "createdAt": 1793533200000,
+      "strength": 4,
+      "hits": 0,
+      "lastAccessAt": 1793533200000,
+      "personaId": "campus-cozy"
+    },
+    {
+      "id": "434e74e8-432b-5d7e-a2dd-86a4f22fb6ae",
+      "sessionId": "95bd7c13-fee9-54c7-9023-732b91b86881",
+      "content": "群里讨论明年招新想要更大的摊位，有人说做主题咖啡厅",
+      "importance": 2,
+      "kind": "episodic",
+      "createdAt": 1793626200000,
+      "strength": 2,
+      "hits": 0,
+      "lastAccessAt": 1793626200000,
+      "personaId": "campus-cozy"
+    },
+    {
+      "id": "ba65a478-d100-53b1-892f-17667a1804d3",
+      "sessionId": "95bd7c13-fee9-54c7-9023-732b91b86881",
+      "actor": "林小满 (a1f2c3d4e5f6a7b8c9d0e1f2a3b4c5d6)",
+      "content": "林小满把完成的手绘看板照片发到群里，鲸鱼和章鱼都画上了",
+      "importance": 2,
+      "kind": "episodic",
+      "createdAt": 1793628300000,
+      "strength": 2,
+      "hits": 0,
+      "lastAccessAt": 1793628300000,
+      "personaId": "campus-cozy"
+    },
+    {
+      "id": "977baaa3-8e1c-59be-9e28-a978935ac33b",
+      "sessionId": "95bd7c13-fee9-54c7-9023-732b91b86881",
+      "actor": "苏叶 (b2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7)",
+      "content": "苏叶在群里立誓：下次一定提前三天交稿",
+      "importance": 2,
+      "kind": "episodic",
+      "createdAt": 1793707860000,
+      "strength": 2,
+      "hits": 0,
+      "lastAccessAt": 1793707860000,
+      "personaId": "campus-cozy"
+    },
+    {
+      "id": "142b7c48-93da-5e13-b002-673d2cda197e",
+      "sessionId": "95bd7c13-fee9-54c7-9023-732b91b86881",
+      "actor": "陈默 (c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8)",
+      "content": "陈默给群里bot加了点歌功能，当晚被玩坏单曲循环两小时",
+      "importance": 2,
+      "kind": "episodic",
+      "createdAt": 1793372700000,
+      "strength": 2,
+      "hits": 0,
+      "lastAccessAt": 1793372700000,
+      "personaId": "campus-bright"
+    },
+    {
+      "id": "f03696f8-59d0-51b2-a77f-b2bb5f6dbb70",
+      "sessionId": "95bd7c13-fee9-54c7-9023-732b91b86881",
+      "actor": "林小满 (a1f2c3d4e5f6a7b8c9d0e1f2a3b4c5d6)",
+      "content": "讨论招新视频，林小满提议拿看板当拍摄道具",
+      "importance": 2,
+      "kind": "episodic",
+      "createdAt": 1793791320000,
+      "strength": 2,
+      "hits": 0,
+      "lastAccessAt": 1793791320000,
+      "personaId": "campus-cozy"
+    },
+    {
+      "id": "f72b293c-98b5-53e8-9110-ce845bfd4110",
+      "sessionId": "95bd7c13-fee9-54c7-9023-732b91b86881",
+      "content": "对苏叶：嘴上吐槽他迟到，心里认他是社团最靠谱后勤",
+      "importance": 3,
+      "kind": "attitude",
+      "createdAt": 1793025000000,
+      "strength": 4,
+      "hits": 2,
+      "lastAccessAt": 1793706120000,
+      "personaId": "campus-bright"
+    },
+    {
+      "id": "e5d10d7a-a1c2-5551-a133-16518839b8ca",
+      "sessionId": "95bd7c13-fee9-54c7-9023-732b91b86881",
+      "content": "对学园祭：累瘫但值得，明年还想和大家一起摆摊",
+      "importance": 3,
+      "kind": "attitude",
+      "createdAt": 1793624400000,
+      "strength": 3,
+      "hits": 1,
+      "lastAccessAt": 1793709600000,
+      "personaId": "campus-cozy"
+    },
+    {
+      "id": "af9f6aed-39bc-5a67-afa1-221f78a745cb",
+      "sessionId": "50738f38-2b59-59ef-9107-4cf82ea057df",
+      "actor": "林小满 (a1f2c3d4e5f6a7b8c9d0e1f2a3b4c5d6)",
+      "content": "小满第一次来私聊，说是在社团群里看到小屿的",
+      "importance": 2,
+      "kind": "episodic",
+      "createdAt": 1792678200000,
+      "strength": 2,
+      "hits": 0,
+      "lastAccessAt": 1792678200000,
+      "personaId": "campus-bright"
+    },
+    {
+      "id": "58d45bca-fe51-5d29-9f96-981e30113076",
+      "sessionId": "50738f38-2b59-59ef-9107-4cf82ea057df",
+      "actor": "林小满 (a1f2c3d4e5f6a7b8c9d0e1f2a3b4c5d6)",
+      "content": "小满在备考线代，说挂科的话家长就不让参加学园祭",
+      "importance": 3,
+      "kind": "episodic",
+      "createdAt": 1792762500000,
+      "strength": 3,
+      "hits": 2,
+      "lastAccessAt": 1793192400000,
+      "personaId": "campus-bright"
+    },
+    {
+      "id": "d57c62fb-397d-5fe4-8cad-ce5ec3ca135d",
+      "sessionId": "50738f38-2b59-59ef-9107-4cf82ea057df",
+      "actor": "林小满 (a1f2c3d4e5f6a7b8c9d0e1f2a3b4c5d6)",
+      "content": "小满做题做哭了，小屿陪她一道道理错题本到半夜",
+      "importance": 3,
+      "kind": "episodic",
+      "createdAt": 1792943400000,
+      "strength": 3,
+      "hits": 0,
+      "lastAccessAt": 1792943400000,
+      "personaId": "campus-bright",
+      "absorbedAt": 1793280600000,
+      "emotion": {
+        "v": -0.3,
+        "a": 0.6,
+        "d": -0.2,
+        "label": "委屈",
+        "mood": "委屈"
+      }
+    },
+    {
+      "id": "b744df23-d5d2-5e15-9dc1-7026b10834c7",
+      "sessionId": "50738f38-2b59-59ef-9107-4cf82ea057df",
+      "actor": "林小满 (a1f2c3d4e5f6a7b8c9d0e1f2a3b4c5d6)",
+      "content": "小满模拟考第一次及格，开心到发了一整排感叹号",
+      "importance": 3,
+      "kind": "episodic",
+      "createdAt": 1793103480000,
+      "strength": 3,
+      "hits": 0,
+      "lastAccessAt": 1793103480000,
+      "personaId": "campus-bright",
+      "absorbedAt": 1793280600000,
+      "emotion": {
+        "v": 0.8,
+        "a": 0.8,
+        "d": 0.2,
+        "label": "开心",
+        "mood": "开心"
+      }
+    },
+    {
+      "id": "3551cddd-15fa-514b-8cc2-e493e479c6c0",
+      "sessionId": "50738f38-2b59-59ef-9107-4cf82ea057df",
+      "content": "小满线代基础弱但韧性强，考前焦虑时顺着毛捋最有效",
+      "importance": 3,
+      "kind": "semantic",
+      "createdAt": 1793280600000,
+      "strength": 4,
+      "hits": 1,
+      "lastAccessAt": 1793538000000,
+      "personaId": "campus-bright",
+      "sourceIds": [
+        "d57c62fb-397d-5fe4-8cad-ce5ec3ca135d",
+        "b744df23-d5d2-5e15-9dc1-7026b10834c7"
+      ]
+    },
+    {
+      "id": "02a1dd74-caaf-5838-bdca-f0b45ef42eb3",
+      "sessionId": "50738f38-2b59-59ef-9107-4cf82ea057df",
+      "actor": "林小满 (a1f2c3d4e5f6a7b8c9d0e1f2a3b4c5d6)",
+      "content": "小满熬夜画看板到凌晨一点半，被小屿赶去睡觉",
+      "importance": 3,
+      "kind": "episodic",
+      "createdAt": 1793035920000,
+      "strength": 3,
+      "hits": 0,
+      "lastAccessAt": 1793035920000,
+      "personaId": "campus-bright"
+    },
+    {
+      "id": "6ac57923-e1dd-5dc2-8e7e-b1fffead7865",
+      "sessionId": "50738f38-2b59-59ef-9107-4cf82ea057df",
+      "actor": "林小满 (a1f2c3d4e5f6a7b8c9d0e1f2a3b4c5d6)",
+      "content": "小满线代考了78分，说低空飘过但保住了学园祭",
+      "importance": 4,
+      "kind": "episodic",
+      "createdAt": 1793274900000,
+      "strength": 4,
+      "hits": 1,
+      "lastAccessAt": 1793363400000,
+      "personaId": "campus-bright",
+      "emotion": {
+        "v": 0.7,
+        "a": 0.7,
+        "d": 0.3,
+        "label": "松了口气",
+        "mood": "开心"
+      }
+    },
+    {
+      "id": "e431b876-1ef7-5e03-ad9e-fae72a499cc6",
+      "sessionId": "50738f38-2b59-59ef-9107-4cf82ea057df",
+      "actor": "林小满 (a1f2c3d4e5f6a7b8c9d0e1f2a3b4c5d6)",
+      "content": "学园祭当天小满穿自己改的猫猫卫衣当了一天看板娘",
+      "importance": 3,
+      "kind": "episodic",
+      "createdAt": 1793524800000,
+      "strength": 3,
+      "hits": 0,
+      "lastAccessAt": 1793524800000,
+      "personaId": "campus-cozy"
+    },
+    {
+      "id": "76dc2528-5070-54ec-92c2-fba266174047",
+      "sessionId": "50738f38-2b59-59ef-9107-4cf82ea057df",
+      "actor": "林小满 (a1f2c3d4e5f6a7b8c9d0e1f2a3b4c5d6)",
+      "content": "小满说要给小屿带摊位剩的章鱼小丸子，虽然知道她吃不到",
+      "importance": 2,
+      "kind": "episodic",
+      "createdAt": 1793538480000,
+      "strength": 2,
+      "hits": 0,
+      "lastAccessAt": 1793538480000,
+      "personaId": "campus-cozy"
+    },
+    {
+      "id": "3070e007-6975-5944-81ad-01106fa0caf9",
+      "sessionId": "50738f38-2b59-59ef-9107-4cf82ea057df",
+      "actor": "林小满 (a1f2c3d4e5f6a7b8c9d0e1f2a3b4c5d6)",
+      "content": "小满想把这次学园祭画成四格漫画投给社刊",
+      "importance": 3,
+      "kind": "episodic",
+      "createdAt": 1793713200000,
+      "strength": 3,
+      "hits": 1,
+      "lastAccessAt": 1793794200000,
+      "personaId": "campus-cozy"
+    },
+    {
+      "id": "584a8385-42ad-59ca-b7c1-218857501daa",
+      "sessionId": "50738f38-2b59-59ef-9107-4cf82ea057df",
+      "actor": "林小满 (a1f2c3d4e5f6a7b8c9d0e1f2a3b4c5d6)",
+      "content": "小满约定每周三晚上来汇报漫画进度，拉勾了",
+      "importance": 3,
+      "kind": "episodic",
+      "createdAt": 1793713500000,
+      "strength": 3,
+      "hits": 0,
+      "lastAccessAt": 1793713500000,
+      "personaId": "campus-cozy"
+    },
+    {
+      "id": "e6ab5023-353b-529d-ac33-bdaa303838b8",
+      "sessionId": "50738f38-2b59-59ef-9107-4cf82ea057df",
+      "actor": "林小满 (a1f2c3d4e5f6a7b8c9d0e1f2a3b4c5d6)",
+      "content": "小满感冒请假两天，小屿每天问一次好点没",
+      "importance": 3,
+      "kind": "episodic",
+      "createdAt": 1793453160000,
+      "strength": 3,
+      "hits": 0,
+      "lastAccessAt": 1793453160000,
+      "personaId": "campus-bright"
+    },
+    {
+      "id": "96fa869d-e3b2-5081-90a1-2d74543dfd95",
+      "sessionId": "50738f38-2b59-59ef-9107-4cf82ea057df",
+      "content": "小满是动漫社成员，学园祭看板担当，正在筹备四格漫画投稿",
+      "importance": 4,
+      "kind": "semantic",
+      "createdAt": 1793714400000,
+      "strength": 5,
+      "hits": 3,
+      "lastAccessAt": 1793794200000,
+      "personaId": "campus-cozy"
+    },
+    {
+      "id": "4d7cb5a7-6141-5405-949e-d30b70bd14d0",
+      "sessionId": "50738f38-2b59-59ef-9107-4cf82ea057df",
+      "content": "对线代：是小满的敌人，但小屿要帮她打赢",
+      "importance": 3,
+      "kind": "attitude",
+      "createdAt": 1793196600000,
+      "strength": 3,
+      "hits": 1,
+      "lastAccessAt": 1793274900000,
+      "personaId": "campus-bright"
+    },
+    {
+      "id": "c049a9d8-b492-507c-909a-1dad075a13d4",
+      "sessionId": "50738f38-2b59-59ef-9107-4cf82ea057df",
+      "content": "对小满：嘴上喊她笨猫，其实很佩服她说到做到的劲",
+      "importance": 4,
+      "kind": "attitude",
+      "createdAt": 1793714700000,
+      "strength": 4,
+      "hits": 0,
+      "lastAccessAt": 1793714700000,
+      "personaId": "campus-cozy"
+    },
+    {
+      "id": "284d31fc-4a0e-5067-a45f-630441f58f58",
+      "sessionId": "manual",
+      "content": "管理员备注：小屿的口癖是句尾偶尔带「咕噜」，群友觉得很可爱",
+      "importance": 2,
+      "kind": "semantic",
+      "createdAt": 1793505600000,
+      "strength": 2,
+      "hits": 0,
+      "lastAccessAt": 1793505600000
+    }
+  ],
+  "emotions": {
+    "95bd7c13-fee9-54c7-9023-732b91b86881": {
+      "v": 0.6,
+      "a": 0.7,
+      "d": 0.2,
+      "label": "兴奋又满足",
+      "mood": "兴奋",
+      "updatedAt": 1793626200000
+    },
+    "50738f38-2b59-59ef-9107-4cf82ea057df": {
+      "v": 0.4,
+      "a": 0.5,
+      "d": 0.1,
+      "label": "轻松期待",
+      "mood": "开心",
+      "updatedAt": 1793794200000
+    }
+  },
+  "profiles": {
+    "u:a1f2c3d4e5f6a7b8c9d0e1f2a3b4c5d6": {
+      "text": "动漫社成员，学园祭看板担当；线代苦手但韧性强，立志画四格漫画投社刊；说话直球，喜欢投喂小屿章鱼小丸子。",
+      "name": "林小满",
+      "sessions": [
+        "95bd7c13-fee9-54c7-9023-732b91b86881",
+        "50738f38-2b59-59ef-9107-4cf82ea057df"
+      ],
+      "updatedAt": 1793714400000
+    },
+    "u:b2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7": {
+      "text": "社团后勤担当，砍价高手；习惯性迟到但关键时刻靠谱；立誓下次提前三天交稿（群里普遍存疑）。",
+      "name": "苏叶",
+      "sessions": [
+        "95bd7c13-fee9-54c7-9023-732b91b86881"
+      ],
+      "updatedAt": 1793708100000
+    },
+    "u:c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8": {
+      "text": "技术担当，管设备与预算；话少执行力强，二手淘货达人；给群bot写了点歌功能。",
+      "name": "陈默",
+      "sessions": [
+        "95bd7c13-fee9-54c7-9023-732b91b86881"
+      ],
+      "updatedAt": 1793533800000
+    },
+    "sess:95bd7c13-fee9-54c7-9023-732b91b86881": {
+      "text": "动漫社群，近期围绕学园祭筹备与复盘；氛围闹腾但办事能成，开始畅想明年招新。",
+      "name": "",
+      "sessions": [
+        "95bd7c13-fee9-54c7-9023-732b91b86881"
+      ],
+      "updatedAt": 1793791800000
+    },
+    "sess:50738f38-2b59-59ef-9107-4cf82ea057df": {
+      "text": "林小满与小屿的私聊：从学园祭杂聊到备考陪伴，现在进入四格漫画连载监督模式。",
+      "name": "",
+      "sessions": [
+        "50738f38-2b59-59ef-9107-4cf82ea057df"
+      ],
+      "updatedAt": 1793794200000
+    }
+  },
+  "digests": {
+    "95bd7c13-fee9-54c7-9023-732b91b86881": {
+      "text": "学园祭落幕进入复盘期：营业额破千，砍价与二手灯泡救回预算，苏叶迟到梗被翻出来反复处刑；话题转向明年招新和招新视频。",
+      "uptoTurn": 87,
+      "updatedAt": 1793791800000
+    },
+    "50738f38-2b59-59ef-9107-4cf82ea057df": {
+      "text": "学园祭后的日常：小满线代78分低空过关、当了一天猫猫卫衣看板娘；现在筹备四格漫画投稿，约定每周三晚汇报进度。",
+      "uptoTurn": 52,
+      "updatedAt": 1793794200000
+    }
+  }
+}
