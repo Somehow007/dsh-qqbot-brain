@@ -80,6 +80,7 @@ WantedBy=multi-user.target
 
 - 保完整 op 流水：停服后 `rsync -av ~/brain-data/ server:/var/lib/dsh-brain/`
 - 只带状态：`GET /brain/api/export` → `POST /brain/api/import?mode=replace`
+- 完整备份/恢复/新 profile 换 sessionId 的操作手册见 [docs/brain-backup-restore.md](../docs/brain-backup-restore.md)
 
 ### 数据管理（脑图页）
 

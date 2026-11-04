@@ -96,6 +96,7 @@ function sanitizeNote(raw: unknown, now: number): MemoryNote | undefined {
     sourceIds: Array.isArray(n.sourceIds) && n.sourceIds.length
       ? n.sourceIds.filter((id): id is string => typeof id === 'string' && !!id)
       : undefined,
+    personaId: typeof n.personaId === 'string' && n.personaId ? n.personaId : undefined,
     absorbedAt: num(n.absorbedAt, 0) || undefined,
   };
 }

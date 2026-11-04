@@ -124,6 +124,8 @@ test('personas: 只能删除非当前人设，删除后跨重启不复活', () =
 test('export/import: 整包往返一致，衰减字段保留', () => {
   const { store } = tmpStore();
   const note = store.addNote('s1', { content: '用户养了一只橘猫叫年糕', importance: 4 }, NOW - 5 * DAY);
+  const tracked = store.addNote('s1', { content: '依恋版时期的态度', kind: 'attitude', personaId: 'v2', importance: 3 }, NOW);
+  store.markAbsorbed([note.id], NOW - 2 * DAY);
   store.reinforceById(note.id, 1, 10, NOW - DAY);
   store.setProfile('s1', '阿澈：软件工程大二');
   store.setPersona('大肥鱼人设');
@@ -131,11 +133,13 @@ test('export/import: 整包往返一致，衰减字段保留', () => {
 
   const { store: target } = tmpStore();
   const r = target.importData(dump, 'merge', NOW);
-  assert.equal(r.notes, 1);
+  assert.equal(r.notes, 2);
   const got = target.noteById(note.id)!;
   assert.equal(got.content, '用户养了一只橘猫叫年糕');
   assert.equal(got.strength, store.noteById(note.id)!.strength);
   assert.equal(got.lastAccessAt, store.noteById(note.id)!.lastAccessAt);
+  assert.equal(got.absorbedAt, NOW - 2 * DAY);
+  assert.equal(target.noteById(tracked.id)!.personaId, 'v2');
   assert.equal(target.profileOf('s1'), '阿澈：软件工程大二');
   assert.equal(target.persona(), '大肥鱼人设');
 });
