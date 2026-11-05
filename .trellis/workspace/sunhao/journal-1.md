@@ -1564,3 +1564,25 @@ SSH 线上取证后按用户指示用已有优化标齐数据：PATCH 把 13 条
 ### Status
 
 [OK] **Completed**
+
+
+## Session 74: 阶段性自我提升路线：指挥 AI 的元能力+领域知识增量
+<!-- trellis-session: v=2 fp=b901f176c3ae9b26 -->
+
+**Date**: 2026-11-05
+**Task**: 阶段性自我提升路线：指挥 AI 的元能力+领域知识增量
+**Branch**: `main`
+
+### Summary
+
+问题：首轮试运行收尾后，用户问后续学什么/看什么才能更好指挥 AI 推进规划。定位：与 10-31 领域知识路线互补，本次聚焦元能力——瓶颈不在写代码而在评审 AI 产出的判断力。方案：① 元能力五项（评审接口/不变量/失败模式三处、验收标准先行、失败模式三连问、懂契约层托管实现层、开工-验收-收工三动作），单点最高杠杆=通读 src/brain ~2774 行；② 领域知识增量映射到候选任务（Reflection→GA§4.2、扩散激活→A-MEM、干扰遗忘→Anderson、前瞻记忆→Einstein&McDaniel、漂移量化→Hamel evals、HostAdapter→ports&adapters、CAS→乐观并发概念）；③ 信息摄入节流三源（Anthropic eng blog/Hamel/按需论文）；④ 不学清单：transformer 维持选修、不预学 MCP。验证：纯讨论存档，路线与 10-31/11-03 结论一致无冲突。后续：开 Reflection 任务前按需读 GA reflection 节。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `47b1654` | chore: archive self-improvement-for-ai-direction task |
+
+### Status
+
+[OK] **Completed**
