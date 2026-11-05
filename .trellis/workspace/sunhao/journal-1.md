@@ -1544,3 +1544,23 @@ SSH 线上取证后按用户指示用已有优化标齐数据：PATCH 把 13 条
 ### Status
 
 [OK] **Completed**
+
+
+## Session 73: 参赛材料三轮：人设全净化 + 依恋版改毒舌版 + docs 评估
+<!-- trellis-session: v=2 fp=4bb53ec3d8edb41f -->
+
+**Date**: 2026-11-05
+**Task**: 参赛材料三轮：人设全净化 + 依恋版改毒舌版 + docs 评估
+**Branch**: `main`
+
+### Summary
+
+问题：shipped 两份 persona 仍带荤梗表述，依恋版要改毒舌版；docs/ 是否该进包待评估。方案：whale-gentle 清除荤梗/暧昧/解剖术语（健康示例换布洛芬）；whale-devotion 整体改写为 whale-sharp 毒舌版（损行为不损人、有边界），index.ts 播种名改「鲸鱼娘·毒舌版」，全包 id/文件名/测试同步重命名；eval 两条荤段子记忆改「过线玩笑」（无 case 引用，数值不变）；docs 评估后保留（说明书引 brain-backup-restore.md、README 嵌 docs 图），仅删 readme-image-prompts 过程稿。验证：包内 npm test 143/143、eval 88.2%/40% 不变、隐私复扫 clean、源码包重建 63 条目。
+
+### Git Commits
+
+(No commits - planning session)
+
+### Status
+
+[OK] **Completed**
