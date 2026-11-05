@@ -1504,3 +1504,23 @@ SSH 线上取证后按用户指示用已有优化标齐数据：PATCH 把 13 条
 ### Status
 
 [OK] **Completed**
+
+
+## Session 71: 参赛材料完善：说明书补量化亮点 + 隐私脱敏走查
+<!-- trellis-session: v=2 fp=fcce7bb67efee095 -->
+
+**Date**: 2026-11-05
+**Task**: 参赛材料完善：说明书补量化亮点 + 隐私脱敏走查
+**Branch**: `main`
+
+### Summary
+
+问题：说明书验证节过薄、包内测试数自相矛盾（123 vs 143）、eval cases 带真实会话 UUID、附录误列 .trellis。排查：逐份走查 docx/zip/截图/源码包，对照 .trellis 归档（D3 试运行、token 审计、成本分析、学习路线、污染处置）择优。方案：说明书新增 4.6 理论映射表 + 第六节扩成三表三段（试运行量化/检索评测/成本工程/实战处置）+ 创新点 5；报名表简介补佐证句；README 与时间线 SVG 统一 143/143 并重渲 PNG；shipped eval cases 会话 UUID 伪名化（repo 不动）；同口径重建两层 zip。验证：docx 回抽、eval 复跑 88.2%/40% 一致、隐私 grep 全 clean、六图目检无真实数据。后续：序号重命名、队长签名、可选演示视频。
+
+### Git Commits
+
+(No commits - planning session)
+
+### Status
+
+[OK] **Completed**
