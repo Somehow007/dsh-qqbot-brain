@@ -1524,3 +1524,23 @@ SSH 线上取证后按用户指示用已有优化标齐数据：PATCH 把 13 条
 ### Status
 
 [OK] **Completed**
+
+
+## Session 72: 参赛材料二轮：脑图立绘换 Q 版 + 源码包瘦身 + 人设文件脱敏
+<!-- trellis-session: v=2 fp=e882f93aa13a23f3 -->
+
+**Date**: 2026-11-05
+**Task**: 参赛材料二轮：脑图立绘换 Q 版 + 源码包瘦身 + 人设文件脱敏
+**Branch**: `main`
+
+### Summary
+
+问题：脑图右栏立绘偏性感需换可爱款；源码包含 mockup 概念稿与生成器；走查新发现两个内置 persona 文件含露骨设定且直呼用户 QQ 名「demo」。方案：chibi 立绘裁掉文字带转 JPEG 替换 page.html 的 PERSONA_BANNER，本地起 4100 预览重截 1680×1050 总览图并原位替换 docx 内嵌 image4/image6；源码包删 mockup-*×10+generator+screenshots+旧 tgz（69→50 文件，demo 数据+serve-demo 按用户拍板保留）；两份 persona 仅 shipped 副本脱敏（repo 不动，id/文件名不变，测试断言不受影响）；外层 zip 排除用户解压副本与 .DS_Store。验证：新截图目检通过、docx 媒体回抽、包内 npm test 143/143、隐私复扫 clean。后续：序号重命名、队长签名仍待用户；repo 的 demo/screenshots 旧图未动。
+
+### Git Commits
+
+(No commits - planning session)
+
+### Status
+
+[OK] **Completed**
