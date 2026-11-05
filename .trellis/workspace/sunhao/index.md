@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 74
+- **Total Sessions**: 75
 - **Last Active**: 2026-11-05
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1588 | Active |
+| `journal-1.md` | ~1608 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 75 | 2026-11-05 | 私聊记忆白纸修复：C2C 发言人绑定上线 | - | `main` |
 | 74 | 2026-11-05 | 阶段性自我提升路线：指挥 AI 的元能力+领域知识增量 | `47b1654` | `main` |
 | 73 | 2026-11-05 | 参赛材料三轮：人设全净化 + 依恋版改毒舌版 + docs 评估 | - | `main` |
 | 72 | 2026-11-05 | 参赛材料二轮：脑图立绘换 Q 版 + 源码包瘦身 + 人设文件脱敏 | - | `main` |

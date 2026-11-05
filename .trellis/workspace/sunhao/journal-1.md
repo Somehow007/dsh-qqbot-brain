@@ -1586,3 +1586,23 @@ SSH 线上取证后按用户指示用已有优化标齐数据：PATCH 把 13 条
 ### Status
 
 [OK] **Completed**
+
+
+## Session 75: 私聊记忆白纸修复：C2C 发言人绑定上线
+<!-- trellis-session: v=2 fp=183abc597da47018 -->
+
+**Date**: 2026-11-05
+**Task**: 私聊记忆白纸修复：C2C 发言人绑定上线
+**Branch**: `main`
+
+### Summary
+
+问题：群聊大肥鱼有记忆但私聊是白纸，重新积累画像。排查：SSH 走查线上 brain-data——宿主 inbound 对 C2C 消息不打发送者 tag（只给群聊组 [昵称(openid)]），而检索池会话隔离+跨会话通道要求 actor openid → 私聊三断（u:画像/态度保底/跨群召回全灭），画像只能落 sess: 兜底。方案：用户选 B 人工真值绑定——sess 画像卡 name 字段兼作发言人绑定，assemble/endOfTurn/digest/existingProfiles/PromptInjector 全链路消费；歧义昵称仍 sess: 兜底不造幽灵，episodic 维持会话隔离。验证：148/148 测试+typecheck+build 全绿；部署 rsync dist+重启 dsh-qqbot，PATCH sess:dbf7162a name=demo，服务器端 assemble 实测 [画像] 注入 u:FEFE 群主画像+跨群语义召回点亮。后续：会话卡可加已绑定角标；openid 三分片归一仍待画像合并。
+
+### Git Commits
+
+(No commits - planning session)
+
+### Status
+
+[OK] **Completed**
