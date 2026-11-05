@@ -1482,3 +1482,25 @@ SSH 线上取证后按用户指示用已有优化标齐数据：PATCH 把 13 条
 ### Status
 
 [OK] **Completed**
+
+
+## Session 70: 走查残余项修复：sess 清理+actor 归属+label 限长
+<!-- trellis-session: v=2 fp=598fc286dc62c6cd -->
+
+**Date**: 2026-11-05
+**Task**: 走查残余项修复：sess 清理+actor 归属+label 限长
+**Branch**: `main`
+
+### Summary
+
+修复 D+1 走查三个残余项：sess:1fbd1c03 旧私聊画像删除（备份留档）；memories.actor 从发言人改为事实主体（修转述归属错位）；emotion.label 限 10 字只写情绪（修情境句复读）。143/143 测试过，已部署云端 sha256 一致。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `f07d221` | 蒸馏 prompt 两项走查修正：actor 按事实主体归属、情绪 label 限 10 字 |
+
+### Status
+
+[OK] **Completed**

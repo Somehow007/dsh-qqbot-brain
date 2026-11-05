@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 69
+- **Total Sessions**: 70
 - **Last Active**: 2026-11-05
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1484 | Active |
+| `journal-1.md` | ~1506 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 70 | 2026-11-05 | 走查残余项修复：sess 清理+actor 归属+label 限长 | `f07d221` | `main` |
 | 69 | 2026-11-05 | 画像纠偏 D+1 云端复查：棘轮已止画像回稳 | - | `main` |
 | 68 | 2026-11-04 | 星光杯参赛材料打包：报名表+说明书+截图+源码包 | `11af1e3` | `main` |
 | 67 | 2026-11-04 | 虚构演示数据集：动漫社学园祭 BrainExport | `7fd31b5` | `main` |
