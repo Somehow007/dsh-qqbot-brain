@@ -8,7 +8,7 @@
 </p>
 
 ![阶段](https://img.shields.io/badge/阶段-首轮试运行已复盘-brightgreen)
-![单测](https://img.shields.io/badge/单测-148%2F148-brightgreen)
+![单测](https://img.shields.io/badge/单测-153%2F153-brightgreen)
 ![Node](https://img.shields.io/badge/node-20%2B-blue)
 ![性质](https://img.shields.io/badge/性质-私有实验项目-lightgrey)
 
@@ -115,7 +115,7 @@ QQ 消息 ──► dsh-qqbot ──► system-prompt/assemble
 | 纯字符 n-gram TF-IDF | 88.2% | 40% |
 | + embedding 混合召回（text-embedding-v3 校准） | **100%** | **20%** |
 
-**单测**：`node --test` **148/148** 通过（brain 内核 / filelog / http / page 四个测试文件 + eval 评测集），typecheck + build 全绿。
+**单测**：`node --test` **153/153** 通过（brain 内核 / filelog / http / page 四个测试文件 + eval 评测集），typecheck + build 全绿。
 
 **成本透明**：
 
