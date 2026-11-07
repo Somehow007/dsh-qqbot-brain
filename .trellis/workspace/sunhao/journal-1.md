@@ -1628,3 +1628,25 @@ SSH 线上取证后按用户指示用已有优化标齐数据：PATCH 把 13 条
 ### Status
 
 [OK] **Completed**
+
+
+## Session 77: 恋人线修复部署上线 + 强度通胀方案归档
+<!-- trellis-session: v=2 fp=d4affc0a826db9cd -->
+
+**Date**: 2026-11-07
+**Task**: 恋人线修复部署上线 + 强度通胀方案归档
+**Branch**: `main`
+
+### Summary
+
+部署：从 HEAD 干净 worktree 构建 dist（避开工作区 boundSpeaker 未提交改动），服务器备份插件包 plugin-before-20261107T151351Z-prompt-hardening-c4a12fa.tgz 后 rsync dist + systemctl restart dsh-qqbot；验证 4099 监听、/api/state 200、DELETE /api/digests 新路由生效、数据 255 条完好（2条新边界态度在库）。数据备份：API export 255 notes 落本地 brain-data/brain-export-private-2026-11-07-postcleanup.json + 服务器 backups/ + brain-data.bak-1107-postcleanup 三份。强度通胀：完成机制归因（reinforce 无冷却+不按 importance 缩放+lastAccessAt 归零正反馈+hits>0 永生）与五方向调参设计（冷却/importance 缩放/evict 修正/阈值/score），校准流水线复用 test/eval 扩 expectAbsent+replay+cfg 覆写，方案归档 archive/2026-11/11-07-strength-inflation-calibration，实调待 P1-P2 校准证据。人设文本按用户决定保留（留作黄文边界测试面）。后续：执行 P1-P4 校准计划；boundSpeaker 未提交改动待用户处理。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `48e3e95` | task: 强度通胀校准/调参方案归档 + 11-07 基线快照约定 |
+
+### Status
+
+[OK] **Completed**
