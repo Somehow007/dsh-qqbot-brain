@@ -1606,3 +1606,25 @@ SSH 线上取证后按用户指示用已有优化标齐数据：PATCH 把 13 条
 ### Status
 
 [OK] **Completed**
+
+
+## Session 76: 恋人线脑图走查与通用修复
+<!-- trellis-session: v=2 fp=763ac54eeef2c22f -->
+
+**Date**: 2026-11-07
+**Task**: 恋人线脑图走查与通用修复
+**Branch**: `main`
+
+### Summary
+
+问题：对照宿主原文（10-28至11-07，1818行）走查恋人线脑图，发现画像硬切断尾、时效事件混入语义层、病句/边界污染条目、恋人线0条attitude、digest含露骨细节与「拒绝后顺承」。排查：拉取线上snapshot+jsonl与宿主session转录逐层对照，定位为prompt规则缺口+画像写入slice硬切+巩固无时效护栏+digest无清除入口。方案：distill/consolidate/digest三处prompt加通用规则（敏感场景高层化、立场类attitude、时效锚禁入semantic、拒绝后不写顺承）；画像审核产出改truncateProfileText并补分句标点兜底；巩固含时效锚降级episodic且产出不回喂；store/http新增clearDigest与DELETE /api/digests。线上数据经brain api清理：删5条问题笔记、10条时效语义降级episodic、修正第一次日期11-04、重写demo画像267字（补考研/称呼体系/关系认知/防护约定）、补2条边界attitude、digest高层化重写。验证：node --test 128+25全绿、tsc零错、/api/state复核坏条0残留。后续：代码待部署生效；人设性唤起条款属用户自写内容已给出删改建议待确认；强化通胀调参待离线校准证据。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `369b6bc` | brain: 蒸馏/巩固/脉络规则与画像截断加固 + digest 清除能力 |
+
+### Status
+
+[OK] **Completed**
