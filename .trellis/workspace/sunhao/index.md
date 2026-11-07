@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 82
+- **Total Sessions**: 83
 - **Last Active**: 2026-11-07
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1754 | Active |
+| `journal-1.md` | ~1776 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 83 | 2026-11-07 | 私密域隔离：设计→实现→部署→验收 | `a8fc772` | `main` |
 | 82 | 2026-11-07 | 记忆阶段感与前后冲突机制探讨 | - | `main` |
 | 81 | 2026-11-07 | 15s 自动刷新编辑保护（方案A） | - | `main` |
 | 80 | 2026-11-07 | 蒸馏归因错误走查与修复 | - | `main` |

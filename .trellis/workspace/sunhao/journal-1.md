@@ -1752,3 +1752,25 @@ SSH 线上取证后按用户指示用已有优化标齐数据：PATCH 把 13 条
 ### Status
 
 [OK] **Completed**
+
+
+## Session 83: 私密域隔离：设计→实现→部署→验收
+<!-- trellis-session: v=2 fp=c0dc4f576a6af507 -->
+
+**Date**: 2026-11-07
+**Task**: 私密域隔离：设计→实现→部署→验收
+**Branch**: `main`
+
+### Summary
+
+宿主审计发现私密关系内容经 u:画像全量/attitude昵称保底/跨群召回三路飞进多人群 prompt（机制性缺可见域概念）。设计具名信任域+读侧派生作用域：note 生效域=private 覆盖 ?? 来源会话域标记，assemble 可见池单点谓词管住四路；画像单卡〔私〕句首标记+注入侧双向剥句；sess-domain op 进 graphVersion 标域即时生效零回填；判重/合并跨域不并；API+8 用例覆盖。部署 v0.2.0 后迁移：u:demo 标 5 私段、5 会话标 demo 域；线上数据 assemble 干跑验收——群侧私密关键词 0 命中、私域会话内容完整。后续：脑图页域编辑 UI、多域时〔私:demo〕细粒度、掉标周期 grep 兜底、sess:17429483 误归因另立项。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `a8fc772` | feat(brain): 私密域隔离——具名信任域 + 〔私〕画像分段，公开注入零可达 |
+
+### Status
+
+[OK] **Completed**
