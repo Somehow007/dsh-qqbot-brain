@@ -1,0 +1,22 @@
+{
+  "id": "distill-actor-attribution",
+  "name": "distill-actor-attribution",
+  "title": "蒸馏归因错误：角色观点被记成用户看法",
+  "description": "群聊中用户问角色看法，蒸馏把角色回答记成提问者的观点；merge 连续改写导致观点主体在一条记忆上漂移三次。根因：prompt 无观点归属规则。修复：蒸馏/巩固 prompt 补归属规则与 merge 主体不变护栏，线上 2 条坏数据已修复。",
+  "status": "in_progress",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P1",
+  "creator": "sunhao",
+  "assignee": "sunhao",
+  "createdAt": "2026-11-07",
+  "completedAt": null,
+  "branch": "main",
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "notes": []
+}
