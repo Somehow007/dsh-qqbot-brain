@@ -1672,3 +1672,23 @@ SSH 线上取证后按用户指示用已有优化标齐数据：PATCH 把 13 条
 ### Status
 
 [OK] **Completed**
+
+
+## Session 79: 脑图滚轮劫持修复 + 刷新破坏编辑态方案
+<!-- trellis-session: v=2 fp=62af5d9cded27daf -->
+
+**Date**: 2026-11-07
+**Task**: 脑图滚轮劫持修复 + 刷新破坏编辑态方案
+**Branch**: `main`
+
+### Summary
+
+问题：①桌面滚轮在脑图上滚动页面被劫持为缩放（wheel 无差别 preventDefault），且鼠标双击缩放从未生效（pointerType mouse 被 return）；②setInterval(load,15000) 无条件全量重绘，画像卡编辑中也会被杀、详情编辑失焦后草稿丢。解决：wheel 仅 ctrlKey(捏合)才缩放、普通滚轮放行页面；新增 dblclick 监听+dblGuard 去重；headless 实测普通滚轮页面滚 VB 不变/ctrl 缩放/双击 2x。已部署 md5 abf9b5a2。刷新问题未动手：出方案 A(编辑感知跳过+补刷，推荐)/B(分区刷新)/C(长周期+手动)/D(SSE)，附带 document.hidden 守卫，等用户拍板。任务：scroll-zoom 已归档 archive/2026-11/，refresh-guard prd 含方案对比待批准。
+
+### Git Commits
+
+(No commits - planning session)
+
+### Status
+
+[OK] **Completed**
