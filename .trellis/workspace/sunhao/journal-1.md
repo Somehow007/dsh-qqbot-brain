@@ -1794,3 +1794,23 @@ SSH 线上取证后按用户指示用已有优化标齐数据：PATCH 把 13 条
 ### Status
 
 [OK] **Completed**
+
+
+## Session 85: 叶瞬光人设包改独立资产（不进大肥鱼项目）
+<!-- trellis-session: v=2 fp=601d63b805159e57 -->
+
+**Date**: 2026-11-07
+**Task**: 叶瞬光人设包改独立资产（不进大肥鱼项目）
+**Branch**: `main`
+
+### Summary
+
+方向修正：用户明确当前是大肥鱼的项目、brain 将走向通用脱离 dsh——叶瞬光不应注册为内置人设。撤销 index.ts 注册与 src/setup 文件，改产独立 persona pack：personas/ye-shunguang/（persona.md 去 QQ 耦合 + generate_seed.py 仿 demo 生成器输出 seed-export.json + README）。种子 28 条（8 semantic/10 episodic/10 attitude）全部 manual 全局域 + ye-shunguang 分轨，attitude 按「对X：立场」格式，episodic 带情绪快照；设计取舍=常量层永驻 persona.md、种子用进废退。用法：新实例 import?mode=replace 一键初始化。task prd 已同步修正。
+
+### Git Commits
+
+(No commits - planning session)
+
+### Status
+
+[OK] **Completed**
