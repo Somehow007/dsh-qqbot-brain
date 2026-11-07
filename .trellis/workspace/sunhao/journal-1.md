@@ -1712,3 +1712,23 @@ SSH 线上取证后按用户指示用已有优化标齐数据：PATCH 把 13 条
 ### Status
 
 [OK] **Completed**
+
+
+## Session 81: 15s 自动刷新编辑保护（方案A）
+<!-- trellis-session: v=2 fp=cc97416496403206 -->
+
+**Date**: 2026-11-07
+**Task**: 15s 自动刷新编辑保护（方案A）
+**Branch**: `main`
+
+### Summary
+
+用户拍板方案A+15s周期。实现：isEditing() 判定（pane/info-detail 内焦点∪detailDirty∪.prof-edit 开着），tick 时 hidden 或编辑中整轮跳过；detailDirty 委托置位、panel/ne-save/ne-reinf/ne-del 清零；load() 内 panel 守卫扩展为 detailDirty∪焦点，手动 load 也不杀失焦草稿；tabs 加金色徽标「编辑中·自动刷新已暂停」。待定项2决策不做版本冲突检测（单人看板无并发写场景，updatedAt 留作演进路径）。验证：headless 实测编辑中16s刷新跳过草稿保留、保存即补刷、聚焦暂停失焦恢复、画像编辑框保留、空闲正常刷。npm test 153/153，已部署 md5 e575f711。任务归档 archive/2026-11/11-07-brain-refresh-guard。
+
+### Git Commits
+
+(No commits - planning session)
+
+### Status
+
+[OK] **Completed**
