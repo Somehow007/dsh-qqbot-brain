@@ -427,7 +427,7 @@
         <select name="kind"><option value="episodic">情景</option><option value="semantic">语义</option><option value="attitude">态度</option></select>
         <select name="importance"><option value="2">重要度2</option><option value="3" selected>重要度3</option><option value="4">重要度4</option><option value="5">重要度5</option></select>
         <select name="sess" id="addSess" title="归属：全部会话=全局，任何会话都能唤起；或只归属某个会话"></select>
-        <select name="priv" id="addPriv" title="可见域：派生=随会话域；私·X=仅该域可见"><option value="">派生可见域</option></select>
+        <select name="priv" id="addPriv" title="可见域：派生=随会话域；私域·X=仅该域会话可见"><option value="">派生可见域</option></select>
         <button type="submit">写入记忆</button>
       </form>
     </div>
@@ -515,9 +515,9 @@ const sessLabel=s=>s==='manual'?'全局':shortId(s);
 const scopeBadge=n=>{
   const s=n.scope;
   if(!s)return null;
-  if(s==='public')return{t:'放',tip:'手动覆盖：强制公开，任何会话可见'};
-  if(s===n.sessionId)return{t:'钉',tip:'原地私密：仅本会话可见'};
-  return{t:`私·${s}`,tip:`私域「${s}」：仅同域会话可见${n.private?'（手动覆盖）':''}`};
+  if(s==='public')return{t:'已放行',tip:'手动覆盖：强制公开，任何会话可见'};
+  if(s===n.sessionId)return{t:'仅本会话',tip:'原地私密：仅本会话可见'};
+  return{t:`私域·${s}`,tip:`私域「${s}」：仅同域会话可见${n.private?'（手动覆盖）':''}`};
 };
 const badgeHtml=n=>{const b=scopeBadge(n);return b?` <span class="badge priv" title="${esc(b.tip)}">${esc(b.t)}</span>`:'';};
 // 会话下拉统一填充：空值=全部会话；skipGlobal 用于写入表单（全局即空值，不再单列）
@@ -1125,11 +1125,11 @@ function panel(key){
       <div class="erow">
         <select id="ne-imp">${[1,2,3,4,5].map(i=>`<option value="${i}"${i===n.importance?' selected':''}>重要度${i}</option>`).join('')}</select>
         <select id="ne-kind"><option value="episodic"${n.kind==='episodic'?' selected':''}>情景</option><option value="semantic"${n.kind==='semantic'?' selected':''}>语义</option><option value="attitude"${n.kind==='attitude'?' selected':''}>态度</option></select>
-        <select id="ne-priv" title="可见域覆盖：派生=随来源会话域标记；公开=强制放行到所有会话；钉=仅本会话可见；私·X=仅该域会话可见">
+        <select id="ne-priv" title="可见域覆盖：派生=随来源会话域标记；公开=强制放行到所有会话；仅本会话=原地私密；私域·X=仅该域会话可见">
           <option value="">派生（随会话域）</option>
           <option value="public"${n.private==='public'?' selected':''}>强制公开</option>
           <option value="__sess__"${n.private===n.sessionId?' selected':''}>仅本会话</option>
-          ${[...new Set(SESS.map(s=>s.domain).filter(Boolean))].map(dm=>`<option value="${esc(dm)}"${n.private===dm?' selected':''}>私·${esc(dm)}</option>`).join('')}
+          ${[...new Set(SESS.map(s=>s.domain).filter(Boolean))].map(dm=>`<option value="${esc(dm)}"${n.private===dm?' selected':''}>私域·${esc(dm)}</option>`).join('')}
         </select>
         <button class="act" id="ne-save">保存</button>
         <button class="act" id="ne-reinf">强化</button>
@@ -1173,7 +1173,7 @@ function renderLibrary(){
   fillSessSelect($('qSess'));
   const ap=$('addPriv'),apc=ap.value;
   ap.replaceChildren(new Option('派生可见域',''));
-  [...new Set(SESS.map(s=>s.domain).filter(Boolean))].forEach(dm=>ap.appendChild(new Option('私·'+dm,dm,dm===apc,dm===apc)));
+  [...new Set(SESS.map(s=>s.domain).filter(Boolean))].forEach(dm=>ap.appendChild(new Option('私域·'+dm,dm,dm===apc,dm===apc)));
   const psel=$('libPersona'),pcur=psel.value;
   psel.replaceChildren(new Option('全部人设',''));
   [...new Set(STATE.notes.map(notePid))].forEach(pid=>psel.appendChild(new Option(personaName(pid),pid,pid===pcur,pid===pcur)));
@@ -1291,7 +1291,7 @@ function renderSessions(){
   SESS.forEach(s=>{
     const d=document.createElement('div');d.className='sess';
     const emo=s.emotion?`情绪 ${s.emotion.label||''}（v=${s.emotion.v?.toFixed(1)} a=${s.emotion.a?.toFixed(1)}）`:'情绪 —';
-    d.innerHTML=`<div class="sid">SESSION ${s.sessionId==='manual'?'全局':esc(shortId(s.sessionId))+'…'}${s.domain?` <span class="badge priv" title="私域「${esc(s.domain)}」：该会话产出的记忆仅同域会话可见">私·${esc(s.domain)}</span>`:''}${s.profileName?` <span class="badge bound" title="发言人绑定：该会话按「${esc(s.profileName)}」点亮 u: 画像/态度/跨群召回；管理这张画像→编辑 可改绑/解绑">→ ${esc(s.profileName)}</span>`:''}</div>
+    d.innerHTML=`<div class="sid">SESSION ${s.sessionId==='manual'?'全局':esc(shortId(s.sessionId))+'…'}${s.domain?` <span class="badge priv" title="私域「${esc(s.domain)}」：该会话产出的记忆仅同域会话可见">私域·${esc(s.domain)}</span>`:''}${s.profileName?` <span class="badge bound" title="发言人绑定：该会话按「${esc(s.profileName)}」点亮 u: 画像/态度/跨群召回；管理这张画像→编辑 可改绑/解绑">→ ${esc(s.profileName)}</span>`:''}</div>
       <div class="prof"></div><div class="meta"></div><div class="domrow"></div>
       <details class="note-edit"><summary>管理这张画像</summary>
         <div class="erow">
@@ -1304,7 +1304,7 @@ function renderSessions(){
     d.querySelector('.meta').textContent=`${s.noteCount} 条记忆 · ${emo}`;
     // 私域标记：domain=信任域名（同名会话共享私域池）；公开=清除标记；即时生效零回填
     const dom=d.querySelector('.domrow'),doms=[...new Set(SESS.map(x=>x.domain).filter(Boolean))];
-    dom.innerHTML=`<span>域</span><select><option value="">公开</option>${doms.map(x=>`<option value="${esc(x)}"${x===s.domain?' selected':''}>私·${esc(x)}</option>`).join('')}<option value="__new__">+新域…</option></select><button class="act" type="button">设</button>`;
+    dom.innerHTML=`<span>域</span><select><option value="">公开</option>${doms.map(x=>`<option value="${esc(x)}"${x===s.domain?' selected':''}>私域·${esc(x)}</option>`).join('')}<option value="__new__">+新域…</option></select><button class="act" type="button">设</button>`;
     dom.querySelector('button').onclick=async()=>{
       let v=dom.querySelector('select').value;
       if(v==='__new__'){v=(prompt('私域名（同名会话共享信任域，如 demo）')||'').trim();if(!v)return;}
@@ -1330,7 +1330,7 @@ function opDesc(o){
     case 'profile':return `${op.name?op.name+'：':''}${(op.text||'').slice(0,46)}`;
     case 'persona':return (op.text||'').slice(0,46);
     case 'del-range':return `删除 ${(op.ids||[]).length} 条（${fmtT(op.from)} ~ ${fmtT(op.to)}）`;
-    case 'sess-domain':return `${shortId(op.sessionId)} → ${op.domain?`私·${op.domain}`:'公开'}`;
+    case 'sess-domain':return `${shortId(op.sessionId)} → ${op.domain?`私域·${op.domain}`:'公开'}`;
     case 'reset':return op.keepPersona?'清空记忆数据（人设保留）':'清空全部数据（导入覆盖）';
     default:return op.op;
   }

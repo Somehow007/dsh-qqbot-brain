@@ -30,11 +30,11 @@ const { cleanText, nodeLabel, mapLabel, previewText, buildRelations, relationWhy
   scopeBadge: (note: { scope?: string; private?: string; sessionId: string }) => { t: string; tip: string } | null;
 };
 
-test('私域徽标：生效域→私·域名；=会话id→钉；public 覆盖→放；公开无徽标', () => {
+test('私域徽标：生效域→私域·域名；=会话id→仅本会话；public 覆盖→已放行；公开无徽标', () => {
   assert.equal(scopeBadge({ sessionId: 's1' }), null);
-  assert.equal(scopeBadge({ sessionId: 's1', scope: 's1' })!.t, '钉');
-  assert.equal(scopeBadge({ sessionId: 's1', scope: 'demo' })!.t, '私·demo');
-  assert.equal(scopeBadge({ sessionId: 's1', scope: 'public' })!.t, '放');
+  assert.equal(scopeBadge({ sessionId: 's1', scope: 's1' })!.t, '仅本会话');
+  assert.equal(scopeBadge({ sessionId: 's1', scope: 'demo' })!.t, '私域·demo');
+  assert.equal(scopeBadge({ sessionId: 's1', scope: 'public' })!.t, '已放行');
   const b = scopeBadge({ sessionId: 's1', scope: 'demo', private: 'demo' })!;
   assert.match(b.tip, /手动覆盖/);
 });
