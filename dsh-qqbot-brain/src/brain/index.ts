@@ -133,7 +133,9 @@ export class Brain {
     queryVec?: number[],
   ): BrainContext {
     const now = this.now();
-    const sp = typeof speaker === 'string' ? { nick: speaker } : speaker;
+    // 私聊无 tag：sess 画像卡人工绑定的昵称回退为发言人（name 空=未绑定，行为不变）
+    const given = typeof speaker === 'string' ? { nick: speaker } : speaker;
+    const sp = given?.openid || given?.nick ? given : this.boundSpeaker(sessionId);
     // 事实共享·态度分轨：检索池先滤掉他人设态度，
     // topK 命中/强化/昵称保底/跨群召回四处口径自然一致。
     const visible = this.store.allNotes().filter((n) => this.attitudeVisible(n) && !n.absorbedAt);
@@ -242,7 +244,10 @@ export class Brain {
     try {
       const now = this.now();
       const activePid = this.store.activePersonaId();
-      const actors = turns.map((t) => t.actor);
+      // 私聊绑定视图：整批无 tag 且画像卡绑了 name 时，发言人显示为绑定昵称——
+      // convo 行/actors 归集/existingProfiles 同口径生效（绑定=人工真值，非推断）
+      const viewTurns = this.withBoundSpeaker(sessionId, turns);
+      const actors = viewTurns.map((t) => t.actor);
       // 判重：附上当前 top-相关已有记忆，蒸馏结果可用 merge 指回更新而非重复新增。
       // 他人设的 attitude 不进列表——否则 mergeIndex 会改写别的人设的态度轨。
       const queryText = turns.map((t) => t.userText).join(' ');
@@ -254,7 +259,7 @@ export class Brain {
         .slice(0, 8)
         .map((s) => s.note);
       const result = await this.distiller.distill(
-        turns, this.personaForPrompts(), existing, this.emotion.get(sessionId, now),
+        viewTurns, this.personaForPrompts(), existing, this.emotion.get(sessionId, now),
         this.existingProfiles(sessionId, actors),
         { now, timeZone: this.cfg.timeZone },
       );
@@ -383,7 +388,7 @@ export class Brain {
     if (buf.length === 0) return;
     this.digesting.add(sessionId);
     try {
-      const recent = buf.slice(-this.cfg.digestWindowTurns);
+      const recent = this.withBoundSpeaker(sessionId, buf.slice(-this.cfg.digestWindowTurns));
       const text = await this.distiller.digest(
         recent, this.store.digestOf(sessionId)?.text ?? '', this.personaForPrompts(),
         { now: this.now(), timeZone: this.cfg.timeZone }, this.cfg.digestTurnCharCap,
@@ -397,16 +402,51 @@ export class Brain {
     }
   }
 
-  /** 收集「现有画像」供蒸馏增量修订：会话级画像 + 涉及发言人（带 openid）的个人画像 */
+  /**
+   * 私聊发言人绑定：sess 画像卡 name 字段即「该会话发言人是谁」的人工绑定。
+   * C2C 消息宿主不打发送者 tag（inbound 只对 group 组装 [昵称 (openid)]），
+   * 无 tag 会话用绑定昵称作 speaker——读路径按 nick 点亮 u: 画像/态度保底/跨群召回；
+   * 写路径 convo 行显示绑定昵称且 existingProfiles 可见该人画像。
+   * name 为空=未绑定，一切行为与旧逻辑一致。
+   */
+  boundSpeakerNick(sessionId: string): string {
+    return this.store.profileEntry(sessionProfileKey(sessionId))?.name?.trim() ?? '';
+  }
+
+  private boundSpeaker(sessionId: string): { nick?: string; openid?: string } | undefined {
+    const nick = this.boundSpeakerNick(sessionId);
+    return nick ? { nick } : undefined;
+  }
+
+  /**
+   * 发言人绑定视图：整批轮次都没有真实 tag 且绑了 name 时，把发言人显示为
+   * 绑定昵称；有一条真 tag 的会话原样返回（群聊个别消息解析失败不注入绑定人）。
+   */
+  private withBoundSpeaker(sessionId: string, turns: Turn[]): Turn[] {
+    if (turns.some((t) => t.actor)) return turns;
+    const nick = this.boundSpeakerNick(sessionId);
+    if (!nick) return turns;
+    return turns.map((t) => ({ ...t, actor: t.actor ?? nick }));
+  }
+
+  /** 收集「现有画像」供蒸馏增量修订：会话级画像 + 涉及发言人的个人画像 */
   private existingProfiles(sessionId: string, actors: (string | undefined)[]): { actor?: string; text: string }[] {
     const out: { actor?: string; text: string }[] = [];
     const sessProfile = this.store.profileOf(sessionId);
     if (sessProfile) out.push({ text: sessProfile });
     for (const actor of new Set(actors.filter((a): a is string => !!a))) {
       const id = splitActor(actor);
-      if (!id.openid) continue;
-      const text = this.store.profileOf(userProfileKey(id.openid));
-      if (text) out.push({ actor, text });
+      if (id.openid) {
+        const text = this.store.profileOf(userProfileKey(id.openid));
+        if (text) out.push({ actor, text });
+        continue;
+      }
+      // 裸昵称（私聊绑定 name 等）：按画像 name 精确匹配收该人全部可见 u: 画像，
+      // 合成全 tag 供种回键位按 openid 归位；草稿落键仍走 resolveProfileTarget 校验
+      for (const p of this.store.people()) {
+        if (!p.openid || p.name !== id.nick || !p.text) continue;
+        out.push({ actor: `${p.name} (${p.openid})`, text: p.text });
+      }
     }
     return out;
   }

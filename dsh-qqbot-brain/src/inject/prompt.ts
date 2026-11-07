@@ -100,9 +100,15 @@ export class PromptInjector {
 
       const query = this.lastUserText.get(sessionId) ?? '';
       const actor = this.lastActor.get(sessionId);
+      // 私聊绑定：sess 画像卡 name 作发言人（assemble 内另有同名回退，此处取来驱动 speaker section）
+      const boundNick = actor ? '' : this.brain.boundSpeakerNick(sessionId);
       const queryVec = await vecP;
       // actor 形如「昵称 (openid)」（昵称本身可能含括号），拆出昵称与 openid 供画像/态度按人取
-      const brain = this.brain.assemble(sessionId, query, actor ? splitActor(actor) : undefined, queryVec);
+      const brain = this.brain.assemble(
+        sessionId, query,
+        actor ? splitActor(actor) : (boundNick ? { nick: boundNick } : undefined),
+        queryVec,
+      );
 
       const sections = [...(assembled.sections ?? [])];
       if (this.config.injectPersona && brain.persona) {
@@ -111,8 +117,8 @@ export class PromptInjector {
       if (this.config.injectDigest && brain.digest) {
         sections.push({ name: 'brain:digest', order: 81, text: `【会话脉络】${brain.digest}` });
       }
-      if (this.config.injectSpeaker && actor) {
-        sections.push({ name: 'brain:speaker', order: 10300, text: `【当前发言人】${actor}` });
+      if (this.config.injectSpeaker && (actor || boundNick)) {
+        sections.push({ name: 'brain:speaker', order: 10300, text: `【当前发言人】${actor || boundNick}` });
       }
       if (this.config.injectAttitude && brain.attitudeLines.length) {
         sections.push({

@@ -3,7 +3,9 @@
  *
  * 画像主键：
  * - `u:<openid>`    发言人身份（群聊 tag 带 openid，跨会话稳定）
- * - `sess:<sessionId>` 会话兜底（私聊无 tag；dsh 私聊 sessionId 本身由用户 openid 确定性派生）
+ * - `sess:<sessionId>` 会话兜底（私聊无 tag；dsh 私聊 sessionId 本身由用户 openid 确定性派生）。
+ *   sess 条目的 name 字段兼作「私聊发言人绑定」：人工填发言人昵称后，
+ *   Brain.boundSpeakerNick 把它当该会话的发言人（读路径按昵称点亮 u: 画像/态度/跨群召回）。
  */
 
 /** actor 形如「昵称 (openid)」，昵称本身可能含括号，取末尾 (id) 组 */

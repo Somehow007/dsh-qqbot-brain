@@ -1139,6 +1139,93 @@ test('assemble: 同人多 openid 画像按 name 归并注入', () => {
   assert.match(profileLine, /体型调侃/);
 });
 
+// ── 私聊发言人绑定（sess 画像卡 name）──
+test('boundSpeakerNick: 取 sess 画像 name；未绑定/无画像返回空串', () => {
+  const { store } = tmpStore();
+  const brain = new Brain({ store, distiller: mockDistiller({}), now });
+  assert.equal(brain.boundSpeakerNick('c2c'), '');
+  store.setProfileEntry('sess:c2c', '私聊画像', { sessionId: 'c2c' });
+  assert.equal(brain.boundSpeakerNick('c2c'), '');
+  store.setProfileEntry('sess:c2c', '私聊画像', { sessionId: 'c2c', name: 'demo' });
+  assert.equal(brain.boundSpeakerNick('c2c'), 'demo');
+});
+
+test('assemble: 私聊绑定后按昵称点亮 u:画像/态度保底/跨群语义召回；episodic 不跨会话', () => {
+  const { store } = tmpStore();
+  // 群聊沉淀：demo 的 u: 画像 + 态度 + 语义记忆 + 流水（openid 用真实 hex 形态）
+  store.setProfileEntry(userProfileKey('FEFE5282E38BAB65FD11F7C87E5D50F2'), 'demo是群主，与角色恋人关系', { sessionId: 'g1', name: 'demo' });
+  store.addNote('g1', { content: '对demo：嘴上嫌弃其实信任', importance: 4, kind: 'attitude', actor: 'demo (FEFE5282E38BAB65FD11F7C87E5D50F2)' }, NOW);
+  store.addNote('g1', { content: 'demo：家里养了只橘猫', importance: 4, kind: 'semantic', actor: 'demo (FEFE5282E38BAB65FD11F7C87E5D50F2)' }, NOW);
+  store.addNote('g1', { content: 'demo：昨晚发了张梗图', importance: 3, kind: 'episodic', actor: 'demo (FEFE5282E38BAB65FD11F7C87E5D50F2)' }, NOW);
+  // 私聊会话已有 sess 画像但未绑定 → 群聊数据全部不可见（修复前行为）
+  store.setProfileEntry('sess:c2c', 'demo 是角色的主人', { sessionId: 'c2c' });
+  const brain = new Brain({ store, distiller: mockDistiller({}), now });
+  const cold = brain.assemble('c2c', '橘猫');
+  assert.ok(!cold.memoryLines.some((l) => l.includes('demo是群主')));
+  assert.equal(cold.attitudeLines.length, 0);
+  assert.ok(!cold.memoryLines.some((l) => l.includes('跨群')));
+  // 画像卡绑定 name='demo' → nick 级读路径点亮
+  store.setProfileEntry('sess:c2c', 'demo 是角色的主人', { sessionId: 'c2c', name: 'demo' });
+  const ctx = brain.assemble('c2c', '橘猫');
+  assert.match(ctx.memoryLines[0]!, /画像.*demo是群主/);
+  assert.match(ctx.memoryLines[1]!, /会话画像.*demo 是角色的主人/);
+  assert.ok(ctx.attitudeLines.some((l) => l.includes('对demo')));
+  assert.ok(ctx.memoryLines.some((l) => l.includes('跨群') && l.includes('橘猫')));
+  assert.ok(!ctx.memoryLines.some((l) => l.includes('梗图'))); // episodic 仍不跨会话
+});
+
+test('assemble: 显式 speaker 优先于绑定昵称', () => {
+  const { store } = tmpStore();
+  store.setProfileEntry(userProfileKey('OID_DEMO'), 'demo是群主', { sessionId: 'g1', name: 'demo' });
+  store.setProfileEntry('sess:g1', '群画像', { sessionId: 'g1', name: 'demo' });
+  const brain = new Brain({ store, distiller: mockDistiller({}), now });
+  // 群聊里李四发言：绑定 demo 不应顶替真实发言人
+  const ctx = brain.assemble('g1', 'hi', { nick: '李四', openid: 'OID_LS' });
+  assert.ok(!ctx.memoryLines.some((l) => l.includes('demo是群主')));
+});
+
+test('endOfTurn: 绑定私聊蒸馏可见该人 u: 画像；昵称歧义草稿仍落 sess:', async () => {
+  const { store } = tmpStore();
+  // 'demo' 对应两张 u: 画像（真实线上：同人多 openid 碎片）
+  store.setProfileEntry(userProfileKey('FEFE5282E38BAB65FD11F7C87E5D50F2'), 'demo画像：自律爱学习', { sessionId: 'g1', name: 'demo' });
+  store.setProfileEntry(userProfileKey('99449CA8F9BBA79926C9A9B55D4504C2'), 'demo画像：爱发表情包', { sessionId: 'g2', name: 'demo' });
+  store.setProfileEntry('sess:c2c', '私聊旧画像', { sessionId: 'c2c', name: 'demo' });
+  const brain = new Brain({
+    store, now,
+    distiller: mockDistiller({
+      memories: [],
+      profiles: [{ actor: 'demo', text: '私聊新画像' }],
+    }),
+  });
+  brain.ingest('c2c', { userText: 'hi', assistantText: '咕嘟', at: NOW });
+  await brain.endOfTurn('c2c');
+  // 草稿昵称歧义 → sess: 兜底不造幽灵；u: 画像文本不被私聊蒸馏改写
+  assert.equal(store.profileOf('c2c'), '私聊新画像');
+  assert.equal(store.profileOf(userProfileKey('FEFE5282E38BAB65FD11F7C87E5D50F2')), 'demo画像：自律爱学习');
+  // u: 画像已审内容首次在绑定会话出现 → 补会话归属簿记
+  assert.ok(store.people().find((p) => p.openid === 'FEFE5282E38BAB65FD11F7C87E5D50F2')!.sessions.includes('c2c'));
+});
+
+test('endOfTurn: 绑定私聊 convo 行显示绑定昵称而非「用户」', async () => {
+  const { store } = tmpStore();
+  store.setProfileEntry('sess:c2c', '私聊画像', { sessionId: 'c2c', name: 'demo' });
+  let seen = '';
+  const distiller = new Distiller(
+    { enabled: true, baseUrl: 'https://x.test', apiKey: 'k', model: 'm', timeoutMs: 1000, maxNotes: 5 },
+    async (_u, init) => {
+      const p = (JSON.parse(init.body) as { messages: { content: string }[] }).messages[0]!.content;
+      // 只取蒸馏 prompt——后续的画像审核调用会覆盖
+      if (p.includes('记忆提炼模块')) seen = p;
+      return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content: '{"memories":[]}' } }] }) };
+    },
+  );
+  const brain = new Brain({ store, now, distiller });
+  brain.ingest('c2c', { userText: '想我了没', assistantText: '咕嘟', at: NOW });
+  await brain.endOfTurn('c2c');
+  assert.match(seen, /demo：想我了没/);
+  assert.ok(!seen.includes('用户：想我了没'));
+});
+
 // ── 语义向量：embedding 命中与回退 ──
 import { Embedder } from '../src/brain/embed.ts';
 import type { EmbedFetchLike } from '../src/brain/embed.ts';

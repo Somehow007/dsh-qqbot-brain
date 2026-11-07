@@ -554,18 +554,23 @@ export class BrainStore {
   }
 
   /** 全部已知会话：记忆 / 会话级画像 / 情绪三个来源的并集 */
-  sessions(): { sessionId: string; noteCount: number; profile: string; emotion?: EmotionState }[] {
+  sessions(): { sessionId: string; noteCount: number; profile: string; profileName: string; emotion?: EmotionState }[] {
     const ids = new Set<string>([
       ...[...this.profiles.keys()].filter(isSessionKey).map((k) => k.slice(5)),
       ...this.emotions.keys(),
       ...[...this.notes.values()].map((n) => n.sessionId),
     ]);
-    return [...ids].map((sessionId) => ({
-      sessionId,
-      noteCount: [...this.notes.values()].filter((n) => n.sessionId === sessionId).length,
-      profile: this.profiles.get(sessionProfileKey(sessionId))?.text ?? '',
-      emotion: this.emotions.get(sessionId),
-    }));
+    return [...ids].map((sessionId) => {
+      const entry = this.profiles.get(sessionProfileKey(sessionId));
+      return {
+        sessionId,
+        noteCount: [...this.notes.values()].filter((n) => n.sessionId === sessionId).length,
+        profile: entry?.text ?? '',
+        // sess 画像 name=私聊发言人绑定（画像卡编辑写入；空=未绑定）
+        profileName: entry?.name ?? '',
+        emotion: this.emotions.get(sessionId),
+      };
+    });
   }
 
   /**
