@@ -121,7 +121,8 @@ export const PROFILE_TEXT_CAP = 500;
 
 /**
  * 画像文本截断：超出上限时优先在上限内最后一个句末标点处收束，
- * 避免从句子中间切断；句末标点太靠前（<40%）或没有时才硬切。
+ * 避免从句子中间切断；句末标点太靠前（<40%）或没有时退到分句标点，
+ * 分句标点也没有才硬切——线上出过画像以半句残文落盘。
  */
 export function truncateProfileText(text: string, cap: number): string {
   const t = text.trim();
@@ -132,10 +133,17 @@ export function truncateProfileText(text: string, cap: number): string {
     head.lastIndexOf('!'), head.lastIndexOf('?'), head.lastIndexOf('；'),
     head.lastIndexOf(';'), head.lastIndexOf('\n'),
   );
-  if (end < Math.floor(cap * 0.4)) return head;
-  let cut = end + 1;
-  while (cut < head.length && '」』”’"'.includes(head[cut]!)) cut++;
-  return head.slice(0, cut);
+  const closeTail = (cut: number) => {
+    while (cut < head.length && '」』”’"'.includes(head[cut]!)) cut++;
+    return cut;
+  };
+  if (end >= Math.floor(cap * 0.4)) return head.slice(0, closeTail(end + 1));
+  const soft = Math.max(
+    head.lastIndexOf('，'), head.lastIndexOf('、'), head.lastIndexOf('：'),
+    head.lastIndexOf(','), head.lastIndexOf(':'),
+  );
+  if (soft >= Math.floor(cap * 0.6)) return head.slice(0, soft);
+  return head;
 }
 
 // ── 向量编解码：派生态以 base64(f32) 存快照，不进 op 流水 ──
@@ -278,6 +286,8 @@ export class BrainStore {
       }
       case 'emotion': this.emotions.set(op.sessionId, op.state); break;
       case 'digest':
+        // 空文本即删除语义：clearDigest 通过空 text op 清脉络
+        if (!op.text.trim()) { this.digests.delete(op.sessionId); break; }
         this.digests.set(op.sessionId, {
           text: op.text,
           uptoTurn: op.uptoTurn ?? this.digests.get(op.sessionId)?.uptoTurn ?? 0,
@@ -477,6 +487,11 @@ export class BrainStore {
   setDigest(sessionId: string, text: string, uptoTurn: number): void {
     if (!text.trim()) return;
     this.persist({ op: 'digest', sessionId, text: text.trim(), uptoTurn });
+  }
+
+  /** 清空会话脉络：空文本 digest op 即删除语义（setDigest 只写非空） */
+  clearDigest(sessionId: string): void {
+    this.persist({ op: 'digest', sessionId, text: '' });
   }
 
   digestOf(sessionId: string): SessionDigest | undefined {

@@ -2074,3 +2074,72 @@ test('consolidate: 合规「对X：」立场输出落 attitude 并归源条众�
   const sem = store.allNotes().find((n) => n.kind === 'semantic')!;
   assert.equal(sem.personaId, 'whale-devotion'); // semantic provenance 仍记活动人设
 });
+
+// ── 11-07 恋人线走查修复 ──
+
+test('store: 画像截断无句末标点时退到分句标点，不留半句残文', () => {
+  const { store } = tmpStore();
+  // cap 内句末标点太靠前（位置 1 < 200）→ 退到分句标点（452 ≥ 300），截在逗号前
+  const text = '短。' + 'x'.repeat(450) + '，' + 'y'.repeat(400);
+  store.setProfile('s1', text);
+  const p = store.profileOf('s1');
+  assert.equal(p.length, 452);
+  assert.ok(!p.endsWith('，'));
+});
+
+test('digest: clearDigest 清空脉络并持久化（空文本 op=删除语义）', () => {
+  const { dir, store } = tmpStore();
+  store.setDigest('s1', '旧脉络', 15);
+  store.clearDigest('s1');
+  assert.equal(store.digestOf('s1'), undefined);
+  store.setDigest('s1', '新脉络', 30);
+  const re = new BrainStore(dir);
+  re.load();
+  assert.equal(re.digestOf('s1')!.text, '新脉络');
+  re.clearDigest('s1');
+  const re2 = new BrainStore(dir);
+  re2.load();
+  assert.equal(re2.digestOf('s1'), undefined);
+});
+
+test('endOfTurn: 审核产出的超长画像按标点收束，不留半句残文', async () => {
+  const { store } = tmpStore();
+  const long = '甲：' + 'x'.repeat(450) + '，' + 'y'.repeat(200);
+  const distiller = mockDistiller({ memories: [], profiles: [{ actor: '张三 (ABCDEF1234567890)', text: long }] });
+  const brain = new Brain({ store, distiller, now });
+  brain.ingest('s1', { userText: 'hi', assistantText: '咕', actor: '张三 (ABCDEF1234567890)', at: NOW });
+  await brain.endOfTurn('s1');
+  assert.equal(store.profileOf('u:ABCDEF1234567890').length, 452);
+});
+
+test('consolidate: 含时效锚点的产出降级为 episodic，且不再回喂巩固', async () => {
+  const { store } = tmpStore();
+  store.addNote('s1', { content: '张三这阵子在赶项目', importance: 4 }, NOW - 3 * DAY);
+  const distiller = new Distiller(
+    { enabled: true, baseUrl: 'https://x.test', apiKey: 'k', model: 'm', timeoutMs: 1000, maxNotes: 5 },
+    async (_url, init) => {
+      const prompt = (JSON.parse(init.body) as { messages: { content: string }[] }).messages[0]!.content;
+      const content = prompt.includes('长期人物画像的编辑')
+        ? '{"profiles":[]}'
+        : JSON.stringify({ memories: [{ content: '张三的项目明天截止', importance: 3 }], profiles: [] });
+      return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content } }] }) };
+    },
+  );
+  const brain = new Brain({ store, distiller, now, config: { consolidateMinNotes: 1 } });
+  await brain.consolidate('s1');
+  const demoted = store.allNotes().find((n) => n.content.includes('明天'));
+  assert.equal(demoted?.kind, 'episodic');
+  // 巩固产出（含降级条）不回喂：下一轮没有可加工的 episodic
+  assert.equal(await brain.consolidate('s1'), 0);
+  assert.deepEqual(brain.sessionsNeedingConsolidation(), []);
+});
+
+test('prompt: 蒸馏/巩固/脉络提示含敏感场景与时效锚通用规则', () => {
+  const d = buildDistillPrompt([{ userText: 'x', assistantText: 'y', at: NOW }], 'p', 5);
+  assert.match(d, /只记约定、边界或结论/);
+  assert.match(d, /底线、拒绝方式与相处规则也是立场/);
+  const c = buildConsolidatePrompt([], '', 'p');
+  assert.match(c, /带时间锚点的条目/);
+  const g = buildDigestPrompt([{ userText: 'x', assistantText: 'y', at: NOW }], '', 'p');
+  assert.match(g, /拒绝后仍被叙述推进/);
+});

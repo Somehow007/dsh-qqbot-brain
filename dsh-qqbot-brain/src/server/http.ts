@@ -168,6 +168,13 @@ export class BrainHttpServer {
       this.brain.flush();
       return json(res, { ok: true, deleted });
     }
+    if (p === `${prefix}/api/digests` && req.method === 'DELETE') {
+      const sid = url.searchParams.get('session') ?? '';
+      if (!sid) { res.writeHead(400).end('session required'); return; }
+      return this.brain.clearDigest(sid)
+        ? json(res, { ok: true })
+        : void res.writeHead(404).end('digest not found');
+    }
     if (p === `${prefix}/api/reset` && req.method === 'POST') {
       const cleared = this.brain.resetMemory();
       this.brain.flush();
@@ -285,7 +292,7 @@ export class BrainHttpServer {
       const prefix = this.cfg.prefix.replace(/\/$/, '');
       webServer.register({ path: prefix, handler: (r, s) => this.route(r, s) });
       webServer.register({ path: `${prefix}/`, handler: (r, s) => this.route(r, s) });
-      for (const sub of ['/api/state', '/api/query', '/api/persona', '/api/personas', '/api/personas/activate', '/api/sessions', '/api/profiles', '/api/profiles/merge', '/api/profiles/regenerate', '/api/ops', '/api/notes', '/api/notes/purge', '/api/reset', '/api/export', '/api/import', '/api/dedup']) {
+      for (const sub of ['/api/state', '/api/query', '/api/persona', '/api/personas', '/api/personas/activate', '/api/sessions', '/api/profiles', '/api/profiles/merge', '/api/profiles/regenerate', '/api/ops', '/api/notes', '/api/notes/purge', '/api/digests', '/api/reset', '/api/export', '/api/import', '/api/dedup']) {
         webServer.register({ path: `${prefix}${sub}`, handler: (r, s) => this.route(r, s) });
       }
       this.log(`brain: 已挂载到宿主 webServer ${prefix}`);

@@ -85,6 +85,13 @@ export const GLOBAL_SESSION_ID = 'manual';
  */
 export const ATTITUDE_OBJECT_RE = /^对(.{1,24}?)[：:]/;
 
+/**
+ * 时效锚点：含相对时间词或具体月日的陈述是「一次性事件」而非稳定语义。
+ * 巩固产出命中此表的候选按 episodic 入库（信息仍可检索，只是不占语义位）——
+ * 线上实测「11月6日不用早起」「项目截止明天」曾被提升为 semantic 长期驻留。
+ */
+export const EPHEMERAL_TIME_RE = /今天|今晚|明天|昨天|昨晚|前天|后天|刚才|刚刚|这周|本周|上周|下周|今早|\d+\s*月\s*\d+\s*[日号]/;
+
 /** 记忆归属人设：缺 personaId 的存量按 PRE_TAG_PERSONA_ID 计 */
 export function notePersonaId(n: { personaId?: string }): string {
   return n.personaId ?? PRE_TAG_PERSONA_ID;

@@ -1,11 +1,11 @@
-import { ATTITUDE_OBJECT_RE, DEFAULT_BRAIN_CONFIG, GLOBAL_SESSION_ID, MOOD_VALENCE, notePersonaId } from './types.ts';
+import { ATTITUDE_OBJECT_RE, DEFAULT_BRAIN_CONFIG, EPHEMERAL_TIME_RE, GLOBAL_SESSION_ID, MOOD_VALENCE, notePersonaId } from './types.ts';
 import type { BrainConfig, BrainContext, DistillResult, EmotionState, MemoryNote, NoteDraft, NoteEmotion, Turn } from './types.ts';
 import { isUserKey, normalizeProfileKey, resolveActorTag, sessionProfileKey, splitActor, userProfileKey } from './identity.ts';
 import { ageInDays, retention } from './decay.ts';
 import { ageLabel, formatClock } from './time.ts';
 import { Retriever } from './retrieval.ts';
 import { EmotionEngine, NEUTRAL_EMOTION } from './emotion.ts';
-import { BrainStore, PROFILE_TEXT_CAP } from './store.ts';
+import { BrainStore, PROFILE_TEXT_CAP, truncateProfileText } from './store.ts';
 import { Distiller } from './distill.ts';
 import type { ProfileReviewItem } from './distill.ts';
 import type { Embedder } from './embed.ts';
@@ -484,7 +484,7 @@ export class Brain {
     }
     const people = this.store.people();
     for (const [i, [key, item]] of pending.entries()) {
-      const text = reviewed[i]!.slice(0, PROFILE_TEXT_CAP);
+      const text = truncateProfileText(reviewed[i]!, PROFILE_TEXT_CAP);
       const isUser = isUserKey(key);
       const needsSessionLink = isUser && !!text
         && !(people.find((p) => p.key === key)?.sessions ?? []).includes(sessionId);
@@ -604,6 +604,13 @@ export class Brain {
     return { ok: true };
   }
 
+  /** 清空会话脉络（管理入口；清空后由滚动摘要按节奏重建） */
+  clearDigest(sessionId: string): boolean {
+    const had = !!this.store.digestOf(sessionId);
+    if (had) this.store.clearDigest(sessionId);
+    return had;
+  }
+
   /** 按时间段删除记忆（createdAt 闭区间）；返回删除条数 */
   purgeNotesInRange(from: number, to: number): number {
     return this.store.deleteNotesInRange(from, to).length;
@@ -646,7 +653,9 @@ export class Brain {
     const eps = this.store.allNotes().filter(
       (n) => n.sessionId === sessionId && n.kind === 'episodic' && !n.absorbedAt
         && ageInDays(n, now) >= this.cfg.consolidateMinAgeDays
-        && !covered.has(n.id),
+        && !covered.has(n.id)
+        // 巩固自身的产出（含降级回 episodic 的条）不再回喂，防循环再加工
+        && !(n.sourceIds?.length),
     );
     if (eps.length < this.cfg.consolidateMinNotes) return 0;
     const epActors = eps.map((n) => n.actor);
@@ -678,8 +687,14 @@ export class Brain {
     for (let i = 0; i < result.memories.length; i++) {
       const m = result.memories[i]!;
       // 巩固可产立场条：合规「对X：」落 attitude，其余一律 semantic（与 endOfTurn 同口径格式护栏）
-      const kind: MemoryNote['kind'] =
+      let kind: MemoryNote['kind'] =
         m.kind === 'attitude' && ATTITUDE_OBJECT_RE.test(m.content.trim()) ? 'attitude' : 'semantic';
+      // 时效锚点不是稳定语义：带「明天/昨晚/某月某日」的陈述一律落 episodic——
+      // 线上出过「11月6日不用早起」被提升为 semantic 长期驻留
+      if (kind === 'semantic' && EPHEMERAL_TIME_RE.test(m.content)) {
+        kind = 'episodic';
+        this.log?.(`巩固降级：含时效锚点按情景入库：${m.content.slice(0, 24)}…`);
+      }
       const vec = vecs?.[i] ?? null;
       const dup = vec ? this.findNearDup(vec, kind) : undefined;
       if (dup) {
@@ -749,6 +764,7 @@ export class Brain {
     const eligible = new Map<string, number>();
     for (const n of this.store.allNotes()) {
       if (n.kind !== 'episodic' || n.absorbedAt || covered.has(n.id)) continue;
+      if (n.sourceIds?.length) continue;
       if (ageInDays(n, now) < this.cfg.consolidateMinAgeDays) continue;
       eligible.set(n.sessionId, (eligible.get(n.sessionId) ?? 0) + 1);
     }
