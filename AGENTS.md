@@ -23,6 +23,12 @@ Managed by Trellis. Edits outside this block are preserved; edits inside may be 
 ## 项目约定
 
 - **问题存档**：每次探讨过的问题都要在 `.trellis/tasks/` 存档——记清楚「遇到了什么问题 / 怎么解决的 / 什么时候干的」。哪怕是纯讨论、没写代码，也要建 task 写 prd.md 留痕。
+- **线上数据在哪**：生产数据全在腾讯云 `ubuntu@124.222.65.169`（SSH 直连，无别名），本仓库不含真实数据。
+  - 插件目录 `~/dsh-qqbot-brain/`——部署 = 本地 `npm run build` 后 `rsync` `dist`（不带尾斜杠）+`package.json` 上去（不动远端 `cordis.patch.yml`），`sudo systemctl restart dsh-qqbot` 生效；服务器 dsh/node 在 `PATH=/opt/node-v24/bin`。
+  - 脑数据目录 `~/brain-data/`（BRAIN_DATA_DIR：persona.md、op 流水、brain.log）；宿主会话原文 `~/.dsh/sessions/**/session.v4.jsonl.zstd`，QQ key→sessionId 映射 `~/.dsh-qqbot/model-prefs.json`。
+  - 脑图公网直连 `http://124.222.65.169:4099/brain?token=<口令>`；口令/密钥在服务器 `~/dsh-qqbot-brain/cordis.patch.yml` 与 `~/.dsh/brain.env`（600），不落 git。
+  - 备份：服务器 `~/backups/*.tgz`（部署前插件+数据成对备份）+ 每日 cron + 本地 `brain-data/*.json`（`/brain/api/export` 落盘，gitignored）。
+  - 细节见 `dsh-qqbot-brain/README.md`「部署 runbook」与 `docs/brain-backup-restore.md`；历次线上操作存档搜 `.trellis/tasks/archive/` 里的 `124.222`。
 
 ### 归档流程（两层）
 
