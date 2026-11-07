@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 77
+- **Total Sessions**: 78
 - **Last Active**: 2026-11-07
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1652 | Active |
+| `journal-1.md` | ~1674 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 78 | 2026-11-07 | 项目约定补录线上数据位置 | `49d16f9` | `main` |
 | 77 | 2026-11-07 | 恋人线修复部署上线 + 强度通胀方案归档 | `48e3e95` | `main` |
 | 76 | 2026-11-07 | 恋人线脑图走查与通用修复 | `369b6bc` | `main` |
 | 75 | 2026-11-05 | 私聊记忆白纸修复：C2C 发言人绑定上线 | - | `main` |

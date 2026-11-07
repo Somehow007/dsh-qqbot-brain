@@ -1650,3 +1650,25 @@ SSH 线上取证后按用户指示用已有优化标齐数据：PATCH 把 13 条
 ### Status
 
 [OK] **Completed**
+
+
+## Session 78: 项目约定补录线上数据位置
+<!-- trellis-session: v=2 fp=5eb036d8a6e3cfd0 -->
+
+**Date**: 2026-11-07
+**Task**: 项目约定补录线上数据位置
+**Branch**: `main`
+
+### Summary
+
+问题：生产数据全在云服务器但位置/部署方式无单一入口，新会话不知道数据在哪。排查：翻 journal-1.md 与归档任务（persona-cloud-rollout/brain-public-access/cloud-memory-purge）+ 插件 runbook + 备份手册取证线上实况。方案：AGENTS.md 项目约定新增「线上数据在哪」条目——服务器 ubuntu@124.222.65.169、插件 ~/dsh-qqbot-brain、数据 ~/brain-data、宿主会话 ~/.dsh/sessions 与 model-prefs.json、脑图 124.222.65.169:4099 token 在 cordis.patch.yml+brain.env、备份 ~/backups+cron+本地 brain-data。验证：约定含完整定位信息且密钥只记存放位置。后续：runbook 示例路径与线上实况不一致待统一；cron 备份实际落点可补录。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `49d16f9` | docs: 项目约定补录线上数据位置（云服务器 ubuntu@124.222.65.169） |
+
+### Status
+
+[OK] **Completed**
