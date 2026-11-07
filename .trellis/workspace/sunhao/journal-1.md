@@ -1732,3 +1732,23 @@ SSH 线上取证后按用户指示用已有优化标齐数据：PATCH 把 13 条
 ### Status
 
 [OK] **Completed**
+
+
+## Session 82: 记忆阶段感与前后冲突机制探讨
+<!-- trellis-session: v=2 fp=a79765ced41b5504 -->
+
+**Date**: 2026-11-07
+**Task**: 记忆阶段感与前后冲突机制探讨
+**Branch**: `main`
+
+### Summary
+
+探讨情景记忆有无前后关联与阶段冲突。结论：无显式阶段变量，阶段感由四层通道涌现——画像/脉络为每轮必注的滚动最新覆盖，语义判重merge、态度对X替换也是最新覆盖，仅情景层append-only会滞留旧快照。会卡的三机制：强化回路维持高相关旧条不衰减、mergeIndex软约定、里程碑条巩固吸收前的滞留窗口。demo恋人线实证：画像反映当前阶段、episodic为兼容递进切片尚无真实冲突。可选方向：supersede边/阶段事实归画像/注入端时序提示。
+
+### Git Commits
+
+(No commits - planning session)
+
+### Status
+
+[OK] **Completed**
