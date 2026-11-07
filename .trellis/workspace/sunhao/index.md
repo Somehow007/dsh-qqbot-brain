@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 85
+- **Total Sessions**: 86
 - **Last Active**: 2026-11-07
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1816 | Active |
+| `journal-1.md` | ~1838 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 86 | 2026-11-07 | 私域 UI 徽标自解释改名 + 线上散兵私密条补标 | `64bcb1d` | `main` |
 | 85 | 2026-11-07 | 叶瞬光人设包改独立资产（不进大肥鱼项目） | - | `main` |
 | 84 | 2026-11-07 | 叶瞬光人格内核 prompt（陪伴型内置人设） | - | `main` |
 | 83 | 2026-11-07 | 私密域隔离：设计→实现→部署→验收 | `a8fc772` | `main` |

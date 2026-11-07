@@ -1814,3 +1814,25 @@ SSH 线上取证后按用户指示用已有优化标齐数据：PATCH 把 13 条
 ### Status
 
 [OK] **Completed**
+
+
+## Session 86: 私域 UI 徽标自解释改名 + 线上散兵私密条补标
+<!-- trellis-session: v=2 fp=d476bffa1fb3d503 -->
+
+**Date**: 2026-11-07
+**Task**: 私域 UI 徽标自解释改名 + 线上散兵私密条补标
+**Branch**: `main`
+
+### Summary
+
+用户反馈私·demo/钉/放 三徽标是黑话难懂 → 全站改名 私域·demo/仅本会话/已放行（page.html+page.test.ts，commit 64bcb1d），期间 git add -A 误卷叶瞬光未提交工作，reset 后单文件重提；改名版已 rsync+restart 上线。用户问线上数据是否需补标 → 全量扫未标域会话私密关键词，发现群 17429483 池内 3 条恋人线散兵（semantic 恋人关系本体+昵称×2，域标记管不到私话错发公域的条），逐条 PATCH private:'demo' 归域；assemble 干跑验证：群主动搜私词 0 命中、私域内 7 命中（散兵以[跨群]召回）。补录 archived implement.md 迁移节，沉淀『域迁移后跑散兵扫描』流程经验。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `64bcb1d` | feat(brain-ui): 私域徽标改名自解释——私域·demo / 仅本会话 / 已放行 |
+
+### Status
+
+[OK] **Completed**
