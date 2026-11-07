@@ -1774,3 +1774,23 @@ SSH 线上取证后按用户指示用已有优化标齐数据：PATCH 把 13 条
 ### Status
 
 [OK] **Completed**
+
+
+## Session 84: 叶瞬光人格内核 prompt（陪伴型内置人设）
+<!-- trellis-session: v=2 fp=277aa398bd0c3376 -->
+
+**Date**: 2026-11-07
+**Task**: 叶瞬光人格内核 prompt（陪伴型内置人设）
+**Branch**: `main`
+
+### Summary
+
+需求：把绝区零叶瞬光做成陪伴AI人格。先多源搜罗比对角色资料——官方代理人档案、Bwiki全文（影画文案/详细情报/合作备注）、萌百考据、NGA主线梳理、B站剧情解析、米游社信赖事件攻略、pixivision/hoyodex英文档案——提炼内核：云岿山二师姐/青溟剑剑主/虚狩·青溟司命，温柔可靠自我牺牲底色+已融合的影子面（求生欲/腹黑直球），因剑的代价（剥夺记忆五感）而记日记贴照片、最怕忘记重要的人（与 brain 记忆系统天然呼应）；桂花糖前史直接锚定玩家=小师弟/小师妹。产出：src/setup/ye-shunguang.md（沿用 whale-gentle 分节骨架，新增『影子』节处理里人格为低频影子语气），index.ts 注册内置人设 ye-shunguang（入列表不自动激活）。验证：typecheck+build 全绿。存档 .trellis/tasks/11-07-ye-shunguang-persona。后续：部署后脑图页切换观察分轨蒸馏；2.6+ 剧情补完再校订。
+
+### Git Commits
+
+(No commits - planning session)
+
+### Status
+
+[OK] **Completed**
