@@ -26,12 +26,12 @@
 
 ## Acceptance Criteria
 
-- [ ] 标记 domain=demo 的会话产出的 note，在公开会话 assemble 的 memoryLines/attitudeLines 中零出现（topK/保底/跨群三路均无）。
-- [ ] u:demo 画像中含 `〔私〕` 的句子不出现在公开会话注入；在 demo 私域会话注入中完整保留。
-- [ ] 私域 note 的 hits/strength 不再因公开会话检索而被强化。
-- [ ] 同义事实公开/私域各存一条互不干扰；跨域不被 findNearDup/sweepNearDups 合并。
-- [ ] 存量数据迁移后：恋人线相关 note/attitude 对群会话不可见；u:demo 画像私密段已标 `〔私〕`。
-- [ ] 测试覆盖：domain 标记、继承、三路过滤、画像剥句、合并边界、导入导出兼容。
+- [x] 标记 domain=demo 的会话产出的 note，在公开会话 assemble 的 memoryLines/attitudeLines 中零出现（topK/保底/跨群三路均无）。
+- [x] u:demo 画像中含 `〔私〕` 的句子不出现在公开会话注入；在 demo 私域会话注入中完整保留。
+- [x] 私域 note 的 hits/strength 不再因公开会话检索而被强化。
+- [x] 同义事实公开/私域各存一条互不干扰；跨域不被 findNearDup/sweepNearDups 合并。
+- [x] 存量数据迁移后：恋人线相关 note/attitude 对群会话不可见；u:demo 画像私密段已标 `〔私〕`。
+- [x] 测试覆盖：domain 标记、继承、三路过滤、画像剥句、合并边界、导入导出兼容。
 
 ## Key Decisions
 
@@ -51,3 +51,15 @@
 
 - 设计：design.md（模型、改动点、备选方案、风险）
 - 执行：implement.md（有序清单、验证命令、迁移步骤）
+
+## Resolution（2026-11-07）
+
+**遇到了什么问题**：线上审计确认私密关系内容经三路飞进多人群 prompt——u: 画像全量注入、attitude 昵称保底、跨群召回——根因是 MemoryNote/ProfileEntry 没有可见域概念。另发现次级面：跨会话判重可能把私域条并入公开条；蒸馏 existing 候选不过滤会让 GLOBAL 私密手写条进公开蒸馏 prompt。
+
+**怎么解决的**：具名信任域 + 读侧派生作用域。note 生效域 = `n.private` 手动覆盖 ?? 来源会话域标记；`assemble` 可见池加 `scopeVisible` 单点谓词，一行管住 topK/保底/跨群/reinforce 四路；画像单卡内 `〔私〕` 句首标记 + 注入侧双向剥句；`sess-domain` op 持久化并进 graphVersion（标域即时生效）；findNearDup/sweepNearDups 跨域不并；`/api/sessions/domain` + notes `private` 字段提供管理面；review 掉标打 warning；regenerateProfile 私域证据行前注标，撰稿确定性识别。
+
+**验证结论**：162/162 单测（+8 私域用例）。线上数据副本 assemble 干跑：群 17429483（demo/花两发言人）私密关键词 0 命中，画像仅公开核；私域会话画像私段完整+同域跨群召回正常。已部署 v0.2.0 并完成迁移（5 会话标 demo，u:demo 5 私段），a7c9ce4f/e6b717d7 已无数据无需标记。
+
+**后续优化方向**：脑图页域编辑/徽标 UI（API 已就位）；〔私〕→〔私:demo〕 细粒度（多域并存时）；私域条 evict 概率上升需观察；掉标靠 warning+周期 grep 兜底；sess:17429483 误归因画像属 P0-2 另立项。
+
+**什么时候干的**：设计定稿→实现→测试→部署→迁移→验收，2026-11-07 单日完成；git `a8fc772`+`b232890`，tag `v0.2.0`。

@@ -49,11 +49,11 @@
 
 ## 7. 部署与迁移（顺序敏感）
 
-1. `npm run build` + `node --test test/` 全绿。
-2. 部署：rsync `dist`+`package.json` → `sudo systemctl restart dsh-qqbot`（runbook 见 AGENTS.md）。**此刻起 `〔私〕` 剥句已生效，先标画像再标域也无窗口期**。
-3. 预起草的 u:demo 带标记画像 PATCH 上去（目标句：恋人关系/亲密约定/防护约定；文本在部署前准备好）。
-4. 标域（`POST /api/sessions/domain`，逐个）：`dbf7162a`、`1fbd1c03`、`832f1a89`、`f7485370`、`96fe6849`、`a7c9ce4f`、`e6b717d7` → `demo`。**派生模型无回填步骤——标完即收敛**。
-5. 验证：`/api/query?session=17429483` 或直接跑 assemble(speaker=demo)，grep `恋人|亲密|约定|防护|吹头发` 零命中；私域会话里确认仍在。
+1. ✅ `npm run build` + `node --test test/` 全绿（162/162）。
+2. ✅ 部署：备份 `backups/dsh-qqbot-brain-pre-v0.2.0-20261107-2254.tgz` → rsync dist+package.json → restart active（2026-11-07 14:54 UTC 启动日志确认）。
+3. ✅ u:demo 画像 PATCH：5 个〔私〕段（恋人关系/昵称/互动/坦诚与约定）—公开核保留群主/考研/菠萝/宿舍。
+4. ✅ 标域 demo：`dbf7162a`/`1fbd1c03`/`832f1a89`/`f7485370`/`96fe6849`（`a7c9ce4f`/`e6b717d7` 已无数据不在会话表，无需标）。
+5. ✅ 验证：线上数据副本跑 assemble——群(demo发言/花发言)私密关键词 0 命中；私域一会话画像私段+同域跨群召回正常。
 6. 顺手（可选）：sess:17429483 误归因群画像清空或重写（P0-2 的临时缓解，正式修另立项）。
 
 ## 回滚
