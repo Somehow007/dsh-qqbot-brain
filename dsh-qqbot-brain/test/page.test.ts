@@ -12,7 +12,7 @@ type Pad = { v: number; a: number; d?: number; label?: string; mood?: string };
 type EmoOp = { t: number; op: { op: string; sessionId?: string; state?: Pad } };
 type Facet = { id: string; title: string; heading: string; body: string };
 type Box = [number, number, number, number];
-const { cleanText, nodeLabel, mapLabel, previewText, buildRelations, relationWhy, emotionBucket, emotionOps, matchEmotion, personaFacets, matchFacet, layoutSlots, labelPick, companionLine } = runInNewContext(`${helpers}; ({cleanText,nodeLabel,mapLabel,previewText,buildRelations,relationWhy,emotionBucket,emotionOps,matchEmotion,personaFacets,matchFacet,layoutSlots,labelPick,companionLine})`) as {
+const { cleanText, nodeLabel, mapLabel, previewText, buildRelations, relationWhy, emotionBucket, emotionOps, matchEmotion, personaFacets, matchFacet, layoutSlots, labelPick, companionLine, scopeBadge } = runInNewContext(`${helpers}; ({cleanText,nodeLabel,mapLabel,previewText,buildRelations,relationWhy,emotionBucket,emotionOps,matchEmotion,personaFacets,matchFacet,layoutSlots,labelPick,companionLine,scopeBadge})`) as {
   cleanText: (text: string) => string;
   nodeLabel: (note: { id: string; content: string }, notes: { id: string; content: string }[]) => string;
   mapLabel: (note: { id: string; content: string }, notes: { id: string; content: string }[]) => string;
@@ -27,7 +27,17 @@ const { cleanText, nodeLabel, mapLabel, previewText, buildRelations, relationWhy
   layoutSlots: (zone: { cx: number; cy: number; rx: number; ry: number }, n: number, box: (x: number, y: number) => Box, inside: (x: number, y: number) => boolean, taken: Box[]) => { x: number; y: number }[];
   labelPick: (items: { id: string; retention: number; importance: number; kind?: string }[], n: number, per?: number) => Set<string>;
   companionLine: (kind: string | null, count: number, name?: string) => string;
+  scopeBadge: (note: { scope?: string; private?: string; sessionId: string }) => { t: string; tip: string } | null;
 };
+
+test('私域徽标：生效域→私·域名；=会话id→钉；public 覆盖→放；公开无徽标', () => {
+  assert.equal(scopeBadge({ sessionId: 's1' }), null);
+  assert.equal(scopeBadge({ sessionId: 's1', scope: 's1' })!.t, '钉');
+  assert.equal(scopeBadge({ sessionId: 's1', scope: 'demo' })!.t, '私·demo');
+  assert.equal(scopeBadge({ sessionId: 's1', scope: 'public' })!.t, '放');
+  const b = scopeBadge({ sessionId: 's1', scope: 'demo', private: 'demo' })!;
+  assert.match(b.tip, /手动覆盖/);
+});
 
 test('页面脚本语法有效', () => {
   assert.ok(script);

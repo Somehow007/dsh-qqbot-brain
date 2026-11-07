@@ -224,6 +224,12 @@
     .badge.attitude{background:#4e335055;color:var(--pink);border-color:#7d4a72}
     .badge.fade{background:#5a3d3f66;border-color:#8a5a50;color:#f0b5a0}
     .badge.bound{background:#144f4a55;color:var(--glow);border-color:#2f7f74}
+    .badge.priv{background:#4a3d1e66;color:var(--gold);border-color:#8a7440}
+    .pseg{color:#e8d79b;background:#4a3d1e44;padding:0 2px;border-radius:2px}
+    .domrow{display:flex;gap:6px;align-items:center;margin-top:8px;font-size:var(--fs-xs);color:var(--muted)}
+    .domrow select{border:1px solid var(--line2);background-color:var(--panel2);padding:2px 6px;font-size:var(--fs-xs);color:var(--ink);border-radius:var(--radius)}
+    .privdot{fill:var(--gold);stroke:#04101e;stroke-width:.8}
+    .ops .ok-ind.sess-domain{background:#4a3d1e;color:#ebc684}
     .rbar{display:inline-block;width:52px;height:4px;background:#14304a;border-radius:2px;overflow:hidden;vertical-align:middle;margin-right:6px}
     .rbar i{display:block;height:100%;background:var(--cyan)}
     .act{border:1px solid var(--line2);border-radius:var(--radius);background:transparent;padding:3px 10px;font-size:var(--fs-sm);margin-right:4px;color:var(--muted);transition:color .15s,border-color .15s}
@@ -402,6 +408,7 @@
         <input type="text" id="libQ" placeholder="搜索记忆内容…">
         <select id="libKind"><option value="">全部类型</option><option value="episodic">情景</option><option value="semantic">语义</option><option value="attitude">态度</option></select>
         <select id="libSess"><option value="">全部会话</option></select>
+        <select id="libScope" title="按生效可见域筛选"><option value="">全部可见域</option><option value="priv">仅私域</option><option value="pub">仅公开</option></select>
         <select id="libPersona"><option value="">全部人设</option></select>
         <select id="libFade"><option value="">全部状态</option><option value="fading">将遗忘</option><option value="fresh">鲜活</option></select>
         <select id="libSort">
@@ -420,6 +427,7 @@
         <select name="kind"><option value="episodic">情景</option><option value="semantic">语义</option><option value="attitude">态度</option></select>
         <select name="importance"><option value="2">重要度2</option><option value="3" selected>重要度3</option><option value="4">重要度4</option><option value="5">重要度5</option></select>
         <select name="sess" id="addSess" title="归属：全部会话=全局，任何会话都能唤起；或只归属某个会话"></select>
+        <select name="priv" id="addPriv" title="可见域：派生=随会话域；私·X=仅该域可见"><option value="">派生可见域</option></select>
         <button type="submit">写入记忆</button>
       </form>
     </div>
@@ -503,6 +511,15 @@ const ngrams=s=>{s=s.replace(/\s/g,'');const o=[];for(const n of[2,3])for(let i=
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const shortId=s=>s.slice(0,8);
 const sessLabel=s=>s==='manual'?'全局':shortId(s);
+// 私域徽标：scope=生效域（派生或手动覆盖）；'public'=强制公开放行；=sessionId=原地私密
+const scopeBadge=n=>{
+  const s=n.scope;
+  if(!s)return null;
+  if(s==='public')return{t:'放',tip:'手动覆盖：强制公开，任何会话可见'};
+  if(s===n.sessionId)return{t:'钉',tip:'原地私密：仅本会话可见'};
+  return{t:`私·${s}`,tip:`私域「${s}」：仅同域会话可见${n.private?'（手动覆盖）':''}`};
+};
+const badgeHtml=n=>{const b=scopeBadge(n);return b?` <span class="badge priv" title="${esc(b.tip)}">${esc(b.t)}</span>`:'';};
 // 会话下拉统一填充：空值=全部会话；skipGlobal 用于写入表单（全局即空值，不再单列）
 function fillSessSelect(sel,{skipGlobal=false,allLabel='全部会话'}={}){
   const cur=sel.value;
@@ -881,15 +898,16 @@ function render(){
       g.append(svgEl('circle',{class:'hit',r:22}));
     },`情绪：${e.name}，${cnt} 段记忆`);});
   const labeled=labelPick(C.shown.filter(s=>pos.has(s.n.id)).map(s=>({...s.n,kind:s.k})),LABEL_N,2);
-  C.shown.forEach(({n,k})=>{const r=6+n.importance*1.1;
-    add(n.id,`mem k-${k}${n.fading?' fading':''}${labeled.has(n.id)?'':' quiet'}`,'',g=>{
+  C.shown.forEach(({n,k})=>{const r=6+n.importance*1.1,sb=scopeBadge(n);
+    add(n.id,`mem k-${k}${n.fading?' fading':''}${sb?' priv':''}${labeled.has(n.id)?'':' quiet'}`,'',g=>{
       g.append(svgEl('title',{},n.content));
       g.append(svgEl('circle',{class:'halo',r:r+7}));
       g.append(svgEl('circle',{class:'ring',r}));
       g.append(svgEl('circle',{class:'core',r:(r*.6).toFixed(1)}));
+      if(sb)g.append(svgEl('circle',{class:'privdot',cx:0,cy:-(r+4),r:2.2}));
       g.append(svgEl('text',{class:'cap',x:r+5,y:4},mapLabel(n,C.notes)));
       g.append(svgEl('circle',{class:'hit',r:20}));
-    },`${kindLabel(n.kind)}记忆：${n.content}`);});
+    },`${sb?sb.t+' ':''}${kindLabel(n.kind)}记忆：${n.content}`);});
   ['semantic','attitude','episodic'].forEach(k=>{const o=$('of-'+k);if(!o)return;o.parentElement.style.display=overflow[k]?'':'none';o.textContent=`+${overflow[k]} 条未显示 ↗`;});
   const all=STATE.notes,e=STATE.emotion||{};
   $('graphEmpty').hidden=!!all.length;
@@ -1095,8 +1113,8 @@ function panel(key){
     detail.append(linkBlock('带着这种情绪形成的记忆',neighbors(key),'操作日志里没有找到对应的记忆。'));
     foot.textContent='情绪桶按蒸馏给出的情绪类别（mood）判定；无 mood 的旧记录按 PAD 推断。';
   }else{
-    const n=STATE.notes.find(x=>x.id===key),nb=neighbors(key);
-    $('info-title').textContent=nodeLabel(n,STATE.notes,16);hint.textContent=`${kindLabel(n.kind)}记忆`;hint.style.color=colorOf(key);
+    const n=STATE.notes.find(x=>x.id===key),nb=neighbors(key),sb=scopeBadge(n);
+    $('info-title').textContent=nodeLabel(n,STATE.notes,16);hint.textContent=`${kindLabel(n.kind)}记忆${sb?` · ${sb.t}`:''}`;hint.style.color=colorOf(key);
     quote(n.content);
     detail.append(decayChart(n));
     detail.append(linkBlock('关联记忆',nb.filter(x=>keyKind(x.id)==='memory'),'暂无可推断的关联。'));
@@ -1107,18 +1125,26 @@ function panel(key){
       <div class="erow">
         <select id="ne-imp">${[1,2,3,4,5].map(i=>`<option value="${i}"${i===n.importance?' selected':''}>重要度${i}</option>`).join('')}</select>
         <select id="ne-kind"><option value="episodic"${n.kind==='episodic'?' selected':''}>情景</option><option value="semantic"${n.kind==='semantic'?' selected':''}>语义</option><option value="attitude"${n.kind==='attitude'?' selected':''}>态度</option></select>
+        <select id="ne-priv" title="可见域覆盖：派生=随来源会话域标记；公开=强制放行到所有会话；钉=仅本会话可见；私·X=仅该域会话可见">
+          <option value="">派生（随会话域）</option>
+          <option value="public"${n.private==='public'?' selected':''}>强制公开</option>
+          <option value="__sess__"${n.private===n.sessionId?' selected':''}>仅本会话</option>
+          ${[...new Set(SESS.map(s=>s.domain).filter(Boolean))].map(dm=>`<option value="${esc(dm)}"${n.private===dm?' selected':''}>私·${esc(dm)}</option>`).join('')}
+        </select>
         <button class="act" id="ne-save">保存</button>
         <button class="act" id="ne-reinf">强化</button>
         <button class="act danger" id="ne-del">删除</button>
       </div>`;
     detail.appendChild(ed);
     $('ne-save').onclick=async()=>{
+      const pv=$('ne-priv').value;
       await fapi(`${API}/notes/${n.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({content:$('ne-content').value,importance:+$('ne-imp').value,kind:$('ne-kind').value})});
+        body:JSON.stringify({content:$('ne-content').value,importance:+$('ne-imp').value,kind:$('ne-kind').value,
+          private:pv==='__sess__'?n.sessionId:pv})});
       detailDirty=false;await load();};
     $('ne-reinf').onclick=async()=>{await fapi(`${API}/notes/${n.id}/reinforce`,{method:'POST'});detailDirty=false;await load();};
     $('ne-del').onclick=async()=>{if(confirm('删除这条记忆？（写入 del 墓碑，不可恢复）')){await fapi(`${API}/notes/${n.id}`,{method:'DELETE'});detailDirty=false;await load();}};
-    foot.textContent=`${n.actor?`发言人 ${n.actor} · `:''}会话 ${shortId(n.sessionId)} · 重要度 ${n.importance}/5 · ${n.ageDays}天前 · 保持率 ${(n.retention*100).toFixed(1)}% · 唤起 ${n.hits} 次${n.fading?' · ⚠将遗忘':''}`;
+    foot.textContent=`${n.actor?`发言人 ${n.actor} · `:''}会话 ${shortId(n.sessionId)} · 重要度 ${n.importance}/5 · ${n.ageDays}天前 · 保持率 ${(n.retention*100).toFixed(1)}% · 唤起 ${n.hits} 次${n.fading?' · ⚠将遗忘':''}${sb?` · ${sb.tip}`:''}`;
   }
   $('map-current').textContent=mapSummary(key);
   document.querySelectorAll('.card, .result-hit, tr.data').forEach(x=>x.classList.toggle('active',x.dataset.key===key));
@@ -1131,10 +1157,11 @@ function panel(key){
 function notePid(n){return n.personaId||'whale-gentle';}
 function personaName(pid){return PERSONAS.personas.find(p=>p.id===pid)?.name||pid;}
 function libFiltered(){
-  const q=$('libQ').value.trim(),k=$('libKind').value,s=$('libSess').value,f=$('libFade').value,sort=$('libSort').value,pp=$('libPersona').value;
+  const q=$('libQ').value.trim(),k=$('libKind').value,s=$('libSess').value,f=$('libFade').value,sort=$('libSort').value,pp=$('libPersona').value,sc=$('libScope').value;
   let arr=STATE.notes.filter(n=>
     (!q||n.content.includes(q))&&(!k||n.kind===k)&&(!s||n.sessionId===s)&&
-    (!f||(f==='fading'?n.fading:!n.fading))&&(!pp||notePid(n)===pp));
+    (!f||(f==='fading'?n.fading:!n.fading))&&(!pp||notePid(n)===pp)&&
+    (!sc||(sc==='priv'?!!(n.scope&&n.scope!=='public'):(!n.scope||n.scope==='public'))));
   arr.sort((a,b)=>sort==='age'?b.createdAt-a.createdAt:sort==='importance'?b.importance-a.importance:sort==='hits'?b.hits-a.hits:b.retention-a.retention);
   return arr;
 }
@@ -1144,6 +1171,9 @@ function renderLibrary(){
   [...new Set(STATE.notes.map(n=>n.sessionId))].forEach(s=>sel.appendChild(new Option(sessLabel(s),s,s===cur,s===cur)));
   fillSessSelect($('addSess'),{skipGlobal:true,allLabel:'全部会话（全局）'});
   fillSessSelect($('qSess'));
+  const ap=$('addPriv'),apc=ap.value;
+  ap.replaceChildren(new Option('派生可见域',''));
+  [...new Set(SESS.map(s=>s.domain).filter(Boolean))].forEach(dm=>ap.appendChild(new Option('私·'+dm,dm,dm===apc,dm===apc)));
   const psel=$('libPersona'),pcur=psel.value;
   psel.replaceChildren(new Option('全部人设',''));
   [...new Set(STATE.notes.map(notePid))].forEach(pid=>psel.appendChild(new Option(personaName(pid),pid,pid===pcur,pid===pcur)));
@@ -1156,7 +1186,7 @@ function renderLibrary(){
   arr.forEach(n=>{
     const tr=document.createElement('tr');tr.className='data'+(n.fading?' faded':'')+(n.id===SELECTED?' active':'');tr.dataset.key=n.id;
     tr.innerHTML=`<td><button type="button" class="lib-open"><span class="lib-preview"></span></button></td>
-      <td><span class="badge ${n.kind}">${kindLabel(n.kind)}</span>${n.kind==='attitude'?` <span class="badge" style="opacity:.7">${personaName(notePid(n))}</span>`:''}${n.fading?' <span class="badge fade">将遗忘</span>':''}</td>
+      <td><span class="badge ${n.kind}">${kindLabel(n.kind)}</span>${n.kind==='attitude'?` <span class="badge" style="opacity:.7">${personaName(notePid(n))}</span>`:''}${n.fading?' <span class="badge fade">将遗忘</span>':''}${badgeHtml(n)}</td>
       <td><span class="rbar"><i style="width:${Math.max(2,n.retention*100)}%"></i></span>${(n.retention*100).toFixed(0)}%</td>
       <td data-label="重要">${n.importance}</td><td data-label="唤起">${n.hits}</td><td>${n.ageDays}天</td>
       <td><button class="act" data-a="reinf">强化</button><button class="act danger" data-a="del">删</button></td>`;
@@ -1169,6 +1199,16 @@ function renderLibrary(){
 }
 // ── Tab：画像（按人 + 会话级）──
 let mergeSrc='';
+// 画像私域句渲染：〔私〕到句末为高亮段（公开注入时被剥；此处仅运营可视标注）
+function renderProfText(el,text){
+  const segRe=/〔私〕[^。\n]*(?:。|\n|$)/g;let last=0,m;
+  while((m=segRe.exec(text))){
+    if(m.index>last)el.append(document.createTextNode(text.slice(last,m.index)));
+    const s=document.createElement('span');s.className='pseg';s.title='私域句：仅在已标私域的会话注入';s.textContent=m[0];
+    el.append(s);last=m.index+m[0].length;
+  }
+  el.append(document.createTextNode(text.slice(last)));
+}
 // 画像卡三操作：编辑（文本+名称）/ 重生成（蒸馏+审核，失败不改数据）/ 删除（空文本 op）
 function wireProfileCard(d,{key,kind,name,text,ph}){
   const prof=d.querySelector('.prof');
@@ -1183,7 +1223,9 @@ function wireProfileCard(d,{key,kind,name,text,ph}){
     const save=document.createElement('button');save.className='act';save.type='button';save.textContent='保存';
     const cancel=document.createElement('button');cancel.className='act';cancel.type='button';cancel.textContent='取消';
     const stat=document.createElement('span');stat.className='stat';stat.style.fontSize='10px';
-    bar.append(save,cancel,stat);prof.append(nm,ta,bar);
+    const markHint=document.createElement('div');markHint.className='stat';markHint.style.fontSize='10px';
+    markHint.textContent='「〔私〕」开头的句子=私域内容，仅在已标私域的会话注入；审核掉标会打日志警告';
+    bar.append(save,cancel,stat);prof.append(nm,ta,markHint,bar);
     save.onclick=async()=>{
       const t=ta.value.trim();
       if(!t){stat.textContent='内容不能为空';return;}
@@ -1193,7 +1235,7 @@ function wireProfileCard(d,{key,kind,name,text,ph}){
       if(!r.ok){stat.textContent='保存失败：'+await r.text();save.disabled=false;return;}
       await load();
     };
-    cancel.onclick=()=>{prof.textContent=text||ph;};
+    cancel.onclick=()=>{prof.replaceChildren();renderProfText(prof,text||ph);};
   };
   regenBtn.onclick=async()=>{
     if(!confirm(`用该${kind==='person'?'人':'会话'}名下的记忆重新生成画像？\n蒸馏起草 + 审核把关，现有画像可能被改写。`))return;
@@ -1229,7 +1271,7 @@ function renderSessions(){
           <button class="act danger" data-a="pdel" type="button">删除</button>
         </div>
       </details>`;
-    d.querySelector('.prof').textContent=p.text||'（画像未生成）';
+    renderProfText(d.querySelector('.prof'),p.text||'（画像未生成）');
     d.querySelector('.meta').textContent=`见于 ${p.sessions.length} 个会话${p.updatedAt?` · ${fmtT(p.updatedAt)} 更新`:''}`;
     const btn=d.querySelector('.mergebtn');
     btn.textContent=mergeSrc===p.key?'取消':(mergeSrc?'并入此卡':'合并');
@@ -1249,8 +1291,8 @@ function renderSessions(){
   SESS.forEach(s=>{
     const d=document.createElement('div');d.className='sess';
     const emo=s.emotion?`情绪 ${s.emotion.label||''}（v=${s.emotion.v?.toFixed(1)} a=${s.emotion.a?.toFixed(1)}）`:'情绪 —';
-    d.innerHTML=`<div class="sid">SESSION ${s.sessionId==='manual'?'全局':esc(shortId(s.sessionId))+'…'}${s.profileName?` <span class="badge bound" title="发言人绑定：该会话按「${esc(s.profileName)}」点亮 u: 画像/态度/跨群召回；管理这张画像→编辑 可改绑/解绑">→ ${esc(s.profileName)}</span>`:''}</div>
-      <div class="prof"></div><div class="meta"></div>
+    d.innerHTML=`<div class="sid">SESSION ${s.sessionId==='manual'?'全局':esc(shortId(s.sessionId))+'…'}${s.domain?` <span class="badge priv" title="私域「${esc(s.domain)}」：该会话产出的记忆仅同域会话可见">私·${esc(s.domain)}</span>`:''}${s.profileName?` <span class="badge bound" title="发言人绑定：该会话按「${esc(s.profileName)}」点亮 u: 画像/态度/跨群召回；管理这张画像→编辑 可改绑/解绑">→ ${esc(s.profileName)}</span>`:''}</div>
+      <div class="prof"></div><div class="meta"></div><div class="domrow"></div>
       <details class="note-edit"><summary>管理这张画像</summary>
         <div class="erow">
           <button class="act" data-a="pedit" type="button">编辑</button>
@@ -1258,13 +1300,24 @@ function renderSessions(){
           <button class="act danger" data-a="pdel" type="button">删除</button>
         </div>
       </details>`;
-    d.querySelector('.prof').textContent=s.profile||'（画像未生成——多聊几轮后由蒸馏产出）';
+    renderProfText(d.querySelector('.prof'),s.profile||'（画像未生成——多聊几轮后由蒸馏产出）');
     d.querySelector('.meta').textContent=`${s.noteCount} 条记忆 · ${emo}`;
+    // 私域标记：domain=信任域名（同名会话共享私域池）；公开=清除标记；即时生效零回填
+    const dom=d.querySelector('.domrow'),doms=[...new Set(SESS.map(x=>x.domain).filter(Boolean))];
+    dom.innerHTML=`<span>域</span><select><option value="">公开</option>${doms.map(x=>`<option value="${esc(x)}"${x===s.domain?' selected':''}>私·${esc(x)}</option>`).join('')}<option value="__new__">+新域…</option></select><button class="act" type="button">设</button>`;
+    dom.querySelector('button').onclick=async()=>{
+      let v=dom.querySelector('select').value;
+      if(v==='__new__'){v=(prompt('私域名（同名会话共享信任域，如 demo）')||'').trim();if(!v)return;}
+      if(v==='public'){alert("'public' 是保留覆盖值，不能用作域名");return;}
+      const r=await fapi(API+'/sessions/domain',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:s.sessionId,domain:v})});
+      if(!r.ok){alert('标域失败：'+await r.text());return;}
+      await load();
+    };
     wireProfileCard(d,{key:'sess:'+s.sessionId,kind:'session',name:s.profileName||'',text:s.profile,ph:'（画像未生成——多聊几轮后由蒸馏产出）'});
     g.appendChild(d);});
 }
 // ── Tab：事件流水 ──
-const OP_CN={add:'新增记忆',reinforce:'唤起强化',update:'修改',del:'删除','del-range':'按时段删除','del-persona':'按人设删除',merge:'近重复合并',emotion:'情绪',profile:'画像',persona:'人格',reset:'整库重置'};
+const OP_CN={add:'新增记忆',reinforce:'唤起强化',update:'修改',del:'删除','del-range':'按时段删除','del-persona':'按人设删除',merge:'近重复合并',emotion:'情绪',profile:'画像',persona:'人格',reset:'整库重置','sess-domain':'域标记'};
 function opDesc(o){
   const op=o.op;
   switch(op.op){
@@ -1277,6 +1330,7 @@ function opDesc(o){
     case 'profile':return `${op.name?op.name+'：':''}${(op.text||'').slice(0,46)}`;
     case 'persona':return (op.text||'').slice(0,46);
     case 'del-range':return `删除 ${(op.ids||[]).length} 条（${fmtT(op.from)} ~ ${fmtT(op.to)}）`;
+    case 'sess-domain':return `${shortId(op.sessionId)} → ${op.domain?`私·${op.domain}`:'公开'}`;
     case 'reset':return op.keepPersona?'清空记忆数据（人设保留）':'清空全部数据（导入覆盖）';
     default:return op.op;
   }
@@ -1329,12 +1383,12 @@ document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
   document.querySelectorAll('.pane').forEach(p=>p.hidden=p.id!=='pane-'+t.dataset.pane);
 });
 $('deck-more').onclick=()=>{document.querySelector('[data-pane=lib]').click();$('pane-lib').scrollIntoView({behavior:'smooth'});};
-['libQ','libKind','libSess','libPersona','libFade','libSort'].forEach(id=>$(id).addEventListener('input',renderLibrary));
+['libQ','libKind','libSess','libPersona','libFade','libSort','libScope'].forEach(id=>$(id).addEventListener('input',renderLibrary));
 $('addForm').onsubmit=async ev=>{
   ev.preventDefault();
   const f=ev.target;
   await fapi(API+'/notes',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({content:f.content.value,kind:f.kind.value,importance:+f.importance.value,sessionId:f.sess.value||undefined})});
+    body:JSON.stringify({content:f.content.value,kind:f.kind.value,importance:+f.importance.value,sessionId:f.sess.value||undefined,private:f.priv.value||undefined})});
   f.content.value='';await load();};
 $('personaSelect').onchange=ev=>{
   const next=ev.target.value;
@@ -1613,6 +1667,8 @@ $('query').addEventListener('input',async ev=>{
   heading.textContent=r.hits.length?`唤起 ${r.hits.length} 条记忆 · 点击查看全文`:'没有匹配的记忆，换个说法试试';box.append(heading);
   r.hits.forEach(h=>{
     const b=document.createElement('button');b.type='button';b.className='result-hit'+(h.id===SELECTED?' active':'');b.dataset.key=h.id;
+    const sb=scopeBadge(h);
+    if(sb){const m=document.createElement('span');m.className='badge priv';m.textContent=sb.t;m.title=sb.tip;b.append(m);}
     const text=document.createElement('span');text.textContent=previewText(h,r.hits);b.title=h.content;b.append(text);
     b.onclick=()=>{panel(h.id);if(innerWidth<=1000)$('info-title').scrollIntoView({behavior:'smooth'});};box.append(b);
   });

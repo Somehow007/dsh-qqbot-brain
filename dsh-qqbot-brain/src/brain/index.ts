@@ -1084,7 +1084,8 @@ export class Brain {
         for (const m of vecs) {
           if (m.id === n.id) continue;
           const c = vecCosine(n.embedding!, m.embedding!);
-          if (c >= 0.9) {
+          // 近重复统计与 sweepNearDups 同口径：跨生效域的对不会被合并，不计入警告数
+          if (c >= 0.9 && this.noteScope(n) === this.noteScope(m)) {
             const [a, b] = n.id < m.id ? [n.id, m.id] : [m.id, n.id];
             dups.add(`${a}|${b}`);
           } else if (c >= 0.65) sims.push({ m, c });
