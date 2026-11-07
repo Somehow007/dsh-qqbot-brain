@@ -5,7 +5,7 @@ import { ageInDays, retention } from './decay.ts';
 import { ageLabel, formatClock } from './time.ts';
 import { Retriever } from './retrieval.ts';
 import { EmotionEngine, NEUTRAL_EMOTION } from './emotion.ts';
-import { BrainStore, PROFILE_TEXT_CAP, truncateProfileText } from './store.ts';
+import { BrainStore, PRIVATE_MARK, PROFILE_TEXT_CAP, stripPrivateMarks, stripPrivateSegments, truncateProfileText } from './store.ts';
 import { Distiller } from './distill.ts';
 import type { ProfileReviewItem } from './distill.ts';
 import type { Embedder } from './embed.ts';
@@ -138,7 +138,9 @@ export class Brain {
     const sp = given?.openid || given?.nick ? given : this.boundSpeaker(sessionId);
     // 事实共享·态度分轨：检索池先滤掉他人设态度，
     // topK 命中/强化/昵称保底/跨群召回四处口径自然一致。
-    const visible = this.store.allNotes().filter((n) => this.attitudeVisible(n) && !n.absorbedAt);
+    // 私域过滤同点生效：域外 note 对 topK/保底/跨群/强化四路均不可见（硬隔离）。
+    const visible = this.store.allNotes().filter((n) =>
+      this.attitudeVisible(n) && !n.absorbedAt && this.scopeVisible(n, sessionId));
     const scored = this.retriever.query(
       visible, sessionId, queryText, now, this.store.graphVersion, queryVec,
     );
@@ -194,10 +196,13 @@ export class Brain {
       }
     }
     // 个人画像（同名归并）优先，会话级画像次之；仅会话画像时维持「[画像]」标签
+    // 私域段：非私域会话剥〔私〕句，私域会话保内容只去标记符
+    const priv = this.store.isPrivateSession(sessionId);
     const personProfile = (sp?.openid || sp?.nick)
-      ? this.store.mergedUserProfile({ openid: sp?.openid, nick: sp?.nick })
+      ? this.store.mergedUserProfile({ openid: sp?.openid, nick: sp?.nick, includePrivate: priv })
       : '';
-    const sessProfile = this.store.profileOf(sessionId);
+    const sessRaw = this.store.profileOf(sessionId);
+    const sessProfile = priv ? stripPrivateMarks(sessRaw) : stripPrivateSegments(sessRaw);
     if (sessProfile) memoryLines.unshift(`- ${personProfile ? '[会话画像]' : '[画像]'} ${sessProfile}`);
     if (personProfile) memoryLines.unshift(`- [画像] ${personProfile}`);
 
@@ -253,7 +258,8 @@ export class Brain {
       const queryText = turns.map((t) => t.userText).join(' ');
       const existing = this.retriever
         .query(
-          this.store.allNotes().filter((n) => this.attitudeVisible(n) && !n.absorbedAt),
+          this.store.allNotes().filter((n) =>
+            this.attitudeVisible(n) && !n.absorbedAt && this.scopeVisible(n, sessionId)),
           sessionId, queryText, now, this.store.graphVersion,
         )
         .slice(0, 8)
@@ -311,7 +317,7 @@ export class Brain {
           continue;
         }
         const vec = freshVecs?.[fi++] ?? null;
-        const dup = vec ? this.findNearDup(vec, m.kind ?? 'episodic') : undefined;
+        const dup = vec ? this.findNearDup(vec, m.kind ?? 'episodic', this.draftScope(sessionId, m)) : undefined;
         if (dup) {
           this.store.reinforce(dup.note, this.cfg.reinforceStep, this.cfg.strengthCap, now);
           this.log?.(`判重合并：与「${dup.note.content.slice(0, 20)}」余弦 ${dup.cos.toFixed(2)}，强化旧记忆`);
@@ -366,6 +372,29 @@ export class Brain {
     if (n.kind !== 'attitude') return true;
     const pid = this.store.activePersonaId();
     return !pid || notePersonaId(n) === pid;
+  }
+
+  /**
+   * 记忆生效作用域：n.private 手动覆盖 ?? 来源会话域标记；undefined=公开。
+   * 派生而非写时盖章——标域/撤域立即作用于全部存量，零回填。
+   */
+  private noteScope(n: MemoryNote): string | undefined {
+    return n.private ?? (this.store.sessionDomainOf(n.sessionId) || undefined);
+  }
+
+  /**
+   * 私域可见性（硬隔离）：公开/强制公开全域可见；域名作用域只在同域会话可见；
+   * sessionId 作用域只在该会话可见（原地私密，即便该会话后来标了域）。
+   */
+  private scopeVisible(n: MemoryNote, targetSession: string): boolean {
+    const scope = this.noteScope(n);
+    if (!scope || scope === 'public') return true;
+    return scope === this.store.sessionDomainOf(targetSession) || scope === targetSession;
+  }
+
+  /** 待写入草稿的生效域：手动覆盖 ?? 目标会话域（与 addNote 落库口径一致） */
+  private draftScope(sessionId: string, draft: { private?: string }): string | undefined {
+    return draft.private?.trim() || this.store.sessionDomainOf(sessionId) || undefined;
   }
 
   /** 给一批记忆取向量并落盘（embedder 未启用/调用失败时 no-op） */
@@ -525,6 +554,11 @@ export class Brain {
     const people = this.store.people();
     for (const [i, [key, item]] of pending.entries()) {
       const text = truncateProfileText(reviewed[i]!, PROFILE_TEXT_CAP);
+      // 私域标记监控：review 掉标即 fail-open，日志可见供人工纠正
+      const prevMarks = (item.previous.match(/〔私〕/g) ?? []).length;
+      const newMarks = (text.match(/〔私〕/g) ?? []).length;
+      if (newMarks < prevMarks)
+        this.log?.(`画像私域标记减少 ${key}：${prevMarks}→${newMarks}，请人工核对私段内容`);
       const isUser = isUserKey(key);
       const needsSessionLink = isUser && !!text
         && !(people.find((p) => p.key === key)?.sessions ?? []).includes(sessionId);
@@ -618,7 +652,9 @@ export class Brain {
         return id.openid === k.slice(2) || (!!nick && id.nick === nick);
       })
       .sort((a, b) => a.createdAt - b.createdAt)
-      .slice(-60);
+      .slice(-60)
+      // 私域证据行前缀〔私〕：撰稿确定性识别，不靠模型猜哪条是私的
+      .map((n) => (this.noteScope(n) ? { ...n, content: `${PRIVATE_MARK}${n.content}` } : n));
     // 记忆佐证即对象存在——entry 缺失（画像未生成过）同样允许重建
     if (!evidence.length) return { ok: false, reason: '该对象暂无可用的记忆' };
     const name = nick || k.slice(person ? 2 : 5).slice(0, 8);
@@ -736,7 +772,7 @@ export class Brain {
         this.log?.(`巩固降级：含时效锚点按情景入库：${m.content.slice(0, 24)}…`);
       }
       const vec = vecs?.[i] ?? null;
-      const dup = vec ? this.findNearDup(vec, kind) : undefined;
+      const dup = vec ? this.findNearDup(vec, kind, this.draftScope(sessionId, m)) : undefined;
       if (dup) {
         this.store.reinforce(dup.note, this.cfg.reinforceStep, this.cfg.strengthCap, now);
         // 谱系不丢：本批源的「沉淀自」指针并入旧条
@@ -853,6 +889,8 @@ export class Brain {
           const a = notes[i]!, b = notes[j]!;
           if ((a.kind === 'attitude') !== (b.kind === 'attitude')) continue;
           if (a.kind === 'attitude' && notePersonaId(a) !== notePersonaId(b)) continue;
+          // 私域边界：生效域不同的近重复不互并（私域条不能被公开条吸收）
+          if (this.noteScope(a) !== this.noteScope(b)) continue;
           parent.set(find(a.id), find(b.id));
         }
       }
@@ -881,7 +919,7 @@ export class Brain {
   }
 
   /** 写入判重：全库找与新记忆向量余弦最高的既有记忆，≥dedupeEmbedCos 判为同一事实 */
-  private findNearDup(vec: number[], kind: MemoryNote['kind']): { note: MemoryNote; cos: number } | undefined {
+  private findNearDup(vec: number[], kind: MemoryNote['kind'], scope?: string): { note: MemoryNote; cos: number } | undefined {
     if (this.cfg.dedupeEmbedCos <= 0) return undefined;
     let best: MemoryNote | undefined, bc = 0;
     for (const n of this.store.allNotes()) {
@@ -891,6 +929,8 @@ export class Brain {
       if ((n.kind === 'attitude') !== (kind === 'attitude')) continue;
       // 态度分轨：他人设的态度不参与判重（否则新人设写近似立场会被旧轨吸收掉）
       if (!this.attitudeVisible(n)) continue;
+      // 私域边界：生效域不同不互判重——同义事实公私各存一条，私域不进公开条
+      if (this.noteScope(n) !== scope) continue;
       const c = vecCosine(vec, n.embedding);
       if (c > bc) { bc = c; best = n; }
     }
@@ -927,6 +967,15 @@ export class Brain {
 
   sessions(): ReturnType<BrainStore['sessions']> {
     return this.store.sessions();
+  }
+
+  /** 标记/清除会话私域（脑图页/API 入口）；domain 空串=清除回公开 */
+  setSessionDomain(sessionId: string, domain: string): void {
+    this.store.setSessionDomain(sessionId, domain);
+  }
+
+  isPrivateSession(sessionId: string): boolean {
+    return this.store.isPrivateSession(sessionId);
   }
 
   /** 画像卡片：按人（u:）+ 会话级（sess:），脑图页「画像」页签 */
@@ -971,6 +1020,9 @@ export class Brain {
       personaId: n.personaId,
       /** 已被语义巩固吸收退池的存档条（可视化区分/验收用） */
       absorbed: !!n.absorbedAt,
+      /** 私域手动覆盖；生效域=private ?? 来源会话域（图谱徽标用） */
+      private: n.private,
+      scope: this.noteScope(n),
     }));
     const { edges, nearDup } = await this.graphEdges(raw, sessionId);
     const stats = {
@@ -1076,11 +1128,13 @@ export class Brain {
     return this.facetVecCache.vecs;
   }
 
-  /** 检索预览（脑图页"检索模拟器"）；有 embedder 时顺带取向量走语义路径 */
+  /** 检索预览（脑图页"检索模拟器"）；有 embedder 时顺带取向量走语义路径。带会话参数时按该会话私域口径过滤 */
   async preview(sessionId: string | undefined, query: string): Promise<MemoryNote[]> {
     const qv = (await this.queryEmbedding(query)) ?? undefined;
     return this.retriever
-      .query(this.store.allNotes().filter((n) => !n.absorbedAt), sessionId, query, this.now(), this.store.graphVersion, qv)
+      .query(this.store.allNotes().filter((n) =>
+        !n.absorbedAt && (!sessionId || this.scopeVisible(n, sessionId))),
+        sessionId, query, this.now(), this.store.graphVersion, qv)
       .map((s) => s.note);
   }
 

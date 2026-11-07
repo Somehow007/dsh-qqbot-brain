@@ -1176,7 +1176,7 @@ test('assemble: 私聊绑定后按昵称点亮 u:画像/态度保底/跨群语�
 
 test('assemble: 显式 speaker 优先于绑定昵称', () => {
   const { store } = tmpStore();
-  store.setProfileEntry(userProfileKey('OID_DEMO'), 'demo是群主', { sessionId: 'g1', name: 'demo' });
+  store.setProfileEntry(userProfileKey('DE10ABC123'), 'demo是群主', { sessionId: 'g1', name: 'demo' });
   store.setProfileEntry('sess:g1', '群画像', { sessionId: 'g1', name: 'demo' });
   const brain = new Brain({ store, distiller: mockDistiller({}), now });
   // 群聊里李四发言：绑定 demo 不应顶替真实发言人
@@ -2229,4 +2229,167 @@ test('prompt: 蒸馏/巩固/脉络提示含敏感场景与时效锚通用规则'
   assert.match(c, /带时间锚点的条目/);
   const g = buildDigestPrompt([{ userText: 'x', assistantText: 'y', at: NOW }], '', 'p');
   assert.match(g, /拒绝后仍被叙述推进/);
+});
+
+// ── 私域隔离 ──
+import { stripPrivateMarks, stripPrivateSegments } from '../src/brain/store.ts';
+
+test('私域：标域会话产出的记忆对公开会话三路不可见，同域/本域会话可见', () => {
+  const { store } = tmpStore();
+  store.setSessionDomain('priv', 'demo');
+  store.setSessionDomain('priv2', 'demo');
+  store.addNote('priv', { content: 'demo 与角色约定了梳头吹头发', kind: 'semantic', actor: 'demo (DE10ABC123)', importance: 4 }, NOW);
+  store.addNote('priv', { content: '对demo：亲密节奏由我决定', kind: 'attitude', actor: 'demo (DE10ABC123)', importance: 4 }, NOW);
+  store.addNote('pub', { content: 'demo 是群主', kind: 'semantic', actor: 'demo (DE10ABC123)', importance: 3 }, NOW);
+  const brain = new Brain({ store, distiller: mockDistiller({}), now });
+  const sp = { nick: 'demo', openid: 'DE10ABC123' };
+
+  // 公开会话：跨群召回与昵称保底都不放出私域条
+  const pub = brain.assemble('pub', '梳头', sp);
+  assert.ok(!pub.memoryLines.join('\n').includes('梳头'));
+  assert.ok(!pub.attitudeLines.join('\n').includes('亲密节奏'));
+  assert.ok(!pub.memoryLines.some((l) => l.includes('跨群')));
+
+  // 同域另一会话：跨群召回互通（同一信任域）
+  const prv = brain.assemble('priv2', '梳头', sp);
+  assert.ok(prv.memoryLines.some((l) => l.includes('梳头') && l.includes('跨群')));
+  assert.ok(prv.attitudeLines.join('\n').includes('亲密节奏'));
+
+  // 来源会话自身：主检索池可见
+  const self = brain.assemble('priv', '梳头', sp);
+  assert.ok(self.memoryLines.join('\n').includes('梳头'));
+
+  // 公开条全域可见：私域会话照常召回公开记忆（可见性不对称是正确的）
+  const crossPub = brain.assemble('priv', '群主', sp);
+  assert.ok(crossPub.memoryLines.join('\n').includes('群主'));
+});
+
+test('私域覆盖：sessionId 私钥仅原会话可见，public 覆盖放行私域条', () => {
+  const { store } = tmpStore();
+  store.setSessionDomain('priv', 'demo');
+  // 公开会话里的敏感条收回本会话：semantic+actor 本可跨群，私钥钉死后不可见
+  store.addNote('pub', { content: 'demo 的原地私密事', kind: 'semantic', actor: 'demo (DE10ABC123)', private: 'pub', importance: 4 }, NOW);
+  // 私域良性事实手动放行
+  store.addNote('priv', { content: 'demo 的放行公开事', kind: 'semantic', actor: 'demo (DE10ABC123)', private: 'public', importance: 4 }, NOW);
+  const brain = new Brain({ store, distiller: mockDistiller({}), now });
+  const sp = { nick: 'demo', openid: 'DE10ABC123' };
+
+  const prv = brain.assemble('priv', '私密事', sp);
+  assert.ok(!prv.memoryLines.join('\n').includes('原地私密'));
+  const pub = brain.assemble('pub', '私密事', sp);
+  assert.ok(pub.memoryLines.join('\n').includes('原地私密'));
+
+  const pub2 = brain.assemble('pub', '放行事', sp);
+  assert.ok(pub2.memoryLines.join('\n').includes('放行公开事'));
+});
+
+test('私域画像：〔私〕句公开会话剥句、私域会话去标记保内容', () => {
+  const { store } = tmpStore();
+  store.setSessionDomain('priv', 'demo');
+  store.setProfileEntry('u:DE10ABC123', '大学生，住宿舍。〔私〕与角色是恋人关系，亲密约定由她主导。', { sessionId: 's1', name: 'demo' });
+  store.setProfileEntry('sess:pub', '群氛围轻松。〔私〕群里聊过私密话题。', { sessionId: 'pub' });
+  const brain = new Brain({ store, distiller: mockDistiller({}), now });
+  const sp = { nick: 'demo', openid: 'DE10ABC123' };
+
+  const pub = brain.assemble('pub', 'hi', sp);
+  const pubProfile = pub.memoryLines.find((l) => l.startsWith('- [画像]'))!;
+  assert.ok(pubProfile.includes('大学生'));
+  assert.ok(!pubProfile.includes('恋人'));
+  // sess: 画像同口径剥句
+  assert.ok(!pub.memoryLines.join('\n').includes('私密话题'));
+
+  const prv = brain.assemble('priv', 'hi', sp);
+  const prvProfile = prv.memoryLines.find((l) => l.startsWith('- [画像]'))!;
+  assert.ok(prvProfile.includes('恋人'));
+  assert.ok(!prvProfile.includes('〔私〕'));
+
+  // 纯函数级口径
+  assert.equal(stripPrivateSegments('甲。〔私〕乙。丙。'), '甲。丙。');
+  assert.equal(stripPrivateMarks('甲。〔私〕乙。'), '甲。乙。');
+});
+
+test('私域：标域立即生效（检索缓存随 graphVersion 失效，无泄漏窗口）', () => {
+  const { store } = tmpStore();
+  store.addNote('priv', { content: 'demo 的秘密约定', kind: 'semantic', actor: 'demo (DE10ABC123)', importance: 4 }, NOW);
+  const brain = new Brain({ store, distiller: mockDistiller({}), now });
+  const sp = { nick: 'demo', openid: 'DE10ABC123' };
+  // 标域前跨群可召回
+  assert.ok(brain.assemble('pub', '秘密', sp).memoryLines.join('\n').includes('秘密'));
+  store.setSessionDomain('priv', 'demo');
+  assert.ok(!brain.assemble('pub', '秘密', sp).memoryLines.join('\n').includes('秘密'));
+  // 撤域回公开（派生模型：作用域随当前标记走）
+  store.setSessionDomain('priv', '');
+  assert.ok(brain.assemble('pub', '秘密', sp).memoryLines.join('\n').includes('秘密'));
+});
+
+test('私域：sess-domain op 与 note.private 跨快照重放、export/import 往返', () => {
+  const { dir, store } = tmpStore();
+  store.setSessionDomain('priv', 'demo');
+  store.addNote('priv', { content: 'x', private: 'public' }, NOW);
+  store.flush();
+  const s2 = new BrainStore(dir);
+  assert.equal(s2.sessionDomainOf('priv'), 'demo');
+  assert.ok(s2.isPrivateSession('priv'));
+  assert.equal(s2.allNotes()[0]!.private, 'public');
+  const dump = JSON.parse(JSON.stringify(s2.exportData(NOW)));
+  const { store: s3 } = tmpStore();
+  s3.importData(dump, 'merge', NOW);
+  assert.equal(s3.sessionDomainOf('priv'), 'demo');
+  assert.equal(s3.allNotes()[0]!.private, 'public');
+  s3.setSessionDomain('priv', '');
+  assert.equal(s3.sessionDomainOf('priv'), '');
+  assert.throws(() => s3.setSessionDomain('x', 'public'));
+  rmSync(dir, { recursive: true });
+});
+
+test('私域判重：sweepNearDups 不跨域合并，mergeNotes 私域覆盖取严', () => {
+  const { store } = tmpStore();
+  store.setSessionDomain('priv', 'demo');
+  const a = store.addNote('pub', { content: '同一事实公开版', importance: 3 }, NOW);
+  const b = store.addNote('priv', { content: '同一事实私域版', importance: 3 }, NOW);
+  for (const n of [a, b]) store.setEmbedding(n.id, [1, 0, 0]);
+  const brain = new Brain({ store, distiller: mockDistiller({}), now });
+  assert.equal(brain.sweepNearDups().merged, 0);
+  assert.equal(store.allNotes().length, 2);
+  // 手动合并时私域覆盖并入 keep（取严）
+  const keep = store.addNote('pub', { content: 'k' }, NOW);
+  const drop = store.addNote('s', { content: 'd', private: 'demo' }, NOW);
+  store.mergeNotes(keep.id, drop.id, 10);
+  assert.equal(store.noteById(keep.id)!.private, 'demo');
+});
+
+test('私域判重：写入判重不跨域——私域新条不与公开同义条合并', async () => {
+  const { store } = tmpStore();
+  store.setSessionDomain('priv', 'demo');
+  const old = store.addNote('pub', { content: '用户喜欢猫', importance: 3 }, NOW);
+  store.setEmbedding(old.id, [1, 0, 0]);
+  const fake = {
+    enabled: true,
+    embed: async (texts: string[]) => texts.map(() => [0.99, 0.05, 0]),
+    embedOne: async () => null,
+  };
+  const brain = new Brain({
+    store, now,
+    distiller: mockDistiller({ memories: [{ content: '用户很喜欢猫咪', importance: 3 }] }),
+    embedder: fake as never,
+  });
+  brain.ingest('priv', { userText: '猫', assistantText: '咕', at: NOW });
+  await brain.endOfTurn('priv');
+  // 同义但跨域：不并入公开条，私域各存一条
+  assert.equal(store.allNotes().length, 2);
+  assert.equal(store.noteById(old.id)!.hits, 0);
+});
+
+test('私域：私域会话蒸馏产出的记忆域外不可见', async () => {
+  const { store } = tmpStore();
+  store.setSessionDomain('priv', 'demo');
+  const brain = new Brain({
+    store, now,
+    distiller: mockDistiller({ memories: [{ content: 'demo 约定了亲密边界', importance: 4 }] }),
+  });
+  brain.ingest('priv', { userText: '约定', assistantText: '嗯', at: NOW });
+  await brain.endOfTurn('priv');
+  assert.equal(store.allNotes().length, 1);
+  assert.ok(!brain.assemble('pub', '约定', { nick: 'demo' }).memoryLines.join('\n').includes('亲密边界'));
+  assert.ok(brain.assemble('priv', '约定', { nick: 'demo' }).memoryLines.join('\n').includes('亲密边界'));
 });

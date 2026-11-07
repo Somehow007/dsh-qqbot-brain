@@ -13,13 +13,13 @@ import { isSessionKey, isUserKey, normalizeProfileKey, sessionProfileKey, splitA
 type Op =
   | { op: 'add'; note: MemoryNote }
   | { op: 'reinforce'; id: string; strength: number; hits: number; lastAccessAt: number }
-  | { op: 'update'; id: string; patch: Partial<Pick<MemoryNote, 'content' | 'importance' | 'kind' | 'sourceIds'>> }
+  | { op: 'update'; id: string; patch: Partial<Pick<MemoryNote, 'content' | 'importance' | 'kind' | 'sourceIds' | 'private'>> }
   | { op: 'embed'; id: string; vector: number[] }
   | { op: 'del'; id: string }
   | { op: 'absorb'; ids: string[]; at: number }
   | { op: 'merge'; keepId: string; dropId: string; patch: {
       strength: number; hits: number; importance: number; createdAt: number; lastAccessAt: number;
-      actor?: string; emotion?: NoteEmotion; sourceIds?: string[];
+      actor?: string; emotion?: NoteEmotion; sourceIds?: string[]; private?: string;
     } }
   | { op: 'emotion'; sessionId: string; state: EmotionState }
   | { op: 'profile'; sessionId: string; text: string; key?: string; name?: string; at?: number; sessions?: string[]; reviewed?: string; personaId?: string }
@@ -30,7 +30,8 @@ type Op =
   | { op: 'persona-delete'; id: string }
   | { op: 'reset'; keepPersona?: boolean }
   | { op: 'del-range'; from: number; to: number; ids: string[] }
-  | { op: 'del-persona'; personaId: string; ids: string[] };
+  | { op: 'del-persona'; personaId: string; ids: string[] }
+  | { op: 'sess-domain'; sessionId: string; domain: string };
 
 export interface PersonaEntry { id: string; name: string; text: string }
 
@@ -47,6 +48,8 @@ export interface BrainExport {
   profiles: Record<string, ProfileEntry | string>;
   /** 会话滚动摘要（v1 备份可缺省） */
   digests?: Record<string, SessionDigest>;
+  /** 私域会话标记 sessionId→domain（v1 备份可缺省） */
+  sessionDomains?: Record<string, string>;
 }
 
 export interface ImportResult {
@@ -98,6 +101,7 @@ function sanitizeNote(raw: unknown, now: number): MemoryNote | undefined {
       : undefined,
     personaId: typeof n.personaId === 'string' && n.personaId ? n.personaId : undefined,
     absorbedAt: num(n.absorbedAt, 0) || undefined,
+    private: typeof n.private === 'string' && n.private.trim() ? n.private.trim() : undefined,
   };
 }
 
@@ -118,6 +122,19 @@ function sanitizeEmotion(raw: unknown): EmotionState | undefined {
 export interface OpRecord { t: number; op: Op }
 
 export const PROFILE_TEXT_CAP = 500;
+
+/** 画像私域标记：句首〔私〕到句末（。/换行/文末）为私域内容，非私域注入时剥句 */
+export const PRIVATE_MARK = '〔私〕';
+
+/** 剥去〔私〕开头的私域句：公开会话注入用（句间空白收束） */
+export function stripPrivateSegments(text: string): string {
+  return text.replace(/〔私〕[^。\n]*(。|\n|$)/g, '').replace(/ {2,}/g, ' ').trim();
+}
+
+/** 私域注入：保留私段内容，只去标记符 */
+export function stripPrivateMarks(text: string): string {
+  return text.replace(/〔私〕/g, '');
+}
 
 /**
  * 画像文本截断：超出上限时优先在上限内最后一个句末标点处收束，
@@ -167,6 +184,8 @@ export class BrainStore {
   private digests = new Map<string, SessionDigest>();
   /** 画像按人存储：键 u:<openid>（发言人）或 sess:<sessionId>（兜底） */
   private profiles = new Map<string, ProfileEntry>();
+  /** 私域会话标记：sessionId → domain 名（同域会话共享信任域；未标记=公开） */
+  private sessionDomains = new Map<string, string>();
   private personaText = '';
   private personaEntries = new Map<string, PersonaEntry>();
   private activeId = '';
@@ -200,7 +219,11 @@ export class BrainStore {
           profiles: Record<string, ProfileEntry | string>; persona: string;
           digests?: Record<string, SessionDigest>;
           personas?: PersonaEntry[]; activePersonaId?: string;
+          sessionDomains?: Record<string, string>;
         };
+        for (const [k, v] of Object.entries(snap.sessionDomains ?? {})) {
+          if (typeof v === 'string' && v) this.sessionDomains.set(k, v);
+        }
         for (const raw of snap.notes ?? []) {
           const n = raw as MemoryNote & { e?: string };
           // 快照里向量以 e(base64 f32) 存储；兼容旧版 number[]
@@ -263,6 +286,8 @@ export class BrainStore {
           if (op.patch.importance != null) n.importance = Math.min(5, Math.max(1, Math.round(op.patch.importance)));
           if (op.patch.kind != null) n.kind = op.patch.kind;
           if (op.patch.sourceIds != null) n.sourceIds = op.patch.sourceIds;
+          // 存在性判断：'' 清除为派生态（undefined），其余原样存（含 'public' 强制公开）
+          if ('private' in op.patch) n.private = op.patch.private?.trim() || undefined;
         }
         break;
       }
@@ -349,6 +374,10 @@ export class BrainStore {
       case 'del-persona':
         for (const id of op.ids) this.notes.delete(id);
         break;
+      case 'sess-domain':
+        if (op.domain) this.sessionDomains.set(op.sessionId, op.domain);
+        else this.sessionDomains.delete(op.sessionId);
+        break;
     }
   }
 
@@ -368,6 +397,7 @@ export class BrainStore {
     if (op.op === 'add' || op.op === 'update' || op.op === 'del'
       || op.op === 'merge' || op.op === 'reset' || op.op === 'embed'
       || op.op === 'del-range' || op.op === 'del-persona'
+      || op.op === 'sess-domain'
       || op.op === 'persona-activate') this.graphVersion++;
     if (++this.dirtyOps >= this.compactEvery) this.compact();
   }
@@ -390,6 +420,7 @@ export class BrainStore {
       persona: this.personaText,
       personas: [...this.personaEntries.values()],
       activePersonaId: this.activeId,
+      sessionDomains: Object.fromEntries(this.sessionDomains),
     };
     const tmp = this.snapshotFile + '.tmp';
     writeFileSync(tmp, JSON.stringify(snap));
@@ -417,6 +448,7 @@ export class BrainStore {
       sourceIds: draft.sourceIds?.length ? [...draft.sourceIds] : undefined,
       // 空串归一化为缺失：无人设期写的 '' 否则会让 notePersonaId 归不到任何轨
       personaId: draft.personaId || undefined,
+      private: draft.private?.trim() || undefined,
     };
     if (!note.content) return note;
     this.persist({ op: 'add', note });
@@ -451,6 +483,8 @@ export class BrainStore {
         emotion: keep.emotion ?? drop.emotion,
         sourceIds: [...new Set([...(keep.sourceIds ?? []), ...(drop.sourceIds ?? [])])]
           .filter((id) => id !== keepId && id !== dropId),
+        // 私域覆盖取并集之严：任一带覆盖结果都带覆盖（生效域另由来源会话派生兜底）
+        private: keep.private ?? drop.private,
       },
     });
     return true;
@@ -502,7 +536,7 @@ export class BrainStore {
     return this.notes.get(id);
   }
 
-  updateNote(id: string, patch: Partial<Pick<MemoryNote, 'content' | 'importance' | 'kind' | 'sourceIds'>>): boolean {
+  updateNote(id: string, patch: Partial<Pick<MemoryNote, 'content' | 'importance' | 'kind' | 'sourceIds' | 'private'>>): boolean {
     if (!this.notes.has(id)) return false;
     this.persist({ op: 'update', id, patch });
     return true;
@@ -554,10 +588,11 @@ export class BrainStore {
   }
 
   /** 全部已知会话：记忆 / 会话级画像 / 情绪三个来源的并集 */
-  sessions(): { sessionId: string; noteCount: number; profile: string; profileName: string; emotion?: EmotionState }[] {
+  sessions(): { sessionId: string; noteCount: number; profile: string; profileName: string; emotion?: EmotionState; domain: string }[] {
     const ids = new Set<string>([
       ...[...this.profiles.keys()].filter(isSessionKey).map((k) => k.slice(5)),
       ...this.emotions.keys(),
+      ...this.sessionDomains.keys(),
       ...[...this.notes.values()].map((n) => n.sessionId),
     ]);
     return [...ids].map((sessionId) => {
@@ -569,8 +604,31 @@ export class BrainStore {
         // sess 画像 name=私聊发言人绑定（画像卡编辑写入；空=未绑定）
         profileName: entry?.name ?? '',
         emotion: this.emotions.get(sessionId),
+        domain: this.sessionDomains.get(sessionId) ?? '',
       };
     });
+  }
+
+  // ── 私域会话标记 ──
+
+  /** 会话所属私域名；未标记返回 '' */
+  sessionDomainOf(sessionId: string): string {
+    return this.sessionDomains.get(sessionId) ?? '';
+  }
+
+  isPrivateSession(sessionId: string): boolean {
+    return this.sessionDomains.has(sessionId);
+  }
+
+  /**
+   * 标记/清除会话私域：domain 非空=标为该域（同名共享信任域），空串=清除回公开。
+   * 'public' 是 note.private 的保留覆盖值，禁作域名防止双关。
+   */
+  setSessionDomain(sessionId: string, domain: string): void {
+    const d = domain.trim();
+    if (!sessionId.trim()) throw new Error('sessionId 不能为空');
+    if (d === 'public') throw new Error("'public' 是保留作用域值，不能用作域名");
+    this.persist({ op: 'sess-domain', sessionId: sessionId.trim(), domain: d });
   }
 
   /**
@@ -673,8 +731,9 @@ export class BrainStore {
    * 读侧画像归并：QQ openid 按上下文不同，同一人可能散在多个 u: 键。
    * 命中 openid 精确匹配或 name 完全相同的所有 u: 条目，按更新时间倒序
    * 去重拼接（封顶 400 字）；无命中返回空串。
+   * includePrivate=false 剥去〔私〕私域句（公开会话注入）；true 保内容只去标记符。
    */
-  mergedUserProfile(opts: { openid?: string; nick?: string }): string {
+  mergedUserProfile(opts: { openid?: string; nick?: string; includePrivate?: boolean }): string {
     const picks: ProfileEntry[] = [];
     const seen = new Set<string>();
     for (const [key, e] of this.profiles) {
@@ -687,7 +746,9 @@ export class BrainStore {
       }
     }
     picks.sort((a, b) => b.updatedAt - a.updatedAt);
-    return picks.map((e) => e.text.trim()).filter(Boolean).join(' ').slice(0, 400);
+    const joined = picks.map((e) => e.text.trim()).filter(Boolean).join(' ');
+    const text = opts.includePrivate ? stripPrivateMarks(joined) : stripPrivateSegments(joined);
+    return text.slice(0, 400);
   }
 
   setPersona(text: string): void {
@@ -754,6 +815,7 @@ export class BrainStore {
       emotions: Object.fromEntries(this.emotions),
       profiles: Object.fromEntries(this.profiles),
       digests: Object.fromEntries(this.digests),
+      sessionDomains: Object.fromEntries(this.sessionDomains),
     };
   }
 
@@ -808,6 +870,13 @@ export class BrainStore {
         if (!e) continue;
         this.persist({ op: 'emotion', sessionId: sid, state: e });
         res.emotions++;
+      }
+    }
+    if (data.sessionDomains && typeof data.sessionDomains === 'object') {
+      for (const [sid, d] of Object.entries(data.sessionDomains)) {
+        if (typeof d === 'string' && d && d !== 'public' && sid.trim()) {
+          this.persist({ op: 'sess-domain', sessionId: sid, domain: d });
+        }
       }
     }
     if (data.digests && typeof data.digests === 'object') {

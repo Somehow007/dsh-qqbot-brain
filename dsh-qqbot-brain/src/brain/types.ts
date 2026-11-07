@@ -67,6 +67,12 @@ export interface MemoryNote {
   personaId?: string;
   /** 被语义巩固吸收的 ms epoch（设置后退出检索池与巩固候选，保留存档） */
   absorbedAt?: number;
+  /**
+   * 私域作用域手动覆盖；生效域 = private ?? 来源会话的域标记（sessionDomains）。
+   * 取值：domain 名=同域会话可见；某 sessionId=仅该会话可见（原地私密）；
+   * 'public'=强制公开（即便来源会话已标域）；undefined=按来源会话域派生。
+   */
+  private?: string;
 }
 
 /**
@@ -125,6 +131,8 @@ export interface NoteDraft {
   sourceIds?: string[];
   /** 归属人设（Brain 层注入=当前活动人设）；缺省由读侧按 PRE_TAG_PERSONA_ID 计 */
   personaId?: string;
+  /** 私域手动覆盖（脑图页/API 指定）；缺省按来源会话域派生，见 MemoryNote.private */
+  private?: string;
 }
 
 /**

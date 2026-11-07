@@ -169,3 +169,43 @@ test('画像管理与危险区 API：编辑/删除/重生成门禁/时段删除/
     rmSync(dir, { recursive: true });
   }
 });
+
+test('私域 API：/api/sessions/domain 标记/清除/校验，/api/sessions 带 domain', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'brain-domain-http-'));
+  const store = new BrainStore(dir);
+  store.addNote('s1', { content: '私聊记忆', importance: 3 }, Date.now());
+  const brain = new Brain({
+    store,
+    distiller: new Distiller({ enabled: false, baseUrl: '', apiKey: '', model: '', timeoutMs: 1000, maxNotes: 1 }),
+  });
+  const http = new BrainHttpServer(brain, {
+    enabled: true, port: 0, host: '127.0.0.1', prefix: '/brain', token: 'test-token',
+  }, () => {});
+  const server = createServer((req, res) => {
+    (http as unknown as { route: (req: typeof req, res: typeof res) => Promise<void> }).route(req, res).catch((err) => {
+      res.writeHead(500).end(String(err));
+    });
+  });
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  try {
+    const addr = server.address();
+    assert.ok(addr && typeof addr !== 'string');
+    const url = `http://127.0.0.1:${addr.port}/brain/api`;
+    const call = (path: string, method = 'GET', body?: object) =>
+      fetch(url + path, {
+        method, headers: { 'x-brain-token': 'test-token', 'Content-Type': 'application/json' },
+        body: body && JSON.stringify(body),
+      });
+    assert.equal((await call('/sessions/domain', 'POST', { sessionId: 's1', domain: 'demo' })).status, 200);
+    assert.equal(store.sessionDomainOf('s1'), 'demo');
+    assert.equal((await call('/sessions/domain', 'POST', { sessionId: 's1', domain: 'public' })).status, 400);
+    assert.equal((await call('/sessions/domain', 'POST', { domain: 'demo' })).status, 400);
+    const list = await (await call('/sessions')).json() as { sessions: { sessionId: string; domain: string }[] };
+    assert.equal(list.sessions.find((s) => s.sessionId === 's1')!.domain, 'demo');
+    await call('/sessions/domain', 'POST', { sessionId: 's1', domain: '' });
+    assert.equal(store.sessionDomainOf('s1'), '');
+  } finally {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    rmSync(dir, { recursive: true });
+  }
+});

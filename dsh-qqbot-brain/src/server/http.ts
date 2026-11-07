@@ -116,6 +116,23 @@ export class BrainHttpServer {
     if (p === `${prefix}/api/sessions`) {
       return json(res, { sessions: this.brain.sessions() });
     }
+    // 私域会话标记：domain 非空=标为该域，空串=清除回公开
+    if (p === `${prefix}/api/sessions/domain` && req.method === 'POST') {
+      readBody(req).then((body) => {
+        const o = parseJson<{ sessionId?: string; domain?: string }>(body);
+        if (!o || typeof o.sessionId !== 'string' || !o.sessionId.trim()
+          || (o.domain !== undefined && typeof o.domain !== 'string')) {
+          res.writeHead(400).end('sessionId required'); return;
+        }
+        try {
+          this.brain.setSessionDomain(o.sessionId, o.domain ?? '');
+          return json(res, { ok: true, sessions: this.brain.sessions() });
+        } catch (e) {
+          res.writeHead(400).end(e instanceof Error ? e.message : 'invalid domain');
+        }
+      });
+      return;
+    }
     if (p === `${prefix}/api/profiles` && req.method === 'GET') {
       return json(res, { profiles: this.brain.people() });
     }
@@ -198,10 +215,11 @@ export class BrainHttpServer {
     // /api/notes 与 /api/notes/<id>[/reinforce]
     if (p === `${prefix}/api/notes` && req.method === 'POST') {
       readBody(req).then((body) => {
-        const o = parseJson<{ content?: string; importance?: number; kind?: 'episodic' | 'semantic' | 'attitude'; sessionId?: string; actor?: string }>(body) ?? {};
+        const o = parseJson<{ content?: string; importance?: number; kind?: 'episodic' | 'semantic' | 'attitude'; sessionId?: string; actor?: string; private?: string }>(body) ?? {};
         if (!o.content?.trim()) { res.writeHead(400).end('content required'); return; }
         const note = this.brain.addNote(o.sessionId ?? GLOBAL_SESSION_ID, {
           content: o.content, importance: o.importance, kind: o.kind, actor: o.actor,
+          private: typeof o.private === 'string' ? o.private : undefined,
         });
         return json(res, { ok: true, note });
       });
@@ -217,7 +235,7 @@ export class BrainHttpServer {
       }
       if (req.method === 'PATCH') {
         readBody(req).then((body) => {
-          const o = parseJson<{ content?: string; importance?: number; kind?: 'episodic' | 'semantic' | 'attitude' }>(body) ?? {};
+          const o = parseJson<{ content?: string; importance?: number; kind?: 'episodic' | 'semantic' | 'attitude'; private?: string }>(body) ?? {};
           return this.brain.updateNote(id, o)
             ? json(res, { ok: true })
             : void res.writeHead(404).end('note not found');
@@ -292,7 +310,7 @@ export class BrainHttpServer {
       const prefix = this.cfg.prefix.replace(/\/$/, '');
       webServer.register({ path: prefix, handler: (r, s) => this.route(r, s) });
       webServer.register({ path: `${prefix}/`, handler: (r, s) => this.route(r, s) });
-      for (const sub of ['/api/state', '/api/query', '/api/persona', '/api/personas', '/api/personas/activate', '/api/sessions', '/api/profiles', '/api/profiles/merge', '/api/profiles/regenerate', '/api/ops', '/api/notes', '/api/notes/purge', '/api/digests', '/api/reset', '/api/export', '/api/import', '/api/dedup']) {
+      for (const sub of ['/api/state', '/api/query', '/api/persona', '/api/personas', '/api/personas/activate', '/api/sessions', '/api/sessions/domain', '/api/profiles', '/api/profiles/merge', '/api/profiles/regenerate', '/api/ops', '/api/notes', '/api/notes/purge', '/api/digests', '/api/reset', '/api/export', '/api/import', '/api/dedup']) {
         webServer.register({ path: `${prefix}${sub}`, handler: (r, s) => this.route(r, s) });
       }
       this.log(`brain: 已挂载到宿主 webServer ${prefix}`);
