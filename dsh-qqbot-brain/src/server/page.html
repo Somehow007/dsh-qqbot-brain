@@ -203,6 +203,7 @@
     .tab:after{content:"";position:absolute;left:12px;right:12px;bottom:-1px;height:2px;background:var(--cyan);box-shadow:0 0 8px var(--cyan);opacity:0;transform:scaleX(.4);transition:opacity .2s,transform .2s}
     .tab.active{color:var(--cyan2)}
     .tab.active:after{opacity:1;transform:none}
+    .rstat{margin-left:auto;align-self:center;padding:0 12px;font-size:var(--fs-xs);font-family:var(--mono);letter-spacing:.06em;color:var(--gold);white-space:nowrap}
     .pane{border:1px solid var(--hair);border-top:none;border-radius:0 0 var(--radius) var(--radius);background:#071a2acc;padding:16px;min-height:240px;min-width:0}
     .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
     .toolbar input[type=text],.toolbar select,.addform input,.addform select{border:1px solid var(--line2);border-radius:var(--radius);background-color:var(--panel2);padding:6px 9px;font-size:var(--fs-md);color:var(--ink)}
@@ -394,6 +395,7 @@
       <button class="tab" data-pane="ops">事件流水</button>
       <button class="tab" data-pane="persona">人格内核</button>
       <button class="tab" data-pane="backup">备份迁移</button>
+      <span class="rstat" id="refreshStat" hidden>编辑中 · 自动刷新已暂停</span>
     </div>
     <div class="pane" id="pane-lib">
       <div class="toolbar">
@@ -680,7 +682,7 @@ function nameOf(k){
   const n=STATE.notes.find(x=>x.id===k);return n?previewText(n,STATE.notes):'';
 }
 function mapSummary(key){
-  if(!key||!STATE)return matchMedia('(pointer:coarse)').matches?'点选节点查看 · 捏合/双击缩放':'悬停或点选节点查看';
+  if(!key||!STATE)return matchMedia('(pointer:coarse)').matches?'点选节点查看 · 捏合/双击缩放':'悬停或点选查看 · ⌃滚轮/双击缩放';
   const t=keyKind(key);
   if(t==='facet')return `人格 · ${nameOf(key)} · ${neighbors(key).length} 段记忆`;
   if(t==='emotion')return `情绪 · ${nameOf(key)} · ${neighbors(key).length} 段记忆（推断）`;
@@ -753,8 +755,9 @@ async function load(){
   if(personas)showPersonas(personas);
   CORTEX=buildCortex(STATE,OPS,STATE.persona);
   render(); renderLibrary(); renderSessions(); renderOps(); renderPurgePersona();
-  // 正在详情面板编辑时不要重绘（会清掉未保存的输入）
-  const editing = document.activeElement && document.activeElement.closest('#info-detail');
+  updateRstat();
+  // 正在详情面板编辑时不要重绘（会清掉未保存的输入）：焦点在面板内，或输入过又失焦但还没保存
+  const editing = detailDirty||(document.activeElement && document.activeElement.closest('#info-detail'));
   if(editing) return;
   panel(SELECTED&&validKey(SELECTED)?SELECTED:null);
 }
@@ -1066,7 +1069,9 @@ function overview(detail){
   const c=emotionChart();if(c)detail.append(c);
 }
 let lastPanelKey;
+let detailDirty=false;
 function panel(key){
+  detailDirty=false;
   if(key&&!validKey(key))key=null;
   SELECTED=key;
   const detail=$('info-detail'),foot=$('info-foot'),hint=$('info-hint'),C=CORTEX,t=keyKind(key);
@@ -1110,9 +1115,9 @@ function panel(key){
     $('ne-save').onclick=async()=>{
       await fapi(`${API}/notes/${n.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({content:$('ne-content').value,importance:+$('ne-imp').value,kind:$('ne-kind').value})});
-      await load();};
-    $('ne-reinf').onclick=async()=>{await fapi(`${API}/notes/${n.id}/reinforce`,{method:'POST'});await load();};
-    $('ne-del').onclick=async()=>{if(confirm('删除这条记忆？（写入 del 墓碑，不可恢复）')){await fapi(`${API}/notes/${n.id}`,{method:'DELETE'});await load();}};
+      detailDirty=false;await load();};
+    $('ne-reinf').onclick=async()=>{await fapi(`${API}/notes/${n.id}/reinforce`,{method:'POST'});detailDirty=false;await load();};
+    $('ne-del').onclick=async()=>{if(confirm('删除这条记忆？（写入 del 墓碑，不可恢复）')){await fapi(`${API}/notes/${n.id}`,{method:'DELETE'});detailDirty=false;await load();}};
     foot.textContent=`${n.actor?`发言人 ${n.actor} · `:''}会话 ${shortId(n.sessionId)} · 重要度 ${n.importance}/5 · ${n.ageDays}天前 · 保持率 ${(n.retention*100).toFixed(1)}% · 唤起 ${n.hits} 次${n.fading?' · ⚠将遗忘':''}`;
   }
   $('map-current').textContent=mapSummary(key);
@@ -1513,8 +1518,8 @@ function zoomAt(px,py,f){
   VB.x=p.x-(p.x-VB.x)*k;VB.y=p.y-(p.y-VB.y)*k;
   clampView();setView();
 }
-brainSvg.addEventListener('wheel',ev=>{ev.preventDefault();const st=ev.ctrlKey?1.05:1.12;zoomAt(ev.clientX,ev.clientY,ev.deltaY>0?st:1/st);},{passive:false});
-const ptrs=new Map();let viewMoved=false,pinchPrev=null,lastTap={t:0,x:0,y:0},pend=[0,0];
+brainSvg.addEventListener('wheel',ev=>{if(!ev.ctrlKey)return;ev.preventDefault();zoomAt(ev.clientX,ev.clientY,ev.deltaY>0?1.05:1/1.05);},{passive:false});
+const ptrs=new Map();let viewMoved=false,pinchPrev=null,lastTap={t:0,x:0,y:0},pend=[0,0],dblGuard=0;
 brainSvg.addEventListener('pointerdown',ev=>{if(ev.pointerType==='mouse'&&ev.button!==0)return;ptrs.set(ev.pointerId,[ev.clientX,ev.clientY]);if(ptrs.size===1){viewMoved=false;pend=[0,0];}else try{brainSvg.setPointerCapture(ev.pointerId);}catch{}pinchPrev=null;});
 brainSvg.addEventListener('pointermove',ev=>{
   const prev=ptrs.get(ev.pointerId);if(!prev)return;
@@ -1534,12 +1539,17 @@ const ptrEnd=ev=>{
   if(ev.type!=='pointerup'||!ev.isPrimary||ptrs.size>0||viewMoved||ev.pointerType==='mouse')return;
   const dx=ev.clientX-lastTap.x,dy=ev.clientY-lastTap.y;
   if(ev.timeStamp-lastTap.t<340&&dx*dx+dy*dy<900){
-    viewMoved=true;lastTap.t=0;
+    viewMoved=true;lastTap.t=0;dblGuard=ev.timeStamp;
     if(VB.w>430)zoomAt(ev.clientX,ev.clientY,.5);else{Object.assign(VB,VB_HOME);setView();}
   }else lastTap={t:ev.timeStamp,x:ev.clientX,y:ev.clientY};
 };
 brainSvg.addEventListener('pointerup',ptrEnd);
 brainSvg.addEventListener('pointercancel',ptrEnd);
+// 鼠标双击缩放（触屏双触已在 pointerup 处理，dblGuard 防重复触发）
+brainSvg.addEventListener('dblclick',ev=>{
+  if(ev.timeStamp-dblGuard<500)return;
+  if(VB.w>430)zoomAt(ev.clientX,ev.clientY,.5);else{Object.assign(VB,VB_HOME);setView();}
+});
 brainSvg.addEventListener('click',ev=>{if(viewMoved){viewMoved=false;ev.stopImmediatePropagation();ev.preventDefault();}},true);
 addEventListener('resize',()=>{clampView();setView();});
 if(matchMedia('(max-width:640px)').matches){Object.assign(VB,{x:140,y:120,w:600,h:429});setView();}
@@ -1609,7 +1619,17 @@ $('query').addEventListener('input',async ev=>{
   box.hidden=false;
 });
 load().catch(e=>{const b=$('results');b.hidden=false;b.textContent='API 未就绪：'+e;$('companion').textContent='这片海暂时连不上，等会儿再来。';});
-setInterval(load,15000);
+// 15s 自动刷新：编辑中整轮跳过保住草稿（焦点在输入面/详情面板有未保存输入/画像卡编辑框开着）；后台标签页不刷
+function isEditing(){
+  const ae=document.activeElement;
+  if(ae instanceof HTMLElement&&ae.closest('.pane input,.pane textarea,.pane select,#info-detail input,#info-detail textarea,#info-detail select'))return true;
+  return detailDirty||!!document.querySelector('#sessGrid .prof-edit');
+}
+const rstat=$('refreshStat'),updateRstat=()=>{rstat.hidden=!isEditing();};
+document.addEventListener('focusin',updateRstat);
+document.addEventListener('focusout',()=>setTimeout(updateRstat,0));
+$('info-detail').addEventListener('input',()=>{detailDirty=true;});
+setInterval(()=>{updateRstat();if(document.hidden||isEditing())return;load();},15000);
 </script>
 </body>
 </html>
