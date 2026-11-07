@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 79
+- **Total Sessions**: 80
 - **Last Active**: 2026-11-07
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1694 | Active |
+| `journal-1.md` | ~1714 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 80 | 2026-11-07 | 蒸馏归因错误走查与修复 | - | `main` |
 | 79 | 2026-11-07 | 脑图滚轮劫持修复 + 刷新破坏编辑态方案 | - | `main` |
 | 78 | 2026-11-07 | 项目约定补录线上数据位置 | `49d16f9` | `main` |
 | 77 | 2026-11-07 | 恋人线修复部署上线 + 强度通胀方案归档 | `48e3e95` | `main` |

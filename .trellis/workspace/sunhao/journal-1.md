@@ -1692,3 +1692,23 @@ SSH 线上取证后按用户指示用已有优化标齐数据：PATCH 把 13 条
 ### Status
 
 [OK] **Completed**
+
+
+## Session 80: 蒸馏归因错误走查与修复
+<!-- trellis-session: v=2 fp=a891427f0607f046 -->
+
+**Date**: 2026-11-07
+**Task**: 蒸馏归因错误走查与修复
+**Branch**: `main`
+
+### Summary
+
+用户报告群聊情景记忆把角色观点记成用户看法。云端走查：宿主转录证实花咲蝶舞问大肥鱼瑞幸/库迪/星巴克三选一，大肥鱼自己作答；brain.jsonl op流水显示同一条note被merge改写3次、观点主体从角色漂到花咲蝶舞再漂到demo，另有demo澳白偏好同款错归因——同轮三连错属系统性问题。根因：prompt无观点归属规则+merge对主体无约束。修复：PROMPT/CONSOLIDATE_PROMPT补归属规则与merge主体不变护栏；线上PATCH修复2条坏数据（1条恢复episodic正确归属、1条转为对咖啡attitude入devotion轨）。测试全绿构建通过，待部署生效。
+
+### Git Commits
+
+(No commits - planning session)
+
+### Status
+
+[OK] **Completed**
