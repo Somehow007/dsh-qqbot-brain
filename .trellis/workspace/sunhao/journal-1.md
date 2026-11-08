@@ -1836,3 +1836,23 @@ SSH 线上取证后按用户指示用已有优化标齐数据：PATCH 把 13 条
 ### Status
 
 [OK] **Completed**
+
+
+## Session 87: 求职材料整理：简历条目+面试聊点+行情匹配
+<!-- trellis-session: v=2 fp=c6ff98aa98b63d2c -->
+
+**Date**: 2026-11-08
+**Task**: 求职材料整理：简历条目+面试聊点+行情匹配
+**Branch**: `main`
+
+### Summary
+
+需求：把 qqbot-brain 翻译成求职语言。做法：核代码事实（229 commits、零依赖、事件溯源、混合检索公式）+搜2026秋招行情（AI岗+789%、Agent开发+244%最热招、AI应用30-50w薪资带），JD高频要求→项目能力逐条映射。产出 求职材料/ 三份文档：01简历条目（Agent/后端/全栈三版裁剪bullet）、02面试聊点手册（6亮点+追问预演+数字速查+Java翻译话术）、03行情与岗位匹配（投递策略）。任务档案 archive/2026-11/11-08-resume-kit。后续：补LangGraph/Dify体验、按具体公司JD再裁剪。
+
+### Git Commits
+
+(No commits - planning session)
+
+### Status
+
+[OK] **Completed**

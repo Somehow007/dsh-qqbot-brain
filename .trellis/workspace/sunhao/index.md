@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 86
-- **Last Active**: 2026-11-07
+- **Total Sessions**: 87
+- **Last Active**: 2026-11-08
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1838 | Active |
+| `journal-1.md` | ~1858 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 87 | 2026-11-08 | 求职材料整理：简历条目+面试聊点+行情匹配 | - | `main` |
 | 86 | 2026-11-07 | 私域 UI 徽标自解释改名 + 线上散兵私密条补标 | `64bcb1d` | `main` |
 | 85 | 2026-11-07 | 叶瞬光人设包改独立资产（不进大肥鱼项目） | - | `main` |
 | 84 | 2026-11-07 | 叶瞬光人格内核 prompt（陪伴型内置人设） | - | `main` |
