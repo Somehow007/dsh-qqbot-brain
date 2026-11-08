@@ -408,7 +408,7 @@
         <input type="text" id="libQ" placeholder="搜索记忆内容…">
         <select id="libKind"><option value="">全部类型</option><option value="episodic">情景</option><option value="semantic">语义</option><option value="attitude">态度</option></select>
         <select id="libSess"><option value="">全部会话</option></select>
-        <select id="libScope" title="按生效可见域筛选"><option value="">全部可见域</option><option value="priv">仅私域</option><option value="pub">仅公开</option></select>
+        <select id="libScope" title="按生效可见域筛选"><option value="">全部可见域</option><option value="priv">仅私域</option><option value="pub">仅公开</option><option value="release">域内待放行</option></select>
         <select id="libPersona"><option value="">全部人设</option></select>
         <select id="libFade"><option value="">全部状态</option><option value="fading">将遗忘</option><option value="fresh">鲜活</option></select>
         <select id="libSort">
@@ -1177,6 +1177,7 @@ function renderLibrary(){
   const psel=$('libPersona'),pcur=psel.value;
   psel.replaceChildren(new Option('全部人设',''));
   [...new Set(STATE.notes.map(notePid))].forEach(pid=>psel.appendChild(new Option(personaName(pid),pid,pid===pcur,pid===pcur)));
+  if($('libScope').value==='release'){loadReleaseQueue();return;}
   const arr=libFiltered();
   $('libCount').textContent=`${arr.length} / ${STATE.notes.length} 条`;
   const tb=$('libBody');tb.replaceChildren();
@@ -1194,6 +1195,27 @@ function renderLibrary(){
     tr.querySelector('.lib-open').onclick=()=>{panel(n.id);$('info-title').scrollIntoView({behavior:'smooth'});};
     tr.onclick=ev=>{if(ev.target.closest('button'))return;panel(n.id);$('info-title').scrollIntoView({behavior:'smooth'});};
     tr.querySelector('[data-a=reinf]').onclick=async()=>{await fapi(`${API}/notes/${n.id}/reinforce`,{method:'POST'});await load();};
+    tr.querySelector('[data-a=del]').onclick=async()=>{if(confirm('删除这条记忆？')){await fapi(`${API}/notes/${n.id}`,{method:'DELETE'});await load();}};
+    tb.appendChild(tr);});
+}
+// 域内待放行：私域里的疑似良性事实排队，人工一键放行回公开池（私密词命中的不入队）
+async function loadReleaseQueue(){
+  const tb=$('libBody');
+  tb.innerHTML='<tr><td colspan="7" class="empty">读取放行候选…</td></tr>';
+  const r=await fapi(API+'/release-candidates?limit=50').then(x=>x.json()).catch(()=>null);
+  tb.replaceChildren();
+  const list=(r&&r.candidates)||[];
+  $('libCount').textContent=`${list.length} 条待放行`;
+  if(!list.length){tb.innerHTML='<tr><td colspan="7" class="empty">域内没有疑似良性事实——都锁得很干净。</td></tr>';return;}
+  list.forEach(n=>{
+    const tr=document.createElement('tr');tr.className='data';
+    tr.innerHTML=`<td><span class="lib-preview"></span></td>
+      <td><span class="badge ${n.kind}">${kindLabel(n.kind)}</span> <span class="badge priv">私域·${esc(n.scope)}</span></td>
+      <td style="opacity:.5">—</td><td data-label="重要">${n.importance}</td>
+      <td style="opacity:.6">${shortId(n.sessionId)}</td><td style="opacity:.5">—</td>
+      <td><button class="act" data-a="rel">放行</button><button class="act danger" data-a="del">删</button></td>`;
+    tr.querySelector('.lib-preview').textContent=n.content;tr.cells[0].title=n.content;
+    tr.querySelector('[data-a=rel]').onclick=async()=>{await fapi(`${API}/notes/${n.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({private:'public'})});await load();};
     tr.querySelector('[data-a=del]').onclick=async()=>{if(confirm('删除这条记忆？')){await fapi(`${API}/notes/${n.id}`,{method:'DELETE'});await load();}};
     tb.appendChild(tr);});
 }

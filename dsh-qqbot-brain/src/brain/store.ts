@@ -616,6 +616,11 @@ export class BrainStore {
     return this.sessionDomains.get(sessionId) ?? '';
   }
 
+  /** 已登记域名集合：区分 note.private 是「域名覆盖」还是「钉到某 sessionId」 */
+  domainNames(): Set<string> {
+    return new Set(this.sessionDomains.values());
+  }
+
   isPrivateSession(sessionId: string): boolean {
     return this.sessionDomains.has(sessionId);
   }

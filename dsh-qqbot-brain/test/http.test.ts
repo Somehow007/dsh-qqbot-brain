@@ -209,3 +209,43 @@ test('私域 API：/api/sessions/domain 标记/清除/校验，/api/sessions 带
     rmSync(dir, { recursive: true });
   }
 });
+
+test('放行候选 API：返回域内待放行队列，PATCH private:public 放行后出队', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'brain-release-http-'));
+  const store = new BrainStore(dir);
+  store.setSessionDomain('priv', 'demo');
+  const cand = store.addNote('priv', { content: 'demo：每周读经济学人和小说', importance: 4 }, Date.now());
+  store.addNote('priv', { content: 'demo：亲密约定梳头吹头发', importance: 4 }, Date.now());
+  const brain = new Brain({
+    store,
+    distiller: new Distiller({ enabled: false, baseUrl: '', apiKey: '', model: '', timeoutMs: 1000, maxNotes: 1 }),
+  });
+  const http = new BrainHttpServer(brain, {
+    enabled: true, port: 0, host: '127.0.0.1', prefix: '/brain', token: 'test-token',
+  }, () => {});
+  const server = createServer((req, res) => {
+    (http as unknown as { route: (req: typeof req, res: typeof res) => Promise<void> }).route(req, res).catch((err) => {
+      res.writeHead(500).end(String(err));
+    });
+  });
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  try {
+    const addr = server.address();
+    assert.ok(addr && typeof addr !== 'string');
+    const url = `http://127.0.0.1:${addr.port}/brain/api`;
+    const call = (path: string, method = 'GET', body?: object) =>
+      fetch(url + path, {
+        method, headers: { 'x-brain-token': 'test-token', 'Content-Type': 'application/json' },
+        body: body && JSON.stringify(body),
+      });
+    const list = await (await call('/release-candidates')).json() as { candidates: { id: string; scope: string }[] };
+    assert.deepEqual(list.candidates.map((c) => c.id), [cand.id]);
+    assert.equal(list.candidates[0]!.scope, 'demo');
+    assert.equal((await call(`/notes/${cand.id}`, 'PATCH', { private: 'public' })).status, 200);
+    const after = await (await call('/release-candidates')).json() as { candidates: unknown[] };
+    assert.equal(after.candidates.length, 0);
+  } finally {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    rmSync(dir, { recursive: true });
+  }
+});

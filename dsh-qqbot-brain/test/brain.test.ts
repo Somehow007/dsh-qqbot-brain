@@ -2342,15 +2342,18 @@ test('私域：sess-domain op 与 note.private 跨快照重放、export/import �
   rmSync(dir, { recursive: true });
 });
 
-test('私域判重：sweepNearDups 不跨域合并，mergeNotes 私域覆盖取严', () => {
+test('私域判重：公开↔域近重复=佐证放行后合并；mergeNotes 私域覆盖取严', () => {
   const { store } = tmpStore();
   store.setSessionDomain('priv', 'demo');
   const a = store.addNote('pub', { content: '同一事实公开版', importance: 3 }, NOW);
   const b = store.addNote('priv', { content: '同一事实私域版', importance: 3 }, NOW);
   for (const n of [a, b]) store.setEmbedding(n.id, [1, 0, 0]);
   const brain = new Brain({ store, distiller: mockDistiller({}), now });
-  assert.equal(brain.sweepNearDups().merged, 0);
-  assert.equal(store.allNotes().length, 2);
+  // 佐证放行：事实已见公开池，域内副本放行至公开后正常并簇
+  const r = brain.sweepNearDups();
+  assert.equal(r.merged, 1);
+  assert.deepEqual(r.released, [b.id]);
+  assert.equal(store.allNotes().length, 1);
   // 手动合并时私域覆盖并入 keep（取严）
   const keep = store.addNote('pub', { content: 'k' }, NOW);
   const drop = store.addNote('s', { content: 'd', private: 'demo' }, NOW);
@@ -2392,4 +2395,47 @@ test('私域：私域会话蒸馏产出的记忆域外不可见', async () => {
   assert.equal(store.allNotes().length, 1);
   assert.ok(!brain.assemble('pub', '约定', { nick: 'demo' }).memoryLines.join('\n').includes('亲密边界'));
   assert.ok(brain.assemble('priv', '约定', { nick: 'demo' }).memoryLines.join('\n').includes('亲密边界'));
+});
+
+test('放行阀：域↔域不互并不放行；钉死条有公开孪生也不自动放', () => {
+  const { store } = tmpStore();
+  store.setSessionDomain('p1', 'demo');
+  store.setSessionDomain('p2', 'vault');
+  const a = store.addNote('p1', { content: '同一事实A域', importance: 3 }, NOW);
+  const b = store.addNote('p2', { content: '同一事实B域', importance: 3 }, NOW);
+  const pinned = store.addNote('pub2', { content: '钉死条', importance: 3, private: 'pub2' }, NOW);
+  const pub = store.addNote('pub3', { content: '钉死条公开孪生', importance: 3 }, NOW);
+  for (const n of [a, b]) store.setEmbedding(n.id, [0, 1, 0]);
+  for (const n of [pinned, pub]) store.setEmbedding(n.id, [1, 0, 0]);
+  const brain = new Brain({ store, distiller: mockDistiller({}), now });
+  const r = brain.sweepNearDups();
+  assert.equal(r.merged, 0);
+  assert.equal(r.released.length, 0);
+  assert.equal(store.allNotes().length, 4);
+  assert.equal(store.noteById(pinned.id)!.private, 'pub2', '人工钉死绝不自动放');
+});
+
+test('放行阀·画像佐证：域条内容高覆盖命中公开画像即放行', () => {
+  const { store } = tmpStore();
+  store.setSessionDomain('priv', 'demo');
+  store.setProfileEntry(userProfileKey('OID_A'), 'demo 是群主。不吃菠萝。住宿舍人多说话不便。〔私〕恋人线略', { sessionId: 'pub', name: 'demo' });
+  const hit = store.addNote('priv', { content: 'demo：不吃菠萝，住宿舍', importance: 3 }, NOW);
+  const miss = store.addNote('priv', { content: 'demo：与鲸鱼娘约定亲密后由他带去洗澡', importance: 3 }, NOW);
+  const brain = new Brain({ store, distiller: mockDistiller({}), now });
+  const r = brain.sweepNearDups();
+  assert.equal(store.noteById(hit.id)!.private, 'public');
+  assert.ok(r.released.includes(hit.id));
+  assert.equal(store.noteById(miss.id)!.private, undefined, '无公开佐证不自动放');
+});
+
+test('放行候选队列：无私词域条入队，私词/钉死/公开/态度条不入队', () => {
+  const { store } = tmpStore();
+  store.setSessionDomain('priv', 'demo');
+  const cand = store.addNote('priv', { content: 'demo：每周读经济学人和小说', importance: 4 }, NOW);
+  store.addNote('priv', { content: 'demo：亲密约定梳头吹头发', importance: 4 }, NOW);
+  store.addNote('pub2', { content: '钉死事实', importance: 4, private: 'pub2' }, NOW);
+  store.addNote('pub', { content: '公开事实', importance: 4 }, NOW);
+  store.addNote('priv', { content: '对某事：立场', importance: 4, kind: 'attitude' }, NOW);
+  const brain = new Brain({ store, distiller: mockDistiller({}), now });
+  assert.deepEqual(brain.releaseCandidates().map((x) => x.id), [cand.id]);
 });

@@ -204,6 +204,10 @@ export class BrainHttpServer {
     if (p === `${prefix}/api/dedup` && req.method === 'POST') {
       return json(res, this.brain.sweepNearDups());
     }
+    if (p === `${prefix}/api/release-candidates`) {
+      const limit = Math.min(100, Math.max(1, Number(url.searchParams.get('limit')) || 30));
+      return json(res, { candidates: this.brain.releaseCandidates(limit) });
+    }
     if (p === `${prefix}/api/consolidate` && req.method === 'POST') {
       const sid = url.searchParams.get('session');
       const targets = sid ? [sid] : this.brain.sessionsNeedingConsolidation();

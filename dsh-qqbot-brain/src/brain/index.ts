@@ -869,10 +869,11 @@ export class Brain {
    * 每簇保留信息量最大的一条（长文案 > 重要度 > 命中 > 更早创建），
    * 其余经 merge op 合并字段后删除。无向量记忆不参与（无法判定）。
    */
-  sweepNearDups(): { clusters: number; merged: number; pairs: { keep: string; drop: string }[] } {
+  sweepNearDups(): { clusters: number; merged: number; pairs: { keep: string; drop: string }[]; released: string[] } {
     // 已退池的 absorbed 条不参与：否则可能与活摘要成簇且 keep 选中存档条，
     // 把还在检索池的摘要并进不可见存档（静默丢失）
     const notes = this.store.allNotes().filter((n) => n.embedding?.length && !n.absorbedAt);
+    const released: string[] = [];
     const parent = new Map<string, string>();
     const find = (x: string): string => {
       let r = x;
@@ -889,8 +890,11 @@ export class Brain {
           const a = notes[i]!, b = notes[j]!;
           if ((a.kind === 'attitude') !== (b.kind === 'attitude')) continue;
           if (a.kind === 'attitude' && notePersonaId(a) !== notePersonaId(b)) continue;
-          // 私域边界：生效域不同的近重复不互并（私域条不能被公开条吸收）
-          if (this.noteScope(a) !== this.noteScope(b)) continue;
+          // 私域边界：生效域不同的近重复不互并——但「公开↔域」对走佐证放行：
+          // 事实既已见于公开池，域内副本放出零新信息，放完即同域、正常并簇。
+          if (this.noteScope(a) !== this.noteScope(b)
+            && !this.releaseCorroborated(a, b, released)
+            && !this.releaseCorroborated(b, a, released)) continue;
           parent.set(find(a.id), find(b.id));
         }
       }
@@ -915,7 +919,60 @@ export class Brain {
       }
       this.log?.(`近重复合并：「${keep.content.slice(0, 24)}」吸收 ${members.length - 1} 条复读`);
     }
-    return { clusters: clusterCount, merged: pairs.length, pairs };
+    // 佐证放行·画像语料：公开 u: 画像（剥私后）本就公开，域条内容高覆盖命中=事实已公开
+    const pubCorpus = this.store.people()
+      .filter((p) => p.kind === 'person')
+      .map((p) => stripPrivateSegments(p.text))
+      .join('');
+    if (pubCorpus) {
+      for (const n of this.store.allNotes()) {
+        if (n.absorbedAt || !this.releaseableDomainScope(n)) continue;
+        if (corroboratedByText(n.content, pubCorpus)) this.releaseNote(n, released);
+      }
+    }
+    return { clusters: clusterCount, merged: pairs.length, pairs, released };
+  }
+
+  /**
+   * 可自动放行的域作用域：派生域或域名覆盖均可；
+   * private 显式钉到某 sessionId 的（仅本会话）是人工钉死，绝不自动放。
+   */
+  private releaseableDomainScope(n: MemoryNote): string | undefined {
+    const s = this.noteScope(n);
+    if (!s || s === 'public') return undefined;
+    if (n.private && !this.store.domainNames().has(n.private)) return undefined;
+    return s;
+  }
+
+  /**
+   * 佐证放行（确定性安全）：candidate 为可放域条 ∧ corroborant 公开 →
+   * candidate 标 private:'public'。放的是已存在事实的副本，零新信息暴露。
+   */
+  private releaseCorroborated(candidate: MemoryNote, corroborant: MemoryNote, released: string[]): boolean {
+    if (!this.releaseableDomainScope(candidate)) return false;
+    const cs = this.noteScope(corroborant);
+    if (cs && cs !== 'public') return false;
+    this.releaseNote(candidate, released);
+    return true;
+  }
+
+  private releaseNote(n: MemoryNote, released: string[]): void {
+    this.store.updateNote(n.id, { private: 'public' });
+    released.push(n.id);
+    this.log?.(`佐证放行：「${n.content.slice(0, 24)}」事实已见公开侧，放行至公开池`);
+  }
+
+  /**
+   * 域内待放行候选（L2 人工队列）：无私密线索词的域条，按重要度排序。
+   * 启发式只负责排队降噪，放行决策永远是人（UI 一键 PATCH private:'public'）。
+   */
+  releaseCandidates(limit = 30): { id: string; kind: MemoryNote['kind']; sessionId: string; content: string; importance: number; scope: string }[] {
+    return this.store.allNotes()
+      .filter((n) => !n.absorbedAt && n.kind !== 'attitude' && !!this.releaseableDomainScope(n)
+        && !PRIVATE_HINT_RE.test(n.content))
+      .sort((a, b) => b.importance - a.importance || b.createdAt - a.createdAt)
+      .slice(0, Math.max(1, limit))
+      .map((n) => ({ id: n.id, kind: n.kind, sessionId: n.sessionId, content: n.content, importance: n.importance, scope: this.noteScope(n)! }));
   }
 
   /** 写入判重：全库找与新记忆向量余弦最高的既有记忆，≥dedupeEmbedCos 判为同一事实 */
@@ -1173,4 +1230,23 @@ function personaFacetTexts(text: string): string[] {
     const nl = p.indexOf('\n');
     return ((nl < 0 ? p : p.slice(0, nl)).trim() + ' ' + (nl < 0 ? '' : p.slice(nl + 1)).trim()).trim();
   });
+}
+
+/** 放行队列的私密线索词（启发式降噪：命中的域条不进候选，放行决策永远是人） */
+const PRIVATE_HINT_RE = /恋人|亲密|防护|吹头发|小余|宝宝|小笨蛋|身体反应|冷落|她还是她|男朋友|女朋友|送裙子|害羞|颈窝|白丝|洗澡|数着日子|撒娇|半推半就|约会|按摩|被子|起床|旗袍|抱着|语音/;
+
+/**
+ * 文本佐证判定：note 内容归一化（去 actor 前缀与标点）后的 char-bigram
+ * 被公开语料覆盖 ≥60% 即「该事实已是公开知识」，可安全放行。
+ */
+function corroboratedByText(content: string, corpus: string): boolean {
+  const norm = (s: string) => s.replace(/^[一-龥A-Za-z0-9_-]{1,12}[：:]\s*/, '').replace(/[\s\p{P}\p{S}]+/gu, '');
+  const t = norm(content);
+  if (t.length < 6) return false;
+  const c = norm(corpus);
+  let hit = 0, total = 0;
+  for (let i = 0; i + 2 <= t.length; i++, total++) {
+    if (c.includes(t.slice(i, i + 2))) hit++;
+  }
+  return total > 0 && hit / total >= 0.6;
 }
