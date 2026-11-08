@@ -1,0 +1,120 @@
+# MAP · 项目地图
+
+> **README 讲这个项目是什么、做得怎么样；本文件讲东西都在哪、按什么顺序看。**
+> 服务四类人：想**学习**这个项目的、想**规划**下一步的、想**动手改代码**的、想学「这个项目是怎么被开发出来的」。
+
+## 一、按意图找地方
+
+| 我想… | 先看 | 然后 |
+| --- | --- | --- |
+| 30 分钟看懂项目 | `README.md`（叙事版总览）+ `docs/img/architecture.png` | `demo/` 起本地脑图点一点 |
+| 学「类脑记忆」领域知识 | `.trellis/tasks/archive/2026-10/10-31-brain-learning-roadmap/`（理论↔代码对照表 + 六阶段路线） | README「这个项目在探讨什么」 |
+| 按顺序读源码 | 下文「源码阅读顺序」 | `.trellis/spec/backend/index.md` 对照约定 |
+| 动手改代码 / 写进项目 | `AGENTS.md` 项目约定 + `.trellis/spec/backend/index.md` | `.trellis/workflow.md` 走 Trellis 流程 |
+| 规划新功能/任务 | `.trellis/workflow.md` + `tasks/` 里主题相近的旧任务 prd.md | `task.py create` |
+| 查「当时为什么这么定」 | `.trellis/tasks/archive/` 按目录名搜主题，读 prd.md | `workspace/sunhao/journal-1.md` 按日期还原 session |
+| 部署 / 运维 / 排障 | `dsh-qqbot-brain/README.md` 部署 runbook + `AGENTS.md`「线上数据在哪」 | `docs/brain-backup-restore.md` |
+| 不带 bot 只玩脑图 | `demo/serve-demo.ts`（`node --experimental-strip-types`，即起即抛） | `demo/README.md` 演示数据解读表 |
+| 对外讲这个项目 | `求职材料/README.md`（简历条目 + 面试聊点 + 数字速查） | `参赛材料/`（gitignored）、`demo/` |
+
+## 二、仓库结构（代码层 vs 档案层）
+
+```
+dsh-qqbot-brain/            ▶ 代码层：插件本体（TypeScript ESM，零运行时依赖，~4.5k 行 src）
+  src/brain/                  类脑内核，宿主无关可独立测——store/distill/retrieval/decay/emotion/embed/identity/time
+  src/inject/prompt.ts        读路径：system-prompt 七段注入组装（稳定段保前缀缓存）
+  src/capture/events.ts       写路径入口：会话事件捕获 + 发言人归因
+  src/server/                 /brain 脑图页：http.ts（API）+ page.html（单文件前端）
+  src/setup/                  persona.md 装载 + 内置人设 + 文件日志
+  src/index.ts · config.ts    Cordis 插件装配入口 + 全部配置旋钮
+  test/                       node --test 四件套（brain/filelog/http/page）+ eval/ 检索评测集
+  README.md                   部署 runbook：rsync（dist 不带尾斜杠）· systemd · 公网直连 · 排障
+
+docs/                       README 配图（img/，含 src/ 手绘 SVG 源）· 备份恢复手册 · 生图提示词
+demo/                       虚构演示数据集 + serve-demo.ts（免 dsh 直接开 /brain，公开安全）
+mockup-*.html / *.js        脑图概念稿群：鲸脑皮层已落地为线上版，咖啡馆/回廊/Atlas 留作皮肤
+personas/ye-shunguang/      独立人设包（第二人格资产：persona.md + 种子导出 + 生成器）
+求职材料/                   简历条目 / 面试聊点手册 / 岗位匹配（对外叙事口径）
+参赛材料/                   比赛申报材料（gitignored，不进库）
+
+.trellis/                   ▶ 档案层：开发过程全留痕（见「四、学开发思路」）
+AGENTS.md                   项目约定：线上数据位置、部署要点、归档流程——动手前必读
+brain-data/                 线上记忆导出的本地备份（gitignored）
+.dsh/ · .agents/ · .devin/  Trellis 在各 AI 平台的适配（DSH.md 讲 dsh 侧；skills/workflows 自动生成，一般不用手改）
+```
+
+## 三、源码阅读顺序（src ~4.5k 行）
+
+按「数据模型 → 落盘 → 编排 → 读路径 → 写路径 → 外围」走，每一步都有对应 spec 约定可查：
+
+1. **`src/brain/types.ts`**（~300 行）——单一出处：三类记忆 kind（episodic/semantic/attitude）、Note/PAD 情绪/mood 九桶枚举、BrainConfig 全字段。先知道「脑里装了什么」。
+2. **`src/brain/store.ts`**（~900 行）——持久化：JSONL op 流水 + 快照，一切写操作都是可重放的 op。
+3. **`src/brain/index.ts`**（~1.2k 行，最大文件）——Brain 门面：`endOfTurn`/`retrieve`/`consolidate` 的编排中枢。
+4. **读路径 `src/inject/prompt.ts`**（~150 行）——七段注入；两段排序为什么保 DeepSeek 前缀缓存（README 有图）。
+5. **写路径 `src/capture/events.ts`（~180 行）→ `src/brain/distill.ts`（~430 行）**——发言人归因 → 蒸馏 prompt/解析/画像二审。
+6. **记忆三件套** `retrieval.ts`（n-gram TF-IDF + embedding 混合 + 评分公式）· `decay.ts`（R=e^(−t/S)）· `embed.ts`（向量召回）。
+7. **`src/server/http.ts` + `page.html`**——/brain 脑图页 API 契约与前端实现。
+8. **`src/index.ts` + `src/config.ts`**——Cordis 插件怎么把上面一切装配起来；全部可调旋钮。
+
+配套读法：`test/` 单测当规格看（153 个用例覆盖了大部分边界）；`test/eval/` 是「评测先行」方法论的落地（44 条真实记忆 + 22 条标注 query）。
+
+## 四、这个项目是怎么被开发出来的（学开发思路入口）
+
+全程 **AI 结对 + Trellis 工作流**：10 天 ~230 commits、88 个开发 session 全部留痕。`.trellis/` 不是脚手架，是这个项目另一半的价值所在——它把「为什么这么写」变成了可查的档案。
+
+| 目录 | 角色 | 怎么用 |
+| --- | --- | --- |
+| `workflow.md` | 流程定义：Plan → Execute → Finish | 读前 ~200 行即懂全貌（后面的 breadcrumb 契约可跳过） |
+| `spec/` | 沉淀的编码约定（按 backend/frontend/guides 分层） | **每条约定都是踩过的坑**：n-gram 归一化、画像 openid 幻觉校验、mood 枚举同步点……读 `spec/backend/index.md` 等于读一份排雷实录 |
+| `tasks/` | 任务档案：每个问题一个目录，prd.md 记「遇到什么问题/怎么解决/什么时候干的」 | `tasks/` 是进行中的，`tasks/archive/2026-XX/` 是完结的；按目录名搜主题 |
+| `workspace/sunhao/journal-1.md` | 会话时间线（88 条，含 commit hash） | 按日期还原「某天做了什么、为什么」；`index.md` 是目录 |
+| `scripts/` | task.py / add_session.py / get_context.py | 见「命令速查」 |
+
+**值得精读的代表性档案**（看「问题→排查→方案→验证」的完整回路）：
+
+| 档案 | 能看到什么 |
+| --- | --- |
+| `tasks/brain-plugin/prd.md` | 最初 PRD：从「人格+记忆+情绪插件」一句话到现在的全部取舍起点 |
+| `archive/2026-10/10-31-brain-learning-roadmap/` | 学习路线本身：认知科学/Agent 记忆/检索工程怎么映射到代码模块 |
+| `archive/2026-11/11-02-llm-token-audit/` | 成本审计方法论：前缀缓存命中、history 拆离、输入有界——九项优化怎么来的 |
+| `archive/2026-11/11-03-cost-growth-analysis/` | 长期成本建模：为什么 token 不发散、唯一增长项是什么 |
+| `archive/2026-11/11-02-qqbot-nsfw-message-drop/` | 黑盒排查范例：QQ 平台 C2C 风控静默吞消息，怎么用「零事件死窗」定性 |
+| `archive/2026-11/11-03-brain-roadmap-beyond-dsh/` | 演进路线决策：为什么先 HostAdapter 显式化、库导出优先于 MCP |
+| `tasks/11-08-persona-switch-design/` | 进行中的设计评估：多人设切换逐层走查 + 三轨模型（看未完结任务长什么样） |
+| `archive/2026-11/10-31-two-day-trial-eval/` | 三天试运行复盘：实测数据怎么回流成迭代项 |
+
+方法论要点（从档案里能读出来的开发思路）：**评测先行**（没有尺子不改架构）→ **小步上线**（每轮走查→部署→复盘）→ **一切皆档案**（讨论也存 prd）→ **约定沉淀回 spec**（踩过的坑写成下一条 spec 约定）。
+
+## 五、命令速查
+
+```bash
+# 开发（在 dsh-qqbot-brain/ 下）
+npm run typecheck     # tsc --noEmit
+npm test              # node --test 单测
+npm run eval          # 检索评测（BRAIN_EMBED_API_KEY=… 时对比向量路径）
+npm run build         # 产物在 dist/（dist 不入库）
+
+# 免 bot 预览脑图
+node --experimental-strip-types demo/serve-demo.ts   # → http://127.0.0.1:4099/brain
+
+# 部署（详见插件 README runbook）
+rsync -av dist cordis.patch.yml package.json server:~/dsh-qqbot-brain/   # dist 不带尾斜杠！
+ssh ubuntu@124.222.65.169 'sudo systemctl restart dsh-qqbot'
+
+# Trellis 档案
+python3 ./.trellis/scripts/task.py create "<标题>" --slug <名> -d "<描述>"
+python3 ./.trellis/scripts/task.py archive <任务名>          # main 上直接做的加 --skip-branch-validation
+python3 ./.trellis/scripts/add_session.py --title "<标题>" --commit <hash或-> --summary "<摘要>"
+```
+
+## 六、红线与约定
+
+- **密钥不落 git**：`BRAIN_*` 环境变量、服务器 `cordis.patch.yml`、`~/.dsh/brain.env`（600）；`brain-data/` 与 `参赛材料/` 已 gitignore。
+- **本仓库无真实数据**：生产全在 `ubuntu@124.222.65.169`（插件 `~/dsh-qqbot-brain/`、数据 `~/brain-data/`）；`demo/` 数据全虚构可公开。
+- **改这些必须同步**（详见 `spec/backend/index.md`）：新增记忆 kind / JSONL op → types + distill + http + page 四处；改 mood 枚举 → prompt 文案 + page 桶表 + 测试；影响边集的 op → `graphVersion` 集合。
+- **部署只动三样**：`dist`（不带尾斜杠）+ `package.json`（+ 首次 `cordis.patch.yml`），远端 patch 不覆盖；线上口令走 env。
+- **脑图=全部写 API**：公网直连必须 token + 安全组限源 IP，不要裸奔。
+
+---
+
+*MAP 维护约定：结构变动（新目录/新入口/新机制层）时更新本文件；细节以各文件自身为准，MAP 不复述实现。*
