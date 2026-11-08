@@ -1856,3 +1856,23 @@ SSH 线上取证后按用户指示用已有优化标齐数据：PATCH 把 13 条
 ### Status
 
 [OK] **Completed**
+
+
+## Session 88: 为什么自研认知层而不用 LangGraph/Dify
+<!-- trellis-session: v=2 fp=b87bbcd194b946b2 -->
+
+**Date**: 2026-11-08
+**Task**: 为什么自研认知层而不用 LangGraph/Dify
+**Branch**: `main`
+
+### Summary
+
+问题：面试场景被问『为什么不用现成框架、和 LangGraph/Dify 什么关系』。结论：①纠偏前提——项目长在 cordis/dsh 框架上，自研的只是 src/brain 认知层；②层次定位——LangGraph=Agent 编排层、Dify=低代码平台，与 brain（往 context 放什么）正交，同层对标是 mem0/MemGPT 类 memory 框架；③五条自研理由——注入粒度即产品（prompt 前缀缓存分段）、零依赖插件约束、算法体量小、ops 可重放审计、宿主无关演进（11-03 roadmap）；④关系为互补可叠用（LangGraph node 调 assemble / sidecar / MCP 壳）；⑤产出 30 秒面试话术+诚实弱点。任务档案 archive/2026-11/11-08-framework-vs-selfbuild。
+
+### Git Commits
+
+(No commits - planning session)
+
+### Status
+
+[OK] **Completed**
