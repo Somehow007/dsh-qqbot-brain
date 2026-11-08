@@ -1876,3 +1876,25 @@ SSH 线上取证后按用户指示用已有优化标齐数据：PATCH 把 13 条
 ### Status
 
 [OK] **Completed**
+
+
+## Session 89: 根目录项目地图 MAP.md
+<!-- trellis-session: v=2 fp=decf88a812c9cb4d -->
+
+**Date**: 2026-11-08
+**Task**: 根目录项目地图 MAP.md
+**Branch**: `main`
+
+### Summary
+
+需求：根目录加一份服务学习/规划/开发思路的目录文件。定为 MAP.md（README 讲 what&why，MAP 讲 where&how）：按意图导航表 + 带注释仓库结构（代码层/档案层）+ src 源码阅读顺序（types→store→index→inject→capture/distill→记忆三件套→server→装配）+ .trellis 四件套开发思路导览（含精读档案清单）+ 命令速查 + 红线约定，引用路径全部实测核对。坑：task.py create 在 git remote show origin（GitHub 不可达）无限挂起，--base-branch main 绕过；archive auto-commit 对未入库新任务报 pathspec 不匹配，手动补提交。已归档 archive/2026-11/11-08-project-map。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `03fb714` | docs: 新增 MAP.md 项目地图——按意图路由学习/规划/开发档案 |
+
+### Status
+
+[OK] **Completed**
