@@ -1898,3 +1898,25 @@ SSH 线上取证后按用户指示用已有优化标齐数据：PATCH 把 13 条
 ### Status
 
 [OK] **Completed**
+
+
+## Session 90: MAP.md 保鲜约定入 AGENTS.md
+<!-- trellis-session: v=2 fp=c87e68b062e08cf9 -->
+
+**Date**: 2026-11-09
+**Task**: MAP.md 保鲜约定入 AGENTS.md
+**Branch**: `main`
+
+### Summary
+
+需求：后续更新项目/加功能/大幅改动时需考虑同步 MAP.md，保持导览不过时。方案：AGENTS.md 项目约定新增「MAP.md 保鲜」条款——导航信息（新目录/入口/机制层/命令/部署方式）变化必改，实现细节不动（MAP 不复述，以源文件为准）；并约定动手前用 MAP 定位、归档前顺手核对。MAP.md 页脚同步指回该约定。已归档 archive/2026-11/11-09-map-freshness-rule。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `51223d7` | docs: 项目约定新增 MAP.md 保鲜条款 |
+
+### Status
+
+[OK] **Completed**
