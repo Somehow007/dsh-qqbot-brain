@@ -23,7 +23,10 @@ Managed by Trellis. Edits outside this block are preserved; edits inside may be 
 ## 项目约定
 
 - **问题存档**：每次探讨过的问题都要在 `.trellis/tasks/` 存档——记清楚「遇到了什么问题 / 怎么解决的 / 什么时候干的」。哪怕是纯讨论、没写代码，也要建 task 写 prd.md 留痕。
-- **MAP.md 保鲜**：`MAP.md` 是根目录导览索引，不能过时。更新项目、添加功能、大幅改动时都要想一下是否要同步它——新目录/新入口/新机制层/命令或部署方式变化 → 必改；只动实现细节 → 不动（MAP 不复述实现，细节以源文件为准）。动手改代码前先用 MAP 定位，归档 task 前顺手核对一遍 MAP 是否仍准确。
+- **导览文档保鲜**：`MAP.md`（where & how 导航）与 `README.md`（what & why 门面）都不能过时——更新项目、添加功能、大幅改动时都要想一下是否要同步：
+  - MAP：新目录/新入口/新机制层/命令或部署方式变化 → 必改；
+  - README：痛点/解法新增、机制层变化、实测数字或阶段结论过期 → 必改。README 按需求漏斗组织（定位 → 痛点解法映射 → 机制 → 证据 → 阶段 → 上手），易腐数字/结论集中在「实测效果/当前阶段」并注明评估时点；
+  - 两份都不复述实现细节（以源文件为准）。动手前用 MAP 定位，归档 task 前顺手核对两份文档。
 - **线上数据在哪**：生产数据全在腾讯云 `ubuntu@124.222.65.169`（SSH 直连，无别名），本仓库不含真实数据。
   - 插件目录 `~/dsh-qqbot-brain/`——部署 = 本地 `npm run build` 后 `rsync` `dist`（不带尾斜杠）+`package.json` 上去（不动远端 `cordis.patch.yml`），`sudo systemctl restart dsh-qqbot` 生效；服务器 dsh/node 在 `PATH=/opt/node-v24/bin`。
   - 脑数据目录 `~/brain-data/`（BRAIN_DATA_DIR：persona.md、op 流水、brain.log）；宿主会话原文 `~/.dsh/sessions/**/session.v4.jsonl.zstd`，QQ key→sessionId 映射 `~/.dsh-qqbot/model-prefs.json`。

@@ -8,7 +8,7 @@
 </p>
 
 ![阶段](https://img.shields.io/badge/阶段-首轮试运行已复盘-brightgreen)
-![单测](https://img.shields.io/badge/单测-153%2F153-brightgreen)
+![单测](https://img.shields.io/badge/单测-167%2F167-brightgreen)
 ![Node](https://img.shields.io/badge/node-20%2B-blue)
 ![性质](https://img.shields.io/badge/性质-私有实验项目-lightgrey)
 
@@ -44,6 +44,7 @@
 | **记忆越攒越脏**：复读、流水账、马太锁死 | 遗忘曲线衰减 + 真相关命中才强化；向量判重 cos≥0.9（增量改强化、存量一键合并）；巩固定时器只啃未吸收的 episodic |
 | **黑盒**：不知道 bot 脑里装了什么 | `/brain` 脑图页可视化 + `brain.jsonl` op 流水全审计可重放 + `brain.log` 运行日志 |
 | **养错了想管**：画像写脏、记忆被污染 | 画像卡编辑/删除/重生成（蒸馏起草 + 审核把关）+ 同名合并；危险区按时段删记忆、记忆重置保人设 |
+| **隐私越界**：私聊/小圈内容不该进公共上下文 | 私密域隔离：具名信任域/原地私密 scope + 〔私〕画像分段，公开注入零可达；良性事实经「待放行」队列人工审回 |
 | **改不动官方包**：fork 难升级、难摘除 | 独立 Cordis 插件与官方 `@tencent-connect/dsh-qqbot` 并列运行，`plugin remove` 即完全还原 |
 
 ## 它是怎么工作的
@@ -115,7 +116,7 @@ QQ 消息 ──► dsh-qqbot ──► system-prompt/assemble
 | 纯字符 n-gram TF-IDF | 88.2% | 40% |
 | + embedding 混合召回（text-embedding-v3 校准） | **100%** | **20%** |
 
-**单测**：`node --test` **153/153** 通过（brain 内核 / filelog / http / page 四个测试文件 + eval 评测集），typecheck + build 全绿。
+**单测**：`node --test` **167/167** 通过（brain 内核 / filelog / http / page 四个测试文件 + eval 评测集），typecheck + build 全绿（截至 2026-11-09）。
 
 **成本透明**：
 
@@ -137,7 +138,7 @@ QQ 消息 ──► dsh-qqbot ──► system-prompt/assemble
 
 <p align="center"><img src="docs/img/trial-timeline.png" alt="首轮试运行六天时间线" width="880"></p>
 
-**v0.1.0 · 私有实验项目 · 首轮三天试运行复盘完成，持续迭代中**（2026-10-29 开工，六天 ~135 commits / 49 个开发 session）
+**v0.1.0 · 私有实验项目 · 首轮三天试运行复盘完成，持续迭代中**（2026-10-29 开工；首轮六天 ~135 commits，截至 2026-11-09 累计 ~237 commits / 90 个开发 session）
 
 - [x] M0–M4：概念样机 → brain 内核 → 插件壳 → 脑图页接真实 API → 云上部署 runbook
 - [x] 记忆质量修复：蒸馏 v2 白名单、检索相关性门控、身份层、滚动摘要、embedding 混合召回
@@ -148,6 +149,8 @@ QQ 消息 ──► dsh-qqbot ──► system-prompt/assemble
 - [x] 成本审计：前缀缓存保命中、history 拆离、输入有界、攒批/精简版开关
 - [x] 注入延迟：向量获取与宿主装配并行，emb ~0.3s 不再串行阻塞每轮注入
 - [x] 数据管理面：画像卡编辑/删除/重生成/合并、危险区时段删除、记忆重置保人设；线上记忆清洗实战
+- [x] 隐私域隔离：具名信任域/原地私密 scope + 〔私〕画像分段（公开注入零可达）+ 良性事实放行阀人工队列
+- [x] 归因护栏：蒸馏/巩固立场不再错记到人、sess 画像绑定发言人；脑图滚轮收敛 + 15s 刷新编辑保护
 - [x] 脑图公网直连：`0.0.0.0:4099` + token（安全组放行，SSH 隧道降级为备选）
 - [ ] **webserver-shim 分支**：`:4099` 共享为 cordis `webServer` 服务，dsh-meme 斗图已本机全链路实测（send_meme → qqbot_send_file 真实投递），待合入上线
 
@@ -196,18 +199,15 @@ npx @deepseek-ai/dsh --profile qqbot
 ## 仓库结构
 
 ```
-dsh-qqbot-brain/        插件本体（独立 Cordis 插件，可与官方 bot 并列装卸）
-  src/brain/            类脑内核：store · distill · retrieval · decay · emotion · embed · identity · time（宿主无关）
-  src/inject/           system-prompt 七段注入（稳定段 80/81 + 易变段 10300+）
-  src/capture/          会话事件捕获 + 发言人归因 + 用户消息队列
-  src/server/           /brain 脑图页（单文件 page.html）+ 独立 HTTP :4099（可共享为 cordis webServer）
-  src/setup/            persona.md 装载 + 内置人设 + 文件日志
-  test/                 node --test 单测 + eval/ 检索评测集（真实记忆 + 标注用例）
-mockup-*.html           脑图概念稿：鲸脑皮层已落地；心智咖啡馆/海马回廊/Atlas 留作皮肤
-docs/                   README 配图与生图提示词；备份恢复手册（brain-backup-restore.md）
-demo/                   虚构演示数据集（brain-export.demo.json + 生成器），公开安全可直接 import
+dsh-qqbot-brain/        插件本体（独立 Cordis 插件：src/brain 类脑内核 · inject/capture 读写路径 · server 脑图页 · test 单测+评测集）
+docs/ · demo/           配图与备份恢复手册 · 虚构演示数据集（免 dsh 起脑图：demo/serve-demo.ts）
+personas/ · mockup-*    独立人设包 · 脑图概念稿群（鲸脑皮层已落地，咖啡馆/回廊/Atlas 留作皮肤）
+MAP.md                  项目地图：按意图导航 + 源码阅读顺序 + .trellis 档案导览——学/改/规划从这里进
+AGENTS.md               项目约定：线上数据位置 · 部署要点 · 文档保鲜与归档流程
 .trellis/               AI 协作工作流档案：任务 PRD、spec、会话 journal（本项目全程 AI 结对开发）
 ```
+
+> 分层导览见 [MAP.md](MAP.md)——想学习 / 想规划 / 想改代码 / 想学开发思路，各有一条最短路径。
 
 ## 文档与开发
 
@@ -218,7 +218,8 @@ npm run eval        # 检索评测；BRAIN_EMBED_API_KEY=… 时对比向量路�
 npm run build       # 产物在 dist/
 ```
 
+- 文档分工：`README.md`（本文件）= what & why 门面 · `MAP.md` = where & how 导航 · `AGENTS.md` = 项目约定 · `.trellis/` = 过程档案
 - 全部数据与结论出自 `.trellis/tasks/` 的逐次评估留痕（D3 试运行复盘、token 审计、情绪桶走查、上云/清洗/公网处置等）
-- 开发时间线见 `.trellis/workspace/sunhao/journal-1.md`（49 个 session 全程记录）
+- 开发时间线见 `.trellis/workspace/sunhao/journal-1.md`（90 个 session 全程记录）
 
 License: UNLICENSED（私有项目）
