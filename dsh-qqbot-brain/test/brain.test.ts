@@ -120,11 +120,69 @@ test('personas: 只能删除非当前人设，删除后跨重启不复活', () =
   rmSync(dir, { recursive: true });
 });
 
+test('personas: characterId 随创建/编辑/备份往返，缺省回落人设 id', () => {
+  const { dir, store } = tmpStore();
+  const gentle = store.createPersona('温柔版', '温柔', 'whale-gentle', { characterId: 'whale' });
+  assert.equal(gentle.characterId, 'whale');
+  // PATCH 不传 characterId → 保留旧值；传 null/空串 → 清除回缺省
+  store.savePersona('whale-gentle', '温柔版', '温柔二版');
+  assert.equal(store.personaEntry('whale-gentle')!.characterId, 'whale');
+  store.savePersona('whale-gentle', '温柔版', '温柔二版', { characterId: null });
+  assert.equal(store.personaEntry('whale-gentle')!.characterId, undefined);
+  // 独立角色人设：不显式给 characterId 时自我轨按人设 id 隔离
+  const ye = store.createPersona('叶瞬光', '叶', 'ye-shunguang');
+  assert.equal(ye.characterId, undefined);
+  store.flush();
+  const restored = new BrainStore(dir);
+  assert.equal(restored.personaEntry('ye-shunguang')!.id, 'ye-shunguang');
+  rmSync(dir, { recursive: true });
+});
+
+test('self 标记：addNote 启发式兜底，快照/JSONL 回放对存量补标且显式 false 不被覆盖', () => {
+  const { dir, store } = tmpStore();
+  // LLM 显式 self 优先；启发式补「我」；世界事实不标
+  const a = store.addNote('s1', { content: '我答应过讲睡前故事', importance: 3 }, NOW);
+  assert.equal(a.self, true);
+  const b = store.addNote('s1', { content: '我其实是外星人', importance: 3, self: false }, NOW);
+  assert.equal(b.self, false); // 显式世界轨修正语义
+  const c = store.addNote('s1', { content: '用户养了一只橘猫叫年糕', importance: 3 }, NOW);
+  assert.equal(c.self, undefined);
+  // attitude 恒走自我轨不写 self
+  const d = store.addNote('s1', { content: '对张三：信任', importance: 3, kind: 'attitude' }, NOW);
+  assert.equal(d.self, undefined);
+  store.flush();
+  const restored = new BrainStore(dir);
+  assert.equal(restored.noteById(a.id)!.self, true);
+  assert.equal(restored.noteById(b.id)!.self, false);
+  assert.equal(restored.noteById(d.id)!.self, undefined);
+  rmSync(dir, { recursive: true });
+});
+
+test('migrateTracks: whale 系人设补 characterId=whale，幂等且不动其他人设', () => {
+  const { store } = tmpStore();
+  store.createPersona('温柔版', '温柔', 'whale-gentle');
+  store.createPersona('依恋版', '依恋', 'whale-devotion');
+  store.setPersona('原版'); // legacy 条目
+  store.createPersona('叶瞬光', '叶', 'ye-shunguang');
+  const brain = new Brain({ store, distiller: mockDistiller({}), now });
+  const migrated = brain.migrateTracks();
+  assert.deepEqual([...migrated].sort(), ['legacy', 'whale-devotion', 'whale-gentle']);
+  for (const id of ['legacy', 'whale-gentle', 'whale-devotion']) {
+    assert.equal(store.personaEntry(id)!.characterId, 'whale');
+  }
+  assert.equal(store.personaEntry('ye-shunguang')!.characterId, undefined);
+  // 幂等：再跑结果为空
+  assert.deepEqual(brain.migrateTracks(), []);
+});
+
 // ── 导出 / 导入 ──
 test('export/import: 整包往返一致，衰减字段保留', () => {
   const { store } = tmpStore();
   const note = store.addNote('s1', { content: '用户养了一只橘猫叫年糕', importance: 4 }, NOW - 5 * DAY);
   const tracked = store.addNote('s1', { content: '依恋版时期的态度', kind: 'attitude', personaId: 'v2', importance: 3 }, NOW);
+  // 迭代A字段：self 标记 + 人设 characterId 随整包往返
+  const selfNote = store.addNote('s1', { content: '我答应过讲睡前故事', importance: 3, personaId: 'v2' }, NOW);
+  const ver = store.createPersona('温柔版', '温柔', 'whale-gentle', { characterId: 'whale' });
   store.markAbsorbed([note.id], NOW - 2 * DAY);
   store.reinforceById(note.id, 1, 10, NOW - DAY);
   store.setProfile('s1', '阿澈：软件工程大二');
@@ -133,13 +191,15 @@ test('export/import: 整包往返一致，衰减字段保留', () => {
 
   const { store: target } = tmpStore();
   const r = target.importData(dump, 'merge', NOW);
-  assert.equal(r.notes, 2);
+  assert.equal(r.notes, 3);
   const got = target.noteById(note.id)!;
   assert.equal(got.content, '用户养了一只橘猫叫年糕');
   assert.equal(got.strength, store.noteById(note.id)!.strength);
   assert.equal(got.lastAccessAt, store.noteById(note.id)!.lastAccessAt);
   assert.equal(got.absorbedAt, NOW - 2 * DAY);
   assert.equal(target.noteById(tracked.id)!.personaId, 'v2');
+  assert.equal(target.noteById(selfNote.id)!.self, true);
+  assert.equal(target.personaEntry(ver.id)!.characterId, 'whale');
   assert.equal(target.profileOf('s1'), '阿澈：软件工程大二');
   assert.equal(target.persona(), '大肥鱼人设');
 });
@@ -330,37 +390,67 @@ test('endOfTurn: merge 指向已有 attitude 条目时原位更新而非新增',
   assert.equal(store.allNotes()[0]!.kind, 'attitude');
 });
 
-// ── 态度按人设分轨（事实共享·态度分轨）──
-test('assemble: 他人设的 attitude 不召回（topK/保底统一口径），事实记忆不受影响', () => {
+// ── 三轨：世界共享·自我轨按角色隔离（迭代A）──
+test('assemble: 同角色不同人设版本共享自我轨，跨角色自我轨互不可见', () => {
   const { store } = tmpStore();
-  store.createPersona('温柔版', '温柔', 'whale-gentle');
-  store.createPersona('依恋版', '依恋', 'whale-devotion');
+  store.createPersona('温柔版', '温柔', 'whale-gentle', { characterId: 'whale' });
+  store.createPersona('依恋版', '依恋', 'whale-devotion', { characterId: 'whale' });
+  store.createPersona('叶瞬光', '叶', 'ye-shunguang', { characterId: 'ye' });
   store.activatePersona('whale-gentle');
-  // 缺 personaId 的存量按 whale-gentle 计；显式打 devotion 标的属另一轨
-  store.addNote('g1', { content: '对张三：嘴上嫌弃其实信任', importance: 4, kind: 'attitude' }, NOW);
-  store.addNote('g1', { content: '对李四：没说过几句话', importance: 4, kind: 'attitude', personaId: 'whale-devotion' }, NOW);
+  // 世界轨：跨角色共享
   store.addNote('g1', { content: '张三上周请客吃了烤鱼', importance: 3 }, NOW);
+  // 自我轨：whale 角色两条（不同人设版本戳）+ ye 角色一条
+  store.addNote('g1', { content: '对张三：嘴上嫌弃其实信任', importance: 4, kind: 'attitude' }, NOW);
+  store.addNote('g1', { content: '我答应过每晚给群友讲睡前故事', importance: 4, self: true, personaId: 'whale-devotion' }, NOW);
+  store.addNote('g1', { content: '我来自叶瞬光的世界观', importance: 4, self: true, personaId: 'ye-shunguang' }, NOW);
   const brain = new Brain({ store, distiller: mockDistiller({}), now });
-  const ctx = brain.assemble('g1', '张三 李四 烤鱼');
+  // 温柔版视角：whale 自我轨全量可见（含 devotion 戳的 self 与态度），ye 自我轨不可见
+  const ctx = brain.assemble('g1', '张三 睡前故事 叶瞬光 烤鱼');
   assert.ok(ctx.attitudeLines.some((l) => l.includes('对张三')));
-  assert.ok(!ctx.attitudeLines.some((l) => l.includes('对李四')));
+  assert.ok(ctx.hits.some((n) => n.content.includes('睡前故事')));
+  assert.ok(!ctx.hits.some((n) => n.content.includes('叶瞬光的世界观')));
   assert.ok(ctx.memoryLines.some((l) => l.includes('烤鱼')));
-  // 切到依恋版：温柔版的态度对张三发言也不保底唤起；依恋版自己的可见
+  // 切依恋版（同角色 whale）：自我轨原样共享
   store.activatePersona('whale-devotion');
-  const ctx2 = brain.assemble('g1', '张三 烤鱼', '张三');
-  assert.ok(!ctx2.attitudeLines.some((l) => l.includes('对张三')));
-  assert.ok(ctx2.memoryLines.some((l) => l.includes('烤鱼')));
-  const ctx3 = brain.assemble('g1', '李四', '李四');
-  assert.ok(ctx3.attitudeLines.some((l) => l.includes('对李四')));
+  const ctx2 = brain.assemble('g1', '睡前故事 叶瞬光', '张三');
+  assert.ok(ctx2.attitudeLines.some((l) => l.includes('对张三')));
+  assert.ok(ctx2.hits.some((n) => n.content.includes('睡前故事')));
+  assert.ok(!ctx2.hits.some((n) => n.content.includes('叶瞬光的世界观')));
+  // 切叶瞬光：whale 自我轨全部消失，世界轨仍在
+  store.activatePersona('ye-shunguang');
+  const ctx3 = brain.assemble('g1', '张三 睡前故事 烤鱼 叶瞬光');
+  assert.ok(!ctx3.attitudeLines.some((l) => l.includes('对张三')));
+  assert.ok(!ctx3.hits.some((n) => n.content.includes('睡前故事')));
+  assert.ok(ctx3.hits.some((n) => n.content.includes('叶瞬光的世界观')));
+  assert.ok(ctx3.memoryLines.some((l) => l.includes('烤鱼')));
 });
 
-test('endOfTurn: 新记忆按当前活动人设打 personaId；mergeIndex 指不到他人设态度', async () => {
+test('self 启发式：含「我」的非态度记忆自动入自我轨，引号转述不误判', () => {
   const { store } = tmpStore();
-  store.createPersona('温柔版', '温柔', 'whale-gentle');
-  store.createPersona('依恋版', '依恋', 'whale-devotion');
+  store.createPersona('温柔版', '温柔', 'whale-gentle', { characterId: 'whale' });
+  store.createPersona('叶瞬光', '叶', 'ye-shunguang');
+  store.activatePersona('ye-shunguang');
+  // 启发式自标：第一人称内容→self:true→ye 不可见 whale 的？不——self 记忆归属按 personaId 戳
+  const selfNote = store.addNote('g1', { content: '我答应过每晚讲睡前故事', importance: 4, personaId: 'whale-gentle' }, NOW);
+  assert.equal(selfNote.self, true);
+  const quoted = store.addNote('g1', { content: '群友说「我今天好累」，角色安慰了对方', importance: 3, personaId: 'whale-gentle' }, NOW);
+  assert.equal(quoted.self, undefined); // 引号内转述不算自我内容
+  const world = store.addNote('g1', { content: '用户养了一只橘猫叫年糕', importance: 3, personaId: 'whale-gentle' }, NOW);
+  assert.equal(world.self, undefined);
+  const brain = new Brain({ store, distiller: mockDistiller({}), now });
+  const ctx = brain.assemble('g1', '群友 安慰 年糕');
+  assert.ok(!ctx.hits.some((n) => n.id === selfNote.id)); // whale 自我轨对 ye 不可见
+  assert.ok(ctx.hits.some((n) => n.id === quoted.id));   // 世界轨共享
+  assert.ok(ctx.hits.some((n) => n.id === world.id));
+});
+
+test('endOfTurn: 新记忆按批次人设打 personaId；mergeIndex 指不到他角色态度', async () => {
+  const { store } = tmpStore();
+  store.createPersona('温柔版', '温柔', 'whale-gentle', { characterId: 'whale' });
+  store.createPersona('依恋版', '依恋', 'whale-devotion', { characterId: 'whale' });
   store.activatePersona('whale-devotion');
-  // 温柔版留下的态度：existing 列表已过滤，mergeIndex=0 落空 → 新增而非改写旧轨
-  store.addNote('s1', { content: '对内卷：极度反感', importance: 4, kind: 'attitude' }, NOW - 3 * DAY);
+  // 叶瞬光角色的态度：existing 列表已按角色过滤，mergeIndex=0 落空 → 新增而非改写旧轨
+  store.addNote('s1', { content: '对内卷：极度反感', importance: 4, kind: 'attitude', personaId: 'ye-shunguang' }, NOW - 3 * DAY);
   const brain = new Brain({
     store, now,
     distiller: mockDistiller({
@@ -376,22 +466,65 @@ test('endOfTurn: 新记忆按当前活动人设打 personaId；mergeIndex 指不
   assert.equal(notes[1]!.personaId, 'whale-devotion');
 });
 
-test('sweepNearDups: 不同人设的近似态度不合并，同人设的照常合并', () => {
+test('endOfTurn: 批次戳——ingest 后切换人设，批次仍归形成时人设', async () => {
   const { store } = tmpStore();
+  store.createPersona('温柔版', '温柔', 'whale-gentle', { characterId: 'whale' });
+  store.createPersona('叶瞬光', '叶', 'ye-shunguang');
+  store.activatePersona('whale-gentle');
+  const brain = new Brain({
+    store, now,
+    distiller: mockDistiller({
+      memories: [{ content: '用户决定戒熬夜开始晨跑', importance: 4 }],
+      emotion: { label: '得意', mood: '开心', v: 0.6, a: 0.5, d: 0.2 },
+    }),
+  });
+  brain.ingest('s1', { userText: '我决定晨跑了', assistantText: '好耶', at: NOW });
+  // 蒸馏前切人设：批次归属仍钉在形成时的 whale-gentle
+  store.activatePersona('ye-shunguang');
+  await brain.endOfTurn('s1');
+  assert.equal(store.allNotes()[0]!.personaId, 'whale-gentle');
+  // 情绪戳同样归 whale：ye 视角读中性，切回 whale 可见
+  assert.equal(brain.emotionOf('s1').label, '平静');
+  store.activatePersona('whale-gentle');
+  assert.equal(brain.emotionOf('s1').label, '得意');
+});
+
+test('endOfTurn: 同角色态度按对象归并——不同人设版本的「对X：」原位更新', async () => {
+  const { store } = tmpStore();
+  store.createPersona('温柔版', '温柔', 'whale-gentle', { characterId: 'whale' });
+  store.createPersona('依恋版', '依恋', 'whale-devotion', { characterId: 'whale' });
+  store.activatePersona('whale-devotion');
+  // 温柔版时期的同对象态度：同角色 → 兜底归并命中，原位更新不新增
+  store.addNote('s1', { content: '对内卷：极度反感', importance: 4, kind: 'attitude', personaId: 'whale-gentle' }, NOW - 3 * DAY);
+  const brain = new Brain({
+    store, now,
+    distiller: mockDistiller({
+      memories: [{ content: '对内卷：没那么反感了', importance: 4, kind: 'attitude' }],
+    }),
+  });
+  brain.ingest('s1', { userText: '内卷好像也有点道理', assistantText: '咕嘟', at: NOW });
+  await brain.endOfTurn('s1');
+  const notes = store.allNotes();
+  assert.equal(notes.length, 1);
+  assert.equal(notes[0]!.content, '对内卷：没那么反感了');
+});
+
+test('sweepNearDups: 同角色不同版本的近似态度合并，跨角色/跨类不合并', () => {
+  const { store } = tmpStore();
+  // 同角色 whale 两版本 + 跨角色 ye：全同向量，只有同角色才互并
   const a = store.addNote('s1', { content: '对张三：信任', importance: 3, kind: 'attitude', personaId: 'whale-gentle' }, NOW);
   const b = store.addNote('s1', { content: '对张三：信任', importance: 3, kind: 'attitude', personaId: 'whale-devotion' }, NOW);
-  const c = store.addNote('s1', { content: '对李四：信任', importance: 3, kind: 'attitude', personaId: 'whale-devotion' }, NOW);
-  const d = store.addNote('s1', { content: '对李四：很信任', importance: 3, kind: 'attitude', personaId: 'whale-devotion' }, NOW);
-  // 跨类不互并：与态度同向量的 semantic 事实不能被态度吸收，也不能吸收态度
+  const f = store.addNote('s1', { content: '对张三：信任', importance: 3, kind: 'attitude', personaId: 'ye-shunguang' }, NOW);
+  // 跨类不互并：与态度同向量的 semantic 世界事实不被自我轨吸收
   const e = store.addNote('s1', { content: '对张三：信任', importance: 3, kind: 'semantic', personaId: 'whale-devotion' }, NOW);
-  for (const n of [a, b, c, d, e]) store.setEmbedding(n.id, [1, 0, 0]);
+  for (const n of [a, b, f, e]) store.setEmbedding(n.id, [1, 0, 0]);
   const brain = new Brain({ store, distiller: mockDistiller({}), now });
   brain.sweepNearDups();
   const rest = store.allNotes();
   assert.equal(rest.length, 3);
-  assert.ok(rest.some((n) => n.id === a.id));
-  assert.ok(rest.some((n) => n.id === d.id));
-  assert.ok(rest.some((n) => n.id === e.id && n.kind === 'semantic'));
+  assert.ok(rest.some((n) => n.id === f.id));                 // ye 自我轨独立幸存
+  assert.ok(rest.some((n) => n.id === e.id && n.kind === 'semantic')); // 世界轨不被吸收
+  assert.ok(rest.some((n) => n.id === a.id || n.id === b.id)); // whale 两版本并为一条
 });
 
 test('endOfTurn: mergeIndex 跨类指回落空——态度输出不改写事实记忆', async () => {
@@ -2129,7 +2262,7 @@ test('consolidate: 产出与库内 semantic 同义→判重合并不新增，源
   assert.ok(sem.hits > 0); // 旧条被强化而非复读新增
 });
 
-test('consolidate: 合规「对X：」立场输出落 attitude 并归源条众数人设轨', async () => {
+test('consolidate: 合规「对X：」立场输出落 attitude 并归巩固视角人设轨', async () => {
   const { store } = tmpStore();
   store.createPersona('温柔版', '温柔', 'whale-gentle');
   store.createPersona('依恋版', '依恋', 'whale-devotion');
@@ -2157,9 +2290,9 @@ test('consolidate: 合规「对X：」立场输出落 attitude 并归源条众�
   assert.equal(await brain.consolidate('s1'), 2);
   const att = store.allNotes().find((n) => n.kind === 'attitude')!;
   assert.match(att.content, /^对馆长[：:]/);
-  assert.equal(att.personaId, 'whale-gentle'); // 归源条众数人设而非活动的 devotion
+  assert.equal(att.personaId, 'whale-gentle'); // 归巩固视角（会话人设众数）而非碰巧活动的 devotion
   const sem = store.allNotes().find((n) => n.kind === 'semantic')!;
-  assert.equal(sem.personaId, 'whale-devotion'); // semantic provenance 仍记活动人设
+  assert.equal(sem.personaId, 'whale-gentle'); // semantic provenance 同记巩固视角人设
 });
 
 // ── 11-07 恋人线走查修复 ──

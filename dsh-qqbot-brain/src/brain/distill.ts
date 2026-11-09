@@ -27,7 +27,7 @@ export type FetchLike = (url: string, init: {
 
 const PROMPT = `你是陪伴型聊天角色的记忆提炼模块。阅读下面这段最新对话，输出 JSON：
 {
-  "memories": [{"content": "一句话可长期复用的事实（含相关实体）", "importance": 1-5, "actor": "发言人名（群聊必填，单聊可省略）", "merge": 0}],
+  "memories": [{"content": "一句话可长期复用的事实（含相关实体）", "importance": 1-5, "actor": "发言人名（群聊必填，单聊可省略）", "merge": 0, "self": true}],
   "emotion": {"label": "角色此刻的情绪词，10 字以内、贴合角色性格（如「嘴硬开心」「害羞偷笑」「记仇」），只写情绪不写情境，不要只写「平静」", "mood": "情绪类别，只选其一：${MOODS.join('/')}", "v": -1到1效价, "a": 0到1唤醒, "d": -1到1支配},
   "profiles": [{"actor": "发言人标识", "text": "对该人的画像全文"}],
   "forget": []
@@ -77,6 +77,7 @@ profiles 字段：仅在画像需要更新时输出，否则省略整个字段�
 同一对象只保留一条——立场有更新时用 merge 指回旧条改写，不要并列新增；
 普通事实/事件条目省略 kind。态度条目应与角色性格一致、由对话证据支撑，不要凭空产生。
 角色的底线、拒绝方式与相处规则也是立场，记 attitude 而非事实（如「对某人：不接受被强迫，越界会直接拒绝」）。
+与「角色自己」相关的记忆条目（角色的前史、承诺、感受、立场素材）加 "self": true；用户事实与群体事件不标。
 用户问「角色」的看法/选择/偏好且角色给出回答时：立场归角色所有——稳定可复用的写成「对<对象>：<立场>」标 kind=attitude；
 一次性的具体回答没有复用价值不记。绝不要把角色的回答记成「<发言人>认为/喜欢/觉得X」——那是错归因。
 若某条新记忆（含态度）是对「已有记忆」中某一条的更新/补充/修正，给该项加 "merge": 已有记忆编号，并把它写成合并后的完整表述；不要输出与已有记忆语义重复的新条。
@@ -245,6 +246,7 @@ export function parseDistillOutput(raw: string): DistillResult {
           actor: typeof x.actor === 'string' && x.actor ? x.actor : undefined,
           kind: x.kind === 'attitude' ? 'attitude' as const : undefined,
           mergeIndex: typeof x.merge === 'number' && x.merge >= 0 ? Math.floor(x.merge) : undefined,
+          self: typeof x.self === 'boolean' ? x.self : undefined,
         }))
     : [];
   const e = o.emotion as Record<string, unknown> | undefined;

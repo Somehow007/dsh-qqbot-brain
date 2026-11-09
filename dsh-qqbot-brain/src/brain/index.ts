@@ -1,4 +1,4 @@
-import { ATTITUDE_OBJECT_RE, DEFAULT_BRAIN_CONFIG, EPHEMERAL_TIME_RE, GLOBAL_SESSION_ID, MOOD_VALENCE, notePersonaId } from './types.ts';
+import { ATTITUDE_OBJECT_RE, DEFAULT_BRAIN_CONFIG, EPHEMERAL_TIME_RE, GLOBAL_SESSION_ID, MOOD_VALENCE, PRE_TAG_PERSONA_ID, WHALE_CHARACTER_ID, WHALE_PERSONA_IDS, notePersonaId, resolveSelfFlag } from './types.ts';
 import type { BrainConfig, BrainContext, DistillResult, EmotionState, MemoryNote, NoteDraft, NoteEmotion, Turn } from './types.ts';
 import { isUserKey, normalizeProfileKey, resolveActorTag, sessionProfileKey, splitActor, userProfileKey } from './identity.ts';
 import { ageInDays, retention } from './decay.ts';
@@ -98,12 +98,18 @@ export class Brain {
     return { activeId: this.store.activePersonaId(), personas: this.store.listPersonas() };
   }
 
-  createPersona(name: string, text: string, id?: string): ReturnType<BrainStore['createPersona']> {
-    return this.store.createPersona(name, text, id);
+  createPersona(
+    name: string, text: string, id?: string,
+    extra?: { characterId?: string; moods?: string[] },
+  ): ReturnType<BrainStore['createPersona']> {
+    return this.store.createPersona(name, text, id, extra);
   }
 
-  savePersona(id: string, name: string, text: string): ReturnType<BrainStore['savePersona']> {
-    return this.store.savePersona(id, name, text);
+  savePersona(
+    id: string, name: string, text: string,
+    patch?: { characterId?: string | null; moods?: string[] | null },
+  ): ReturnType<BrainStore['savePersona']> {
+    return this.store.savePersona(id, name, text, patch);
   }
 
   activatePersona(id: string): void {
@@ -136,11 +142,11 @@ export class Brain {
     // 私聊无 tag：sess 画像卡人工绑定的昵称回退为发言人（name 空=未绑定，行为不变）
     const given = typeof speaker === 'string' ? { nick: speaker } : speaker;
     const sp = given?.openid || given?.nick ? given : this.boundSpeaker(sessionId);
-    // 事实共享·态度分轨：检索池先滤掉他人设态度，
+    // 世界轨共享·自我轨按角色隔离：检索池先滤掉他角色自我内容（attitude/self），
     // topK 命中/强化/昵称保底/跨群召回四处口径自然一致。
     // 私域过滤同点生效：域外 note 对 topK/保底/跨群/强化四路均不可见（硬隔离）。
     const visible = this.store.allNotes().filter((n) =>
-      this.attitudeVisible(n) && !n.absorbedAt && this.scopeVisible(n, sessionId));
+      this.trackVisible(n) && !n.absorbedAt && this.scopeVisible(n, sessionId));
     const scored = this.retriever.query(
       visible, sessionId, queryText, now, this.store.graphVersion, queryVec,
     );
@@ -208,7 +214,7 @@ export class Brain {
 
     return {
       persona: this.persona(),
-      emotion: this.emotion.describe(sessionId, now),
+      emotion: this.emotion.describeState(this.emotionFor(sessionId, this.store.activePersonaId(), now)),
       digest: this.store.digestOf(sessionId)?.text ?? '',
       clock: formatClock(now, this.cfg.timeZone),
       memoryLines,
@@ -219,11 +225,16 @@ export class Brain {
 
   /** 捕获一轮完整对话（不立即蒸馏，攒到 endOfTurn）；同步滚动摘要输入与轮数 */
   ingest(sessionId: string, turn: Turn): void {
+    // 批次戳：钉「形成时人设」——切换瞬间在途批次仍归原角色，不读蒸馏时刻的 activeId
+    const stamped: Turn = {
+      ...turn,
+      personaId: turn.personaId || this.store.activePersonaId() || undefined,
+    };
     const buf = this.turnBuffer.get(sessionId) ?? [];
-    buf.push(turn);
+    buf.push(stamped);
     this.turnBuffer.set(sessionId, buf);
     const hb = this.historyBuffer.get(sessionId) ?? [];
-    hb.push(turn);
+    hb.push(stamped);
     if (hb.length > 60) hb.splice(0, hb.length - 60);
     this.historyBuffer.set(sessionId, hb);
     // 重启后从已存 digest 的 uptoTurn 续算，避免计数倒退导致永不再触发
@@ -248,24 +259,26 @@ export class Brain {
     this.distilling.add(sessionId);
     try {
       const now = this.now();
-      const activePid = this.store.activePersonaId();
+      // 批次人设=批内众数（ingest 时钉的形成时人设），缺省回落活动人设——
+      // 修「切换瞬间在途批次归新人设」窗口；existing/归并/戳/情绪/profile 全用它
+      const batchPid = this.batchPersonaId(turns);
       // 私聊绑定视图：整批无 tag 且画像卡绑了 name 时，发言人显示为绑定昵称——
       // convo 行/actors 归集/existingProfiles 同口径生效（绑定=人工真值，非推断）
       const viewTurns = this.withBoundSpeaker(sessionId, turns);
       const actors = viewTurns.map((t) => t.actor);
       // 判重：附上当前 top-相关已有记忆，蒸馏结果可用 merge 指回更新而非重复新增。
-      // 他人设的 attitude 不进列表——否则 mergeIndex 会改写别的人设的态度轨。
+      // 他角色的自我轨（attitude/self）不进列表——否则 mergeIndex 会改写别的角色轨。
       const queryText = turns.map((t) => t.userText).join(' ');
       const existing = this.retriever
         .query(
           this.store.allNotes().filter((n) =>
-            this.attitudeVisible(n) && !n.absorbedAt && this.scopeVisible(n, sessionId)),
+            this.trackVisible(n, batchPid) && !n.absorbedAt && this.scopeVisible(n, sessionId)),
           sessionId, queryText, now, this.store.graphVersion,
         )
         .slice(0, 8)
         .map((s) => s.note);
       const result = await this.distiller.distill(
-        viewTurns, this.personaForPrompts(), existing, this.emotion.get(sessionId, now),
+        viewTurns, this.personaForPrompts(), existing, this.emotionFor(sessionId, batchPid, now),
         this.existingProfiles(sessionId, actors),
         { now, timeZone: this.cfg.timeZone },
       );
@@ -280,7 +293,7 @@ export class Brain {
         if (expect !== undefined && Math.abs(e.v) > 0.3 && Math.sign(e.v) !== expect) {
           this.log?.(`情绪矛盾：mood=${e.mood} 但 v=${e.v.toFixed(2)}（${sessionId.slice(0, 8)}…）`);
         }
-        const s = this.emotion.apply(sessionId, e, now);
+        const s = this.emotion.apply(sessionId, e, now, batchPid);
         this.store.setEmotion(sessionId, s);
       }
       const stamp = this.emotionStamp(sessionId, now);
@@ -304,12 +317,14 @@ export class Brain {
           m.kind = 'episodic';
         }
         const cand = m.mergeIndex != null ? existing[m.mergeIndex] : undefined;
-        // 事实与态度是两种角色，跨类不算「同一条记忆」：
-        // 态度改写事实会把心态落到事实所在的旧轨上，反之事实会吃掉本轨态度
-        // attitude 兜底归并：LLM 没给 mergeIndex 时，「对X：」同对象旧态度原位更新，
-        // 立场类记忆按对象唯一——新立场覆盖旧立场，避免同对象态度越攒越多
-        const target = (cand && (cand.kind === 'attitude') === (m.kind === 'attitude') ? cand : undefined)
-          ?? (m.kind === 'attitude' ? this.findAttitudeSameObject(sessionId, m.content, activePid) : undefined);
+        // 轨道兼容才算「同一条记忆」：kind 跨类不并（事实吃态度=心态丢失）；
+        // self 草稿不得 merge 进世界轨条目（自我内容落共享轨=跨角色泄漏），反之亦然
+        const draftTrack = (m.kind === 'attitude' || resolveSelfFlag(m.kind, m.self, m.content) === true)
+          ? `char:${this.characterOf(batchPid)}` : undefined;
+        const target = (cand
+          && (cand.kind === 'attitude') === (m.kind === 'attitude')
+          && this.trackKeyOf(cand) === draftTrack ? cand : undefined)
+          ?? (m.kind === 'attitude' ? this.findAttitudeSameObject(sessionId, m.content, batchPid) : undefined);
         if (target) {
           this.store.updateNote(target.id, { content: m.content, importance: m.importance, kind: m.kind });
           this.store.reinforceById(target.id, this.cfg.reinforceStep, this.cfg.strengthCap, now);
@@ -317,7 +332,11 @@ export class Brain {
           continue;
         }
         const vec = freshVecs?.[fi++] ?? null;
-        const dup = vec ? this.findNearDup(vec, m.kind ?? 'episodic', this.draftScope(sessionId, m)) : undefined;
+        const dup = vec ? this.findNearDup(vec, {
+          kind: m.kind ?? 'episodic',
+          self: resolveSelfFlag(m.kind, m.self, m.content),
+          personaId: batchPid,
+        }, this.draftScope(sessionId, m)) : undefined;
         if (dup) {
           this.store.reinforce(dup.note, this.cfg.reinforceStep, this.cfg.strengthCap, now);
           this.log?.(`判重合并：与「${dup.note.content.slice(0, 20)}」余弦 ${dup.cos.toFixed(2)}，强化旧记忆`);
@@ -325,23 +344,23 @@ export class Brain {
         }
         // actor 只写了昵称时回填本轮真实全 tag——否则按 openid 归集（画像重生成、跨群召回）会漏条
         const n = this.store.addNote(sessionId, {
-          ...m, actor: resolveActorTag(m.actor, actors), emotion: stamp, strengthBoost: boost, personaId: activePid,
+          ...m, actor: resolveActorTag(m.actor, actors), emotion: stamp, strengthBoost: boost, personaId: batchPid,
         }, now);
         if (vec) this.store.setEmbedding(n.id, vec);
         else forEmbed.push(n);
       }
-      // 意图级遗忘：编号指回附带列表 / 子串精确匹配（限本会话，防误删）
+      // 意图级遗忘：编号指回附带列表 / 子串精确匹配（限本会话+本角色可见轨，防误删他轨）
       for (const f of result.forget ?? []) {
         if (typeof f === 'number') {
           const t = existing[f];
           if (t) this.store.deleteNote(t.id);
         } else {
           for (const n of this.store.allNotes()) {
-            if (n.sessionId === sessionId && n.content.includes(f)) this.store.deleteNote(n.id);
+            if (n.sessionId === sessionId && this.trackVisible(n, batchPid) && n.content.includes(f)) this.store.deleteNote(n.id);
           }
         }
       }
-      await this.reviewAndWriteProfiles(sessionId, result, actors);
+      await this.reviewAndWriteProfiles(sessionId, result, actors, batchPid);
       // 新/改记忆补语义向量（失败静默，检索回退 lexical）
       await this.embedNotes(forEmbed);
       // 滚动摘要：累计轮数到阈值则更新「会话脉络」
@@ -352,10 +371,6 @@ export class Brain {
   }
 
   /**
-   * 态度分轨谓词：attitude 只对「形成它的那个人设」可见。
-   * 无活动人设（未启用多版本的存储/测试态）时全部可见，兼容分轨前行为。
-   */
-  /**
    * 「对X：」规范格式的态度按对象归并：会话+人设轨内找同对象旧条。
    * 只认「对」前缀——存量「X：」式人物事实不是立场，折叠会丢信息。
    */
@@ -364,14 +379,66 @@ export class Brain {
     if (!obj) return undefined;
     return this.store.allNotes().find((n) =>
       n.kind === 'attitude' && !n.absorbedAt
-      && n.sessionId === sessionId && (!pid || notePersonaId(n) === pid)
+      && n.sessionId === sessionId
+      && this.characterOf(notePersonaId(n)) === this.characterOf(pid)
       && new RegExp(`^对${obj.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[：:]`).test(n.content.trim()));
   }
 
-  private attitudeVisible(n: MemoryNote): boolean {
-    if (n.kind !== 'attitude') return true;
-    const pid = this.store.activePersonaId();
-    return !pid || notePersonaId(n) === pid;
+  /**
+   * 角色归属解析：personaId → characterId。
+   * 显式 characterId 优先；缺省回落 whale 系常量（兼容分轨前存量）；其余人设=独立角色。
+   */
+  private characterOf(personaId: string | undefined): string {
+    const pid = personaId || PRE_TAG_PERSONA_ID;
+    const entry = this.store.personaEntry(pid);
+    if (entry?.characterId?.trim()) return entry.characterId.trim();
+    return (WHALE_PERSONA_IDS as readonly string[]).includes(pid) ? WHALE_CHARACTER_ID : pid;
+  }
+
+  /**
+   * 三轨可见性：世界轨（非 attitude 且 self≠true）全角色共享；
+   * 自我轨（attitude/self:true）仅同 character 可见。
+   * pid=观察者人设 id（批次戳/活动人设）；无活动人设时全部可见，兼容分轨前行为。
+   */
+  private trackVisible(note: MemoryNote, pid?: string): boolean {
+    const selfTrack = note.kind === 'attitude' || note.self === true;
+    if (!selfTrack) return true;
+    const viewerPid = pid ?? this.store.activePersonaId();
+    if (!viewerPid) return true;
+    return this.characterOf(notePersonaId(note)) === this.characterOf(viewerPid);
+  }
+
+  /** 自我轨键（角色 id）；世界轨返回 undefined（全角色共享，不作判重/归并边界） */
+  private trackKeyOf(note: MemoryNote): string | undefined {
+    return (note.kind === 'attitude' || note.self === true)
+      ? `char:${this.characterOf(notePersonaId(note))}` : undefined;
+  }
+
+  /** 人设 id 众数（缺省回落活动人设）：批次/会话归属统一口径 */
+  private modalPersonaId(ids: (string | undefined)[]): string {
+    const counts = new Map<string, number>();
+    for (const p of ids) {
+      const k = p || this.store.activePersonaId() || '';
+      if (k) counts.set(k, (counts.get(k) ?? 0) + 1);
+    }
+    let best = '';
+    let bestN = 0;
+    for (const [p, n] of counts) if (n > bestN) { best = p; bestN = n; }
+    return best || this.store.activePersonaId() || '';
+  }
+
+  /** 蒸馏批次人设=批内众数（ingest 时钉的形成时戳），全缺省回落活动人设 */
+  private batchPersonaId(turns: Turn[]): string {
+    return this.modalPersonaId(turns.map((t) => t.personaId));
+  }
+
+  /** 情绪按角色隔离：状态 personaId 的角色与 viewer 不符→中性（缺省=whale 存量）；同角色版本共享 */
+  private emotionFor(sessionId: string, personaId: string | undefined, now: number): EmotionState {
+    const s = this.emotion.get(sessionId, now);
+    if (this.characterOf(s.personaId) !== this.characterOf(personaId ?? this.store.activePersonaId())) {
+      return NEUTRAL_EMOTION;
+    }
+    return s;
   }
 
   /**
@@ -502,6 +569,7 @@ export class Brain {
 
   private async reviewAndWriteProfiles(
     sessionId: string, result: DistillResult, actors: (string | undefined)[],
+    writerPid?: string,
   ): Promise<void> {
     // 发言人注册表并入本轮真实 actor，供画像身份校验
     const speakers = this.store.speakers();
@@ -567,9 +635,9 @@ export class Brain {
         if (isUser) {
           const name = (item.actor && splitActor(item.actor).nick)
             || people.find((p) => p.key === key)?.name || '';
-          this.store.setProfileEntry(key, text, { sessionId, name, reviewed: text, personaId: this.store.activePersonaId() });
+          this.store.setProfileEntry(key, text, { sessionId, name, reviewed: text, personaId: writerPid || this.store.activePersonaId() });
         } else {
-          this.store.setProfileEntry(key, text, { sessionId, reviewed: text, personaId: this.store.activePersonaId() });
+          this.store.setProfileEntry(key, text, { sessionId, reviewed: text, personaId: writerPid || this.store.activePersonaId() });
         }
       }
     }
@@ -646,6 +714,8 @@ export class Brain {
     const nick = entry?.name || (person ? this.store.speakers().get(k.slice(2)) : undefined);
     const evidence = this.store.allNotes()
       .filter((n) => {
+        // 自我轨按角色隔离：画像证据只取当前角色可见的记忆（跨角色 self 不污染画像）
+        if (!this.trackVisible(n)) return false;
         if (!person) return n.sessionId === k.slice(5);
         if (n.actor == null) return false;
         const id = splitActor(n.actor);
@@ -698,6 +768,24 @@ export class Brain {
   }
 
   /**
+   * 迭代A一次性迁移（幂等，可重入）：whale 系存量人设补 characterId='whale'，
+   * 使温柔/依恋/原版三版本共享自我轨。self 标记由 sanitizeNote 在加载期
+   * 启发式补齐（内存态派生），attitude 归并/情绪隔离均为读时判定——
+   * 存量数据零回写，重复执行结果为空。
+   * 返回被迁移的人设 id 列表。
+   */
+  migrateTracks(): string[] {
+    const migrated: string[] = [];
+    for (const p of this.store.listPersonas()) {
+      if (!(WHALE_PERSONA_IDS as readonly string[]).includes(p.id)) continue;
+      if (p.characterId) continue;
+      this.store.savePersona(p.id, p.name, p.text, { characterId: WHALE_CHARACTER_ID });
+      migrated.push(p.id);
+    }
+    return migrated;
+  }
+
+  /**
    * 记忆重置（保人设）：清笔记/画像/情绪/摘要。
    * 除 store 外还要清内存态——EmotionEngine states 与轮次缓冲不清，
    * 旧数据会在下次蒸馏/digest 时被回写或驱动误触发。
@@ -726,8 +814,14 @@ export class Brain {
   async consolidate(sessionId: string): Promise<number> {
     const now = this.now();
     const covered = this.consolidatedIds(sessionId);
-    const eps = this.store.allNotes().filter(
-      (n) => n.sessionId === sessionId && n.kind === 'episodic' && !n.absorbedAt
+    // 巩固视角=本会话人设众数：会话内自我轨只归并到形成它的角色，
+    // 跨角色 self 条目不进本批喂料（否则角色A的自我被角色B的巩固吞掉）；
+    // 世界轨对各角色可见，天然全量入池
+    const sessNotes = this.store.allNotes().filter((n) => n.sessionId === sessionId);
+    const viewPid = this.modalPersonaId(sessNotes.map((n) => notePersonaId(n)));
+    const eps = sessNotes.filter(
+      (n) => n.kind === 'episodic' && !n.absorbedAt
+        && this.trackVisible(n, viewPid)
         && ageInDays(n, now) >= this.cfg.consolidateMinAgeDays
         && !covered.has(n.id)
         // 巩固自身的产出（含降级回 episodic 的条）不再回喂，防循环再加工
@@ -743,16 +837,9 @@ export class Brain {
     const stamp = this.emotionStamp(sessionId, now);
     const sourceIds = eps.map((e) => e.id);
     const boost = this.emotionBoost(stamp);
-    const activePid = this.store.activePersonaId();
-    // 立场归属：巩固出的 attitude 归源条众数人设轨——立场属于形成它的那个人设，
-    // 不该记到「巩固碰巧跑在谁头上」的活动人设；semantic 仅作 provenance 仍记 activePid
-    const srcPersonaCount = new Map<string, number>();
-    for (const e of eps) {
-      const p = notePersonaId(e);
-      srcPersonaCount.set(p, (srcPersonaCount.get(p) ?? 0) + 1);
-    }
-    const srcPersona = [...srcPersonaCount.entries()]
-      .sort((a, b) => b[1] - a[1])[0]?.[0] ?? activePid;
+    // 归属=巩固视角人设（本会话众数）：自我轨按角色隔离后，
+    // 「巩固碰巧跑在谁头上」不再是归属依据——视角即归属，跨角色内容已被喂料过滤挡住
+    const notePid = viewPid || this.store.activePersonaId();
     // 入库判重：候选先批量取向量，与库内 cos>=dedupeEmbedCos 判同义转强化——
     // 历史上多轮巩固对同批源产过逐字重复的 semantic（线上实测），源退池后此处兜底产出侧
     const vecs = this.embedder?.enabled && result.memories.length
@@ -772,7 +859,11 @@ export class Brain {
         this.log?.(`巩固降级：含时效锚点按情景入库：${m.content.slice(0, 24)}…`);
       }
       const vec = vecs?.[i] ?? null;
-      const dup = vec ? this.findNearDup(vec, kind, this.draftScope(sessionId, m)) : undefined;
+      const dup = vec ? this.findNearDup(vec, {
+        kind,
+        self: resolveSelfFlag(kind, m.self, m.content),
+        personaId: notePid,
+      }, this.draftScope(sessionId, m)) : undefined;
       if (dup) {
         this.store.reinforce(dup.note, this.cfg.reinforceStep, this.cfg.strengthCap, now);
         // 谱系不丢：本批源的「沉淀自」指针并入旧条
@@ -785,7 +876,7 @@ export class Brain {
       const n = this.store.addNote(
         sessionId,
         // 语义记忆沿用源记忆全 tag（巩固输出同样常只写昵称）
-        { ...m, actor: resolveActorTag(m.actor, epActors), kind, emotion: stamp, strengthBoost: boost, sourceIds, personaId: kind === 'attitude' ? srcPersona : activePid },
+        { ...m, actor: resolveActorTag(m.actor, epActors), kind, emotion: stamp, strengthBoost: boost, sourceIds, personaId: notePid },
         now,
       );
       if (vec) this.store.setEmbedding(n.id, vec);
@@ -794,7 +885,7 @@ export class Brain {
     }
     // 覆盖关系按「喂入」成立：无论产出判重合并还是新增，源都退出检索池
     if (result.memories.length) this.store.markAbsorbed(sourceIds, now);
-    await this.reviewAndWriteProfiles(sessionId, result, epActors);
+    await this.reviewAndWriteProfiles(sessionId, result, epActors, notePid);
     await this.embedNotes(noVec);
     return kept;
   }
@@ -832,17 +923,26 @@ export class Brain {
   /** 供定时器：所有满足巩固条件的会话 id（尚有未被吸收的到期 episodic） */
   sessionsNeedingConsolidation(): string[] {
     const now = this.now();
+    const all = this.store.allNotes();
     const covered = new Set<string>();
-    for (const n of this.store.allNotes()) {
-      if (n.kind !== 'semantic') continue;
-      for (const id of n.sourceIds ?? []) covered.add(id);
+    const bySession = new Map<string, MemoryNote[]>();
+    for (const n of all) {
+      if (n.kind === 'semantic') for (const id of n.sourceIds ?? []) covered.add(id);
+      const arr = bySession.get(n.sessionId) ?? [];
+      arr.push(n);
+      bySession.set(n.sessionId, arr);
     }
     const eligible = new Map<string, number>();
-    for (const n of this.store.allNotes()) {
-      if (n.kind !== 'episodic' || n.absorbedAt || covered.has(n.id)) continue;
-      if (n.sourceIds?.length) continue;
-      if (ageInDays(n, now) < this.cfg.consolidateMinAgeDays) continue;
-      eligible.set(n.sessionId, (eligible.get(n.sessionId) ?? 0) + 1);
+    for (const [sid, notes] of bySession) {
+      // 与 consolidate 同口径：按会话人设众数定视角，自我轨只数本角色可见的 episodic
+      const viewPid = this.modalPersonaId(notes.map((n) => notePersonaId(n)));
+      for (const n of notes) {
+        if (n.kind !== 'episodic' || n.absorbedAt || covered.has(n.id)) continue;
+        if (n.sourceIds?.length) continue;
+        if (!this.trackVisible(n, viewPid)) continue;
+        if (ageInDays(n, now) < this.cfg.consolidateMinAgeDays) continue;
+        eligible.set(sid, (eligible.get(sid) ?? 0) + 1);
+      }
     }
     return [...eligible.entries()]
       .filter(([, count]) => count >= this.cfg.consolidateMinNotes)
@@ -850,7 +950,8 @@ export class Brain {
   }
 
   emotionOf(sessionId: string): EmotionState {
-    return this.emotion.get(sessionId, this.now());
+    // 读侧按活动角色隔离：跨角色返回中性（页面/注入同一份语义）
+    return this.emotionFor(sessionId, this.store.activePersonaId(), this.now());
   }
 
   /** 当前会话情绪快照（写入记忆时钉上；op 流水会 compact，快照存记忆上才可靠） */
@@ -885,11 +986,12 @@ export class Brain {
       for (let j = i + 1; j < notes.length; j++) {
         if (vecCosine(notes[i]!.embedding!, notes[j]!.embedding!) >= this.cfg.dedupeEmbedCos
           && find(notes[i]!.id) !== find(notes[j]!.id)) {
-          // 态度分轨：事实与态度不同角色不互并（吸收即丢失）；
-          // 不同人设的态度即使文案近似也不合并（各自的「感觉」是各自的）
+          // 三轨归并边界：事实与态度不同角色不互并（吸收即丢失）；
+          // 自我轨仅同 character 互并——同角色换版本共享、跨角色/跨轨互不可见；
+          // 世界轨（trackKey 同 undefined）跨人设正常互并
           const a = notes[i]!, b = notes[j]!;
           if ((a.kind === 'attitude') !== (b.kind === 'attitude')) continue;
-          if (a.kind === 'attitude' && notePersonaId(a) !== notePersonaId(b)) continue;
+          if (this.trackKeyOf(a) !== this.trackKeyOf(b)) continue;
           // 私域边界：生效域不同的近重复不互并——但「公开↔域」对走佐证放行：
           // 事实既已见于公开池，域内副本放出零新信息，放完即同域、正常并簇。
           if (this.noteScope(a) !== this.noteScope(b)
@@ -975,17 +1077,27 @@ export class Brain {
       .map((n) => ({ id: n.id, kind: n.kind, sessionId: n.sessionId, content: n.content, importance: n.importance, scope: this.noteScope(n)! }));
   }
 
-  /** 写入判重：全库找与新记忆向量余弦最高的既有记忆，≥dedupeEmbedCos 判为同一事实 */
-  private findNearDup(vec: number[], kind: MemoryNote['kind'], scope?: string): { note: MemoryNote; cos: number } | undefined {
+  /**
+   * 写入判重：全库找与新记忆向量余弦最高的既有记忆，≥dedupeEmbedCos 判为同一事实。
+   * draft 带轨道信息——自我轨（attitude/self）只在同 character 内判重，
+   * 世界轨跨人设共享判重（同一事实不该按人设各存一条）。
+   */
+  private findNearDup(
+    vec: number[],
+    draft: { kind: MemoryNote['kind']; self?: boolean; personaId?: string },
+    scope?: string,
+  ): { note: MemoryNote; cos: number } | undefined {
     if (this.cfg.dedupeEmbedCos <= 0) return undefined;
+    const draftTrack = (draft.kind === 'attitude' || draft.self === true)
+      ? `char:${this.characterOf(draft.personaId)}` : undefined;
     let best: MemoryNote | undefined, bc = 0;
     for (const n of this.store.allNotes()) {
       if (!n.embedding?.length) continue;
       if (n.absorbedAt) continue; // 已吸收的存档条不做判重靶——否则新记忆会被强化到不可见的幽灵上
       // 事实与态度不同角色不互判重（态度被事实吸收=心态静默丢失，反之亦然）
-      if ((n.kind === 'attitude') !== (kind === 'attitude')) continue;
-      // 态度分轨：他人设的态度不参与判重（否则新人设写近似立场会被旧轨吸收掉）
-      if (!this.attitudeVisible(n)) continue;
+      if ((n.kind === 'attitude') !== (draft.kind === 'attitude')) continue;
+      // 三轨判重：自我轨仅同 character；世界轨（双方 trackKey 均 undefined）照常
+      if (this.trackKeyOf(n) !== draftTrack) continue;
       // 私域边界：生效域不同不互判重——同义事实公私各存一条，私域不进公开条
       if (this.noteScope(n) !== scope) continue;
       const c = vecCosine(vec, n.embedding);
@@ -1075,6 +1187,8 @@ export class Brain {
       fading: retention(n, now) < this.cfg.forgetThreshold,
       emotion: n.emotion,
       personaId: n.personaId,
+      /** 自我轨标记（脑图页徽标/过滤用）；attitude 隐含自我轨无需另标 */
+      self: n.self === true ? true : undefined,
       /** 已被语义巩固吸收退池的存档条（可视化区分/验收用） */
       absorbed: !!n.absorbedAt,
       /** 私域手动覆盖；生效域=private ?? 来源会话域（图谱徽标用） */

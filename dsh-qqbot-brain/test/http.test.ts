@@ -38,10 +38,11 @@ test('人设 API: 口令保护、创建编辑切换与备份恢复同步活动�
         body: body && JSON.stringify(body),
       });
     assert.equal((await fetch(url + '/personas')).status, 401);
-    const created = await call('/personas', 'POST', { name: '温柔', text: '温柔内核' });
+    const created = await call('/personas', 'POST', { name: '温柔', text: '温柔内核', characterId: 'whale' });
     assert.equal(created.status, 200);
-    const items = await created.json() as { personas: { id: string }[] };
+    const items = await created.json() as { personas: { id: string; characterId?: string }[] };
     const id = items.personas.find((p) => p.id !== 'legacy')!.id;
+    assert.equal(items.personas.find((p) => p.id === id)!.characterId, 'whale');
     assert.equal(brain.persona(), '旧版');
     assert.equal((await call('/personas/activate', 'POST', { id: 'missing' })).status, 404);
     assert.equal((await call('/personas', 'PATCH', { id, name: '', text: 'bad' })).status, 400);
@@ -51,8 +52,14 @@ test('人设 API: 口令保护、创建编辑切换与备份恢复同步活动�
     assert.equal((await call('/personas/activate', 'POST', { id })).status, 200);
     assert.equal(brain.assemble('s1', 'hi').persona, '温柔内核');
     assert.equal(readPersonaFile(dir), '温柔内核');
-    assert.equal((await call('/personas', 'PATCH', { id, name: '温柔二版', text: '新版' })).status, 200);
+    assert.equal((await call('/personas', 'PATCH', { id, name: '温柔二版', text: '新版', characterId: 'whale-v2' })).status, 200);
     assert.equal(readPersonaFile(dir), '新版');
+    const afterPatch = await (await call('/personas')).json() as { personas: { id: string; characterId?: string }[] };
+    assert.equal(afterPatch.personas.find((p) => p.id === id)!.characterId, 'whale-v2');
+    // 不传 characterId 的 PATCH 保留旧值（文本不变，避免影响后续备份断言）
+    assert.equal((await call('/personas', 'PATCH', { id, name: '温柔二版', text: '新版' })).status, 200);
+    const kept = await (await call('/personas')).json() as { personas: { id: string; characterId?: string }[] };
+    assert.equal(kept.personas.find((p) => p.id === id)!.characterId, 'whale-v2');
     const backup = await (await call('/export')).json() as object;
     assert.equal((await call('/personas/activate', 'POST', { id: 'legacy' })).status, 200);
     assert.equal((await call('/import?mode=replace', 'POST', backup)).status, 200);
@@ -92,6 +99,10 @@ test('启动迁移单份人设、加载完整预置、保持用户选择与手�
     assert.equal(upgraded.activePersonaId(), 'legacy');
     const gentle = upgraded.listPersonas().find((p) => p.id === 'whale-gentle');
     assert.equal(gentle?.text, readFileSync(join(import.meta.dirname, '../src/setup/whale-gentle.md'), 'utf8').trim());
+    // 迭代A：whale 系人设启动时归并到同一角色，自我轨跨版本共享
+    assert.equal(gentle?.characterId, 'whale');
+    assert.equal(upgraded.listPersonas().find((p) => p.id === 'legacy')?.characterId, 'whale');
+    assert.equal(upgraded.listPersonas().find((p) => p.id === 'whale-devotion')?.characterId, 'whale');
     upgraded.activatePersona('whale-gentle');
     writePersonaFile(dir, gentle!.text);
     await apply(ctx, cfg);

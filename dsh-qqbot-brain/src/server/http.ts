@@ -96,7 +96,7 @@ export class BrainHttpServer {
     if ((p === `${prefix}/api/personas` && (req.method === 'POST' || req.method === 'PATCH'))
       || (p === `${prefix}/api/personas/activate` && req.method === 'POST')) {
       try {
-        const o = parseJson<{ id?: string; name?: string; text?: string }>(await readBody(req));
+        const o = parseJson<{ id?: string; name?: string; text?: string; characterId?: string | null; moods?: string[] | null }>(await readBody(req));
         if (!o || typeof o !== 'object') { res.writeHead(400).end('invalid json'); return; }
         if (p === `${prefix}/api/personas/activate`) {
           if (typeof o.id !== 'string') { res.writeHead(400).end('id required'); return; }
@@ -104,9 +104,16 @@ export class BrainHttpServer {
           this.onPersonaSet?.(this.brain.persona());
         } else if (req.method === 'PATCH') {
           if (typeof o.id !== 'string') { res.writeHead(400).end('id required'); return; }
-          this.brain.savePersona(o.id, o.name!, o.text!);
+          // characterId/moods 仅在显式给出时覆盖（null/空串清除），不传则保留旧值
+          const patch: { characterId?: string | null; moods?: string[] | null } = {};
+          if ('characterId' in o) patch.characterId = o.characterId ?? null;
+          if ('moods' in o) patch.moods = o.moods ?? null;
+          this.brain.savePersona(o.id, o.name!, o.text!, patch);
           if (o.id === this.brain.personas().activeId) this.onPersonaSet?.(this.brain.persona());
-        } else this.brain.createPersona(o.name!, o.text!);
+        } else this.brain.createPersona(o.name!, o.text!, undefined, {
+          characterId: typeof o.characterId === 'string' ? o.characterId : undefined,
+          moods: Array.isArray(o.moods) ? o.moods.filter((m): m is string => typeof m === 'string') : undefined,
+        });
         return json(res, { ok: true, ...this.brain.personas() });
       } catch (e) {
         res.writeHead(e instanceof Error && e.message === '人设不存在' ? 404 : 400).end(e instanceof Error ? e.message : 'invalid persona');
@@ -219,11 +226,12 @@ export class BrainHttpServer {
     // /api/notes 与 /api/notes/<id>[/reinforce]
     if (p === `${prefix}/api/notes` && req.method === 'POST') {
       readBody(req).then((body) => {
-        const o = parseJson<{ content?: string; importance?: number; kind?: 'episodic' | 'semantic' | 'attitude'; sessionId?: string; actor?: string; private?: string }>(body) ?? {};
+        const o = parseJson<{ content?: string; importance?: number; kind?: 'episodic' | 'semantic' | 'attitude'; sessionId?: string; actor?: string; private?: string; self?: boolean }>(body) ?? {};
         if (!o.content?.trim()) { res.writeHead(400).end('content required'); return; }
         const note = this.brain.addNote(o.sessionId ?? GLOBAL_SESSION_ID, {
           content: o.content, importance: o.importance, kind: o.kind, actor: o.actor,
           private: typeof o.private === 'string' ? o.private : undefined,
+          self: typeof o.self === 'boolean' ? o.self : undefined,
         });
         return json(res, { ok: true, note });
       });
@@ -239,8 +247,10 @@ export class BrainHttpServer {
       }
       if (req.method === 'PATCH') {
         readBody(req).then((body) => {
-          const o = parseJson<{ content?: string; importance?: number; kind?: 'episodic' | 'semantic' | 'attitude'; private?: string }>(body) ?? {};
-          return this.brain.updateNote(id, o)
+          const o = parseJson<{ content?: string; importance?: number; kind?: 'episodic' | 'semantic' | 'attitude'; private?: string; self?: boolean | null }>(body) ?? {};
+          // self：true/false 标轨，null 清除回启发式派生态
+          const patch: Parameters<Brain['updateNote']>[1] = { ...o };
+          return this.brain.updateNote(id, patch)
             ? json(res, { ok: true })
             : void res.writeHead(404).end('note not found');
         });

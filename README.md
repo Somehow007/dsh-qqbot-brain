@@ -96,6 +96,8 @@ QQ 消息 ──► dsh-qqbot ──► system-prompt/assemble
 - **semantic 语义**——巩固定时器从老情景里提炼的长期知识，跨会话召回；`sourceIds` 记录情景来源，被吸收的记忆不再重复巩固
 - **attitude 态度**——「对\<对象\>：\<立场\>」条目，人格内核不变但立场被对话塑造；含当前发言人昵称的态度保底唤起
 
+记忆另按「轨道」分可见性（角色→人设两级模型）：**世界轨**（上述 episodic/semantic 及用户·群体事实）全角色共享；**自我轨**（`self:true` 记忆 + 全部 attitude）按 `characterId` 隔离——同一角色的不同人设版本共享自我轨与情绪，跨角色互不可见；切换人设只过滤读取，存储不删不换。
+
 <p align="center"><img src="docs/img/brain-regions.png" alt="鲸脑皮层：记忆按脑区安放" width="880"></p>
 
 ## 实测效果
@@ -153,17 +155,19 @@ QQ 消息 ──► dsh-qqbot ──► system-prompt/assemble
 - [x] 隐私域隔离：具名信任域/原地私密 scope + 〔私〕画像分段（公开注入零可达）+ 良性事实放行阀人工队列
 - [x] 归因护栏：蒸馏/巩固立场不再错记到人、sess 画像绑定发言人；脑图滚轮收敛 + 15s 刷新编辑保护
 - [x] 脑图公网直连：`0.0.0.0:4099` + token（安全组放行，SSH 隧道降级为备选）
+- [x] 迭代A·人设三轨地基：角色→人设两级模型、自我轨按 characterId 隔离、蒸馏批次戳、存量迁移上线（路线图 A→G 见 `tasks/11-09-iteration-upgrade-plan/`）
 - [ ] **webserver-shim 分支**：`:4099` 共享为 cordis `webServer` 服务，dsh-meme 斗图已本机全链路实测（send_meme → qqbot_send_file 真实投递），待合入上线
 
-下一步候选：
+下一步候选（迭代路线图 A→G 详见 `tasks/11-09-iteration-upgrade-plan/iteration-plan.md`）：
 
-1. **webserver-shim 合入** → `brain:meme` 情绪桶注入（用脑情绪模型给斗图插件喂信号）→ /brain 页表情预览
-2. **管理面加固**：写回竞态 dataEpoch/CAS、时段删除预览同源、批量画像重生成
-3. **Reflection**——巩固时生成高层洞察（Generative Agents 缺的那块）
-4. **蒸馏攒批 / personaDigest 线上 A/B**——成本与质量权衡实测
-5. **记忆关联 / 扩散激活**（图谱边已铺底）、**干扰式遗忘**、**Prospective memory**
-6. **主动开口时机**——「听而不说/主动发言」需宿主上游钩子或平台 intent 权限（已留档）
-7. **跳出 dsh**——演进路线已定：HostAdapter 显式化 + `/api/ingest`/`/api/assemble` 补齐 → 库导出（`@brain/core`，价值保留最高）→ HTTP sidecar → MCP 薄壳（降级形态放最后）；dsh 永远 first-class（`11-03-brain-roadmap-beyond-dsh`）
+1. **迭代B·叶瞬光接入**：第二角色人设激活，三轨隔离首次实战检验（跨角色互不泄漏自我轨/情绪）
+2. **迭代C/D·主动召回与 Prospective memory**——Generative Agents 式 brain_search / 「记得要做某事」
+3. **webserver-shim 合入** → `brain:meme` 情绪桶注入（用脑情绪模型给斗图插件喂信号）→ /brain 页表情预览
+4. **管理面加固**：写回竞态 dataEpoch/CAS、时段删除预览同源、批量画像重生成
+5. **Reflection**——巩固时生成高层洞察（Generative Agents 缺的那块）
+6. **蒸馏攒批 / personaDigest 线上 A/B**——成本与质量权衡实测
+7. **记忆关联 / 扩散激活**（图谱边已铺底）、**干扰式遗忘**
+8. **跳出 dsh**——演进路线已定：HostAdapter 显式化 + `/api/ingest`/`/api/assemble` 补齐 → 库导出（`@brain/core`，价值保留最高）→ HTTP sidecar → MCP 薄壳（降级形态放最后）；dsh 永远 first-class（`11-03-brain-roadmap-beyond-dsh`）
 
 ## 快速开始
 

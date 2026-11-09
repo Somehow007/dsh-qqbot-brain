@@ -8,7 +8,7 @@
  */
 import { resolve } from 'node:path';
 import { readFileSync } from 'node:fs';
-import { Brain, BrainStore, Distiller, Embedder } from './brain/index.ts';
+import { Brain, BrainStore, Distiller, Embedder, WHALE_CHARACTER_ID } from './brain/index.ts';
 import { DEFAULT_CONFIG, type BrainPluginConfig } from './config.ts';
 import { PromptInjector } from './inject/prompt.ts';
 import { SessionCapture } from './capture/events.ts';
@@ -101,10 +101,15 @@ export async function apply(ctx: unknown, config?: Partial<BrainPluginConfig>): 
   });
   if (persona && persona !== store.persona()) store.setPersona(persona);
   if (!store.listPersonas().some((p) => p.id === 'whale-gentle')) {
-    store.createPersona('鲸鱼娘 · 温柔版', readFileSync(new URL('./setup/whale-gentle.md', import.meta.url), 'utf8'), 'whale-gentle');
+    store.createPersona('鲸鱼娘 · 温柔版', readFileSync(new URL('./setup/whale-gentle.md', import.meta.url), 'utf8'), 'whale-gentle', { characterId: WHALE_CHARACTER_ID });
   }
   if (!store.listPersonas().some((p) => p.id === 'whale-devotion')) {
-    store.createPersona('鲸鱼娘 · 依恋版', readFileSync(new URL('./setup/whale-devotion.md', import.meta.url), 'utf8'), 'whale-devotion');
+    store.createPersona('鲸鱼娘 · 依恋版', readFileSync(new URL('./setup/whale-devotion.md', import.meta.url), 'utf8'), 'whale-devotion', { characterId: WHALE_CHARACTER_ID });
+  }
+  // 迭代A迁移：whale 系存量人设补 characterId（幂等，重复启动结果为空）
+  {
+    const migrated = brain.migrateTracks();
+    if (migrated.length) log(`三轨迁移：人设归属角色 whale ← ${migrated.join(', ')}`);
   }
   // 初次落盘导出：让 persona.md 始终反映当前内核
   if (persona && !readPersonaFile(dataDir)) writePersonaFile(dataDir, persona);

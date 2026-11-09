@@ -48,7 +48,7 @@ brain-data/                 线上记忆导出的本地备份（gitignored）
 
 按「数据模型 → 落盘 → 编排 → 读路径 → 写路径 → 外围」走，每一步都有对应 spec 约定可查：
 
-1. **`src/brain/types.ts`**（~300 行）——单一出处：三类记忆 kind（episodic/semantic/attitude）、Note/PAD 情绪/mood 九桶枚举、BrainConfig 全字段。先知道「脑里装了什么」。
+1. **`src/brain/types.ts`**（~300 行）——单一出处：三类记忆 kind（episodic/semantic/attitude）、三轨模型（世界轨共享 / 自我轨 `self:true`+attitude 按 `characterId` 隔离 / 情绪按角色）、Note/PAD 情绪/mood 九桶枚举、BrainConfig 全字段。先知道「脑里装了什么」。
 2. **`src/brain/store.ts`**（~900 行）——持久化：JSONL op 流水 + 快照，一切写操作都是可重放的 op。
 3. **`src/brain/index.ts`**（~1.2k 行，最大文件）——Brain 门面：`endOfTurn`/`retrieve`/`consolidate` 的编排中枢。
 4. **读路径 `src/inject/prompt.ts`**（~150 行）——七段注入；两段排序为什么保 DeepSeek 前缀缓存（README 有图）。
@@ -82,7 +82,7 @@ brain-data/                 线上记忆导出的本地备份（gitignored）
 | `archive/2026-11/11-03-cost-growth-analysis/` | 长期成本建模：为什么 token 不发散、唯一增长项是什么 |
 | `archive/2026-11/11-02-qqbot-nsfw-message-drop/` | 黑盒排查范例：QQ 平台 C2C 风控静默吞消息，怎么用「零事件死窗」定性 |
 | `archive/2026-11/11-03-brain-roadmap-beyond-dsh/` | 演进路线决策：为什么先 HostAdapter 显式化、库导出优先于 MCP |
-| `tasks/11-08-persona-switch-design/` | 进行中的设计评估：多人设切换逐层走查 + 三轨模型（看未完结任务长什么样） |
+| `tasks/11-08-persona-switch-design/`（设计评估，进行中）+ `tasks/archive/2026-11/11-09-iteration-a-three-track/`（迭代A三轨落地） | 多人设切换：角色→人设两级、自我轨按 characterId 隔离、批次戳防切换错乱（看机制怎么定、怎么验的） |
 | `archive/2026-11/10-31-two-day-trial-eval/` | 三天试运行复盘：实测数据怎么回流成迭代项 |
 
 方法论要点（从档案里能读出来的开发思路）：**评测先行**（没有尺子不改架构）→ **小步上线**（每轮走查→部署→复盘）→ **一切皆档案**（讨论也存 prd）→ **约定沉淀回 spec**（踩过的坑写成下一条 spec 约定）。

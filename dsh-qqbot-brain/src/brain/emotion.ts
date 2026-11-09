@@ -30,18 +30,20 @@ export class EmotionEngine {
       d: s.d * k,
       label: days > 1 ? '平静' : s.label,
       mood: days > 1 ? '平静' : s.mood,
+      personaId: s.personaId,
       updatedAt: now,
     };
   }
 
-  /** 应用蒸馏给出的情绪增量（值域由增量语义直接覆盖 v/a/d） */
-  apply(sessionId: string, e: { label: string; v: number; a: number; d: number; mood?: string }, now: number): EmotionState {
+  /** 应用蒸馏给出的情绪增量（值域由增量语义直接覆盖 v/a/d）；personaId=形成时人设（读侧按角色隔离） */
+  apply(sessionId: string, e: { label: string; v: number; a: number; d: number; mood?: string }, now: number, personaId?: string): EmotionState {
     const next: EmotionState = {
       v: clamp(e.v, -1, 1),
       a: clamp(e.a, 0, 1),
       d: clamp(e.d, -1, 1),
       label: e.label.slice(0, 24),
       mood: e.mood,
+      personaId: personaId || undefined,
       updatedAt: now,
     };
     this.states.set(sessionId, next);
@@ -69,7 +71,11 @@ export class EmotionEngine {
   }
 
   describe(sessionId: string, now: number): string {
-    const s = this.get(sessionId, now);
+    return this.describeState(this.get(sessionId, now));
+  }
+
+  /** 纯格式化：Brain 侧先按角色过滤再喂（跨角色给 NEUTRAL_EMOTION→自然空串不注入） */
+  describeState(s: EmotionState): string {
     // 平静态（≈中性基线 v=0/a=0.3/d=0）不渲染：这行注入无信息量，省 ~20 tok/轮
     if (Math.abs(s.v) < 0.1 && Math.abs(s.d) < 0.1 && Math.abs(s.a - 0.3) < 0.1) return '';
     return `当前情绪：${s.label}（v=${s.v.toFixed(1)} a=${s.a.toFixed(1)} d=${s.d.toFixed(1)}）`;

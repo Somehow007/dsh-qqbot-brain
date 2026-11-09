@@ -40,3 +40,5 @@
 - 2026-11-09 | 记忆架构调研首轮完成：Letta/Mem0/Zep 对照报告，结论=不整体引入、6条思想级借鉴（brain_search主动召回/dreaming重组/双时态/entity boost/图扩散） | → `tasks/archive/2026-11/11-09-memory-persona-arch-research/memory-arch-survey.md`
 - 2026-11-09 | 记忆架构调研第二轮完成：人格方案+陪伴产品形态（OpenClaw为最近表亲），合并借鉴清单10条，调研范围全部完成 | → `tasks/archive/2026-11/11-09-memory-persona-arch-research/persona-companion-survey.md`
 - 2026-11-09 | 记忆/人格架构调研任务归档（两轮报告+Resolution），journal #95 | → `tasks/archive/2026-11/11-09-memory-persona-arch-research` + commit 56c4ee7
+- 2026-11-09 | 迭代升级方案定稿：七迭代路线图 A-G（人设三轨地基→叶瞬光接入→主动召回→prospective memory→储备项→companion壳层→体验层），每迭代带验收+云端数据走查；决策点已列（attitude粒度已定角色级，余4项随方案评审） | → `tasks/11-09-iteration-upgrade-plan/iteration-plan.md`
+- 2026-11-09 | 迭代A·人设三轨地基开发完成并部署上线：角色→人设两级、自我轨按 characterId 隔离、批次戳、存量迁移；线上 whale 三人设归并验证通过 | → `tasks/archive/2026-11/11-09-iteration-a-three-track` + journal 待补

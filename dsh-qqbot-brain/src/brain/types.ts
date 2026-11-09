@@ -65,6 +65,12 @@ export interface MemoryNote {
    * 缺失 = 分轨功能上线前的存量，一律视为 PRE_TAG_PERSONA_ID 时期形成。
    */
   personaId?: string;
+  /**
+   * 自我轨标记（角色→人设两级三轨）：true=角色自我内容（前史/承诺/感受），
+   * 与 kind=attitude 同属自我轨——仅对同 character 可见；false=显式标世界轨
+   * （手动修正语义，启发式/迁移不覆盖）；缺省=世界轨共享。
+   */
+  self?: boolean;
   /** 被语义巩固吸收的 ms epoch（设置后退出检索池与巩固候选，保留存档） */
   absorbedAt?: number;
   /**
@@ -80,6 +86,35 @@ export interface MemoryNote {
  * （其前还有寥寥数条 legacy 期态度，误归 whale-gentle 可接受，免去迁移）。
  */
 export const PRE_TAG_PERSONA_ID = 'whale-gentle';
+
+/**
+ * 迭代A迁移常量：存量 whale 系三人设（温柔/依恋/原版）归并到同一角色 'whale'——
+ * 自我轨按角色隔离，同角色换版本共享自我轨。
+ */
+export const WHALE_PERSONA_IDS = ['whale-gentle', 'whale-devotion', 'legacy'] as const;
+export const WHALE_CHARACTER_ID = 'whale';
+
+/**
+ * 自我轨启发式：剥掉引号转述（「我…」可能是他人原话/作品名）后含「我」→ 角色自我内容。
+ * 「角色」不判——「X 对角色说Y」是用户事实高频句式，误伤会把世界轨挖成自我轨。
+ * 实测校准见 tasks/11-09-iteration-a-three-track/design.md §2。
+ */
+const QUOTED_RE = /[「『“"'][\s\S]*?[」』”"']/g;
+export function isSelfContent(content: string): boolean {
+  return /我/.test(content.replace(QUOTED_RE, ''));
+}
+
+/**
+ * 草稿 self 归一（addNote/判重/导入共用单一出处）：
+ * attitude 恒走自我轨不写 self；其余显式 self（LLM/手动修正）优先，
+ * 缺省走启发式兜底——false 必须保留，否则「我」字内容的手动世界轨修正
+ * 会被启发式翻回自我轨。
+ */
+export function resolveSelfFlag(kind: string | undefined, self: boolean | undefined, content: string): boolean | undefined {
+  if (kind === 'attitude') return undefined;
+  if (self !== undefined) return self;
+  return isSelfContent(content) ? true : undefined;
+}
 
 /** 全局作用域：不绑定具体会话的记忆（脑图页手动写入默认入此域），检索时对全体会话可见 */
 export const GLOBAL_SESSION_ID = 'manual';
@@ -112,6 +147,11 @@ export interface EmotionState {
   label: string;
   /** 受控情绪类别（MOODS 之一）；旧数据可缺省，可视化回退 v/a 推断 */
   mood?: string;
+  /**
+   * 形成该情绪时的人设 id（情绪按角色隔离）：读侧 character 与活动角色不符→中性。
+   * 缺失=分轨前存量，按 PRE_TAG_PERSONA_ID（whale）角色计，自愈于下次 apply。
+   */
+  personaId?: string;
   updatedAt: number;
 }
 
@@ -131,6 +171,8 @@ export interface NoteDraft {
   sourceIds?: string[];
   /** 归属人设（Brain 层注入=当前活动人设）；缺省由读侧按 PRE_TAG_PERSONA_ID 计 */
   personaId?: string;
+  /** 自我轨标记（蒸馏 LLM 可选输出；缺省由 addNote 启发式兜底判定） */
+  self?: boolean;
   /** 私域手动覆盖（脑图页/API 指定）；缺省按来源会话域派生，见 MemoryNote.private */
   private?: string;
 }
@@ -187,6 +229,11 @@ export interface Turn {
    * 否则同一批环境消息在 40 轮窗口里被重复计费近 10 次。
    */
   contextText?: string;
+  /**
+   * 形成该轮对话时的活动人设 id（Brain.ingest 钉「形成时人设」）：
+   * 蒸馏批次归属以此为准，修「切换瞬间在途批次归新人设」窗口。
+   */
+  personaId?: string;
 }
 
 /** 会话滚动摘要（digest）：transcript 与 note 之间的中间层 */

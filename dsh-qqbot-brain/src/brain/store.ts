@@ -2,7 +2,7 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeF
 import { dirname, join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type { EmotionState, MemoryNote, NoteDraft, NoteEmotion, ProfileEntry, SessionDigest } from './types.ts';
-import { notePersonaId } from './types.ts';
+import { isSelfContent, notePersonaId, resolveSelfFlag } from './types.ts';
 import { isSessionKey, isUserKey, normalizeProfileKey, sessionProfileKey, splitActor, userProfileKey } from './identity.ts';
 
 /**
@@ -13,7 +13,8 @@ import { isSessionKey, isUserKey, normalizeProfileKey, sessionProfileKey, splitA
 type Op =
   | { op: 'add'; note: MemoryNote }
   | { op: 'reinforce'; id: string; strength: number; hits: number; lastAccessAt: number }
-  | { op: 'update'; id: string; patch: Partial<Pick<MemoryNote, 'content' | 'importance' | 'kind' | 'sourceIds' | 'private'>> }
+  // self 允许 null：PATCH 语义里 null=清除标记回派生态（区分「未传」与「显式 false」）
+  | { op: 'update'; id: string; patch: Partial<Pick<MemoryNote, 'content' | 'importance' | 'kind' | 'sourceIds' | 'private'>> & { self?: boolean | null } }
   | { op: 'embed'; id: string; vector: number[] }
   | { op: 'del'; id: string }
   | { op: 'absorb'; ids: string[]; at: number }
@@ -33,7 +34,17 @@ type Op =
   | { op: 'del-persona'; personaId: string; ids: string[] }
   | { op: 'sess-domain'; sessionId: string; domain: string };
 
-export interface PersonaEntry { id: string; name: string; text: string }
+/**
+ * 人设条目：persona=版本/衣服（prompt 文本），characterId=所属角色（灵魂，自我轨归属）。
+ * characterId 缺省=自身 id（独立角色）；moods 预留给按人设注入蒸馏情绪枚举（迭代 B 用）。
+ */
+export interface PersonaEntry {
+  id: string;
+  name: string;
+  text: string;
+  characterId?: string;
+  moods?: string[];
+}
 
 /** 导出文件格式（脑图页「备份迁移」） */
 export interface BrainExport {
@@ -100,6 +111,11 @@ function sanitizeNote(raw: unknown, now: number): MemoryNote | undefined {
       ? n.sourceIds.filter((id): id is string => typeof id === 'string' && !!id)
       : undefined,
     personaId: typeof n.personaId === 'string' && n.personaId ? n.personaId : undefined,
+    // self 三态：true 标自我轨 / false 显式世界轨（手动修正，启发式不覆盖）/ 缺省走启发式
+    self: n.kind === 'attitude' ? undefined
+      : n.self === true ? true
+      : n.self === false ? false
+      : (isSelfContent(n.content) ? true : undefined),
     absorbedAt: num(n.absorbedAt, 0) || undefined,
     private: typeof n.private === 'string' && n.private.trim() ? n.private.trim() : undefined,
   };
@@ -114,6 +130,7 @@ function sanitizeEmotion(raw: unknown): EmotionState | undefined {
     d: Math.min(1, Math.max(-1, num(e.d, 0))),
     label: typeof e.label === 'string' ? e.label : '',
     mood: typeof e.mood === 'string' && e.mood ? e.mood : undefined,
+    personaId: typeof e.personaId === 'string' && e.personaId ? e.personaId : undefined,
     updatedAt: num(e.updatedAt, Date.now()),
   };
 }
@@ -224,14 +241,17 @@ export class BrainStore {
         for (const [k, v] of Object.entries(snap.sessionDomains ?? {})) {
           if (typeof v === 'string' && v) this.sessionDomains.set(k, v);
         }
+        const loadNow = Date.now();
         for (const raw of snap.notes ?? []) {
-          const n = raw as MemoryNote & { e?: string };
-          // 快照里向量以 e(base64 f32) 存储；兼容旧版 number[]
-          if (!n.embedding && n.e) n.embedding = decodeVec(n.e);
-          delete n.e;
-          this.notes.set(n.id, n);
+          // 快照回放同样过 sanitize：self 启发式在此对存量生效（旧快照无 self 字段），
+          // 向量 e(base64) 由 sanitizeNote 内部解码
+          const n = sanitizeNote(raw, loadNow);
+          if (n) this.notes.set(n.id, n);
         }
-        for (const [k, v] of Object.entries(snap.emotions ?? {})) this.emotions.set(k, v);
+        for (const [k, v] of Object.entries(snap.emotions ?? {})) {
+          const e = sanitizeEmotion(v);
+          if (e) this.emotions.set(k, e);
+        }
         for (const [k, v] of Object.entries(snap.digests ?? {})) this.digests.set(k, v);
         // 旧快照：键为裸 sessionId、值为字符串 → 迁移为 sess: 键 + 完整条目
         for (const [k, v] of Object.entries(snap.profiles ?? {})) {
@@ -273,7 +293,12 @@ export class BrainStore {
 
   private apply(op: Op): void {
     switch (op.op) {
-      case 'add': this.notes.set(op.note.id, op.note); break;
+      case 'add': {
+        // 回放同样过 sanitize：旧 op 无 self 字段时启发式补标，自我轨隔离对存量生效
+        const n = sanitizeNote(op.note, Date.now());
+        if (n) this.notes.set(n.id, n);
+        break;
+      }
       case 'reinforce': {
         const n = this.notes.get(op.id);
         if (n) { n.strength = op.strength; n.hits = op.hits; n.lastAccessAt = op.lastAccessAt; }
@@ -288,6 +313,8 @@ export class BrainStore {
           if (op.patch.sourceIds != null) n.sourceIds = op.patch.sourceIds;
           // 存在性判断：'' 清除为派生态（undefined），其余原样存（含 'public' 强制公开）
           if ('private' in op.patch) n.private = op.patch.private?.trim() || undefined;
+          // self 三态：true 标自我轨 / false 显式世界轨 / undefined 清除（键存在才生效）
+          if ('self' in op.patch) n.self = op.patch.self === true ? true : op.patch.self === false ? false : undefined;
         }
         break;
       }
@@ -309,7 +336,11 @@ export class BrainStore {
         this.notes.delete(op.dropId);
         break;
       }
-      case 'emotion': this.emotions.set(op.sessionId, op.state); break;
+      case 'emotion': {
+        const e = sanitizeEmotion(op.state);
+        if (e) this.emotions.set(op.sessionId, e);
+        break;
+      }
       case 'digest':
         // 空文本即删除语义：clearDigest 通过空 text op 清脉络
         if (!op.text.trim()) { this.digests.delete(op.sessionId); break; }
@@ -341,7 +372,10 @@ export class BrainStore {
       case 'persona': {
         const id = this.activeId || 'legacy';
         const old = this.personaEntries.get(id);
-        this.personaEntries.set(id, { id, name: old?.name ?? '原有人设', text: op.text });
+        this.personaEntries.set(id, {
+          id, name: old?.name ?? '原有人设', text: op.text,
+          characterId: old?.characterId, moods: old?.moods,
+        });
         this.activeId = id;
         this.personaText = op.text;
         break;
@@ -393,12 +427,14 @@ export class BrainStore {
     this.pushOp({ t: rec.t, op });
     this.version++;
     // persona-activate 也要 bump：态度分轨下切人设会改变检索可见池，
-    // 不重建索引会命中缓存里的他人设态度（低频操作，重建代价可忽略）
+    // 不重建索引会命中缓存里的他人设态度（低频操作，重建代价可忽略）。
+    // persona-save/delete 同理：characterId/moods 变更改变自我轨归属判定
     if (op.op === 'add' || op.op === 'update' || op.op === 'del'
       || op.op === 'merge' || op.op === 'reset' || op.op === 'embed'
       || op.op === 'del-range' || op.op === 'del-persona'
       || op.op === 'sess-domain'
-      || op.op === 'persona-activate') this.graphVersion++;
+      || op.op === 'persona-activate' || op.op === 'persona-save'
+      || op.op === 'persona-delete') this.graphVersion++;
     if (++this.dirtyOps >= this.compactEvery) this.compact();
   }
 
@@ -432,11 +468,12 @@ export class BrainStore {
   // ── 记忆 ──
 
   addNote(sessionId: string, draft: NoteDraft, now: number): MemoryNote {
+    const content = draft.content.trim().slice(0, 200);
     const note: MemoryNote = {
       id: randomUUID(),
       sessionId,
       actor: draft.actor,
-      content: draft.content.trim().slice(0, 200),
+      content,
       importance: Math.min(5, Math.max(1, Math.round(draft.importance ?? 3))),
       kind: draft.kind ?? 'episodic',
       createdAt: now,
@@ -448,6 +485,8 @@ export class BrainStore {
       sourceIds: draft.sourceIds?.length ? [...draft.sourceIds] : undefined,
       // 空串归一化为缺失：无人设期写的 '' 否则会让 notePersonaId 归不到任何轨
       personaId: draft.personaId || undefined,
+      // 自我轨统一兜底：attitude 恒自我轨不写 self；其余 LLM self 优先、启发式补漏
+      self: resolveSelfFlag(draft.kind, draft.self, content),
       private: draft.private?.trim() || undefined,
     };
     if (!note.content) return note;
@@ -536,7 +575,7 @@ export class BrainStore {
     return this.notes.get(id);
   }
 
-  updateNote(id: string, patch: Partial<Pick<MemoryNote, 'content' | 'importance' | 'kind' | 'sourceIds' | 'private'>>): boolean {
+  updateNote(id: string, patch: Partial<Pick<MemoryNote, 'content' | 'importance' | 'kind' | 'sourceIds' | 'private'>> & { self?: boolean | null }): boolean {
     if (!this.notes.has(id)) return false;
     this.persist({ op: 'update', id, patch });
     return true;
@@ -771,20 +810,45 @@ export class BrainStore {
     return [...this.personaEntries.values()].map((p) => ({ ...p }));
   }
 
+  /** 人设条目查询（characterId 解析等读侧用；返回拷贝防外部改动内部表） */
+  personaEntry(id: string): PersonaEntry | undefined {
+    const p = this.personaEntries.get(id);
+    return p ? { ...p } : undefined;
+  }
+
   activePersonaId(): string {
     return this.activeId;
   }
 
-  createPersona(name: string, text: string, id: string = randomUUID()): PersonaEntry {
+  createPersona(
+    name: string, text: string, id: string = randomUUID(),
+    extra?: { characterId?: string; moods?: string[] },
+  ): PersonaEntry {
     const persona = this.validPersona(id, name, text);
+    if (extra?.characterId?.trim()) persona.characterId = extra.characterId.trim();
+    if (extra?.moods?.length) persona.moods = extra.moods.filter((m) => typeof m === 'string' && m.trim());
     if (this.personaEntries.has(id)) throw new Error('人设 ID 已存在');
     this.persist({ op: 'persona-save', persona });
     return persona;
   }
 
-  savePersona(id: string, name: string, text: string): PersonaEntry {
-    if (!this.personaEntries.has(id)) throw new Error('人设不存在');
+  /**
+   * patch 只覆盖显式给出的键：characterId/moods 缺省保留旧值，null/空串清除——
+   * 改人设文本不应顺手抹掉角色归属。
+   */
+  savePersona(
+    id: string, name: string, text: string,
+    patch?: { characterId?: string | null; moods?: string[] | null },
+  ): PersonaEntry {
+    const prev = this.personaEntries.get(id);
+    if (!prev) throw new Error('人设不存在');
     const persona = this.validPersona(id, name, text);
+    persona.characterId = patch && 'characterId' in patch
+      ? (patch.characterId?.trim() || undefined)
+      : prev.characterId;
+    persona.moods = patch && 'moods' in patch
+      ? (patch.moods?.length ? patch.moods.filter((m) => typeof m === 'string' && m.trim()) : undefined)
+      : prev.moods;
     this.persist({ op: 'persona-save', persona });
     return persona;
   }
@@ -894,7 +958,13 @@ export class BrainStore {
     }
     if (data.personas?.length) {
       for (const p of data.personas) {
-        if (!this.personaEntries.has(p.id)) this.createPersona(p.name, p.text, p.id);
+        if (!this.personaEntries.has(p.id)) {
+          // characterId/moods 随整包迁移（旧备份无此字段→undefined，行为同旧版）
+          this.createPersona(p.name, p.text, p.id, {
+            characterId: typeof p.characterId === 'string' ? p.characterId : undefined,
+            moods: Array.isArray(p.moods) ? p.moods.filter((m): m is string => typeof m === 'string') : undefined,
+          });
+        }
       }
       if (!this.activeId) this.activatePersona(data.activePersonaId || data.personas[0]!.id);
       res.persona = true;
