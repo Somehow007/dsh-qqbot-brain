@@ -410,6 +410,8 @@
         <select id="libSess"><option value="">全部会话</option></select>
         <select id="libScope" title="按生效可见域筛选"><option value="">全部可见域</option><option value="priv">仅私域</option><option value="pub">仅公开</option><option value="release">域内待放行</option></select>
         <select id="libPersona"><option value="">全部人设</option></select>
+        <select id="libChar" title="按所属角色筛选：同角色的人设版本共享自我轨与情绪"><option value="">全部角色</option></select>
+        <select id="libTrack" title="按记忆轨道筛选：世界轨=全角色共享；自我轨=态度+self 标记，仅同角色可见"><option value="">全部轨道</option><option value="world">世界轨</option><option value="self">自我轨</option></select>
         <select id="libFade"><option value="">全部状态</option><option value="fading">将遗忘</option><option value="fresh">鲜活</option></select>
         <select id="libSort">
           <option value="retention">按保持率</option><option value="age">按时间</option>
@@ -1163,11 +1165,15 @@ function panel(key){
 // ── Tab：记忆库 ──
 function notePid(n){return n.personaId||'whale-gentle';}
 function personaName(pid){return PERSONAS.personas.find(p=>p.id===pid)?.name||pid;}
+function isSelfTrack(n){return n.kind==='attitude'||n.self===true;}
+// 角色归属与服务端 characterOf 同口径：人设条目 characterId 优先，缺省=人设自身 id；人设已删回落 pid
+function noteChar(n){const pid=notePid(n),p=PERSONAS.personas.find(x=>x.id===pid);return p?(p.characterId||p.id):pid;}
 function libFiltered(){
-  const q=$('libQ').value.trim(),k=$('libKind').value,s=$('libSess').value,f=$('libFade').value,sort=$('libSort').value,pp=$('libPersona').value,sc=$('libScope').value;
+  const q=$('libQ').value.trim(),k=$('libKind').value,s=$('libSess').value,f=$('libFade').value,sort=$('libSort').value,pp=$('libPersona').value,sc=$('libScope').value,tr=$('libTrack').value,ch=$('libChar').value;
   let arr=STATE.notes.filter(n=>
     (!q||n.content.includes(q))&&(!k||n.kind===k)&&(!s||n.sessionId===s)&&
-    (!f||(f==='fading'?n.fading:!n.fading))&&(!pp||notePid(n)===pp)&&
+    (!f||(f==='fading'?n.fading:!n.fading))&&(!pp||notePid(n)===pp)&&(!ch||noteChar(n)===ch)&&
+    (!tr||(tr==='self'?isSelfTrack(n):!isSelfTrack(n)))&&
     (!sc||(sc==='priv'?!!(n.scope&&n.scope!=='public'):(!n.scope||n.scope==='public'))));
   arr.sort((a,b)=>sort==='age'?b.createdAt-a.createdAt:sort==='importance'?b.importance-a.importance:sort==='hits'?b.hits-a.hits:b.retention-a.retention);
   return arr;
@@ -1184,6 +1190,9 @@ function renderLibrary(){
   const psel=$('libPersona'),pcur=psel.value;
   psel.replaceChildren(new Option('全部人设',''));
   [...new Set(STATE.notes.map(notePid))].forEach(pid=>psel.appendChild(new Option(personaName(pid),pid,pid===pcur,pid===pcur)));
+  const csel=$('libChar'),ccur=csel.value;
+  csel.replaceChildren(new Option('全部角色',''));
+  [...new Set(STATE.notes.map(noteChar))].sort().forEach(c=>csel.appendChild(new Option(c,c,c===ccur,c===ccur)));
   if($('libScope').value==='release'){loadReleaseQueue();return;}
   const arr=libFiltered();
   $('libCount').textContent=`${arr.length} / ${STATE.notes.length} 条`;
@@ -1397,7 +1406,10 @@ function updatePersonaButtons(){
 function showPersonas(data){
   PERSONAS=data;
   const sel=$('personaSelect'),current=editingPersonaId;
-  sel.replaceChildren(...data.personas.map(p=>new Option(p.name+(p.id===data.activeId?'（当前）':''),p.id)));
+  // 同角色多版本时下拉标注角色归属（characterId||自身id），一眼分清哪些人设共享自我轨
+  const charOf=p=>p.characterId||p.id,counts={};
+  data.personas.forEach(p=>{const c=charOf(p);counts[c]=(counts[c]||0)+1;});
+  sel.replaceChildren(...data.personas.map(p=>new Option(p.name+(p.id===data.activeId?'（当前）':'')+(counts[charOf(p)]>1?` ·${charOf(p)}`:''),p.id)));
   if(current==='__new__')sel.add(new Option('新建人设','__new__'));
   if(!current||current!=='__new__'&&!data.personas.some(p=>p.id===current))selectPersona(data.activeId);
   else if(personaDirty()){
@@ -1413,7 +1425,7 @@ document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
   document.querySelectorAll('.pane').forEach(p=>p.hidden=p.id!=='pane-'+t.dataset.pane);
 });
 $('deck-more').onclick=()=>{document.querySelector('[data-pane=lib]').click();$('pane-lib').scrollIntoView({behavior:'smooth'});};
-['libQ','libKind','libSess','libPersona','libFade','libSort','libScope'].forEach(id=>$(id).addEventListener('input',renderLibrary));
+['libQ','libKind','libSess','libPersona','libChar','libTrack','libFade','libSort','libScope'].forEach(id=>$(id).addEventListener('input',renderLibrary));
 $('addForm').onsubmit=async ev=>{
   ev.preventDefault();
   const f=ev.target;

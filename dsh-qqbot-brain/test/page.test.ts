@@ -83,6 +83,41 @@ test('人设列表定时刷新时保留未保存的名称与全文草稿', () =>
   assert.equal(controls.personaStat!.textContent, '有未保存修改');
 });
 
+test('记忆库轨道筛选：自我轨=attitude+self:true，世界轨=其余含显式 self:false', () => {
+  const fns = script.match(/function notePid[\s\S]*?return arr;\n}/)?.[0] ?? '';
+  assert.ok(fns.includes('isSelfTrack'), '抽取范围应含 isSelfTrack/libFiltered');
+  const controls: Record<string, { value: string }> = {};
+  for (const id of ['libQ', 'libKind', 'libSess', 'libFade', 'libSort', 'libPersona', 'libChar', 'libTrack', 'libScope']) controls[id] = { value: '' };
+  const mk = (id: string, extra: Record<string, unknown>) => ({ id, kind: 'episodic', content: `内容${id}`, sessionId: 's1', retention: 1, importance: 3, createdAt: 1, hits: 0, ageDays: 1, ...extra });
+  const sandbox = {
+    PERSONAS: { activeId: 'a', personas: [
+      { id: 'a', name: '鲸鱼娘·温柔', characterId: 'whale' },
+      { id: 'b', name: '鲸鱼娘·依恋', characterId: 'whale' },
+      { id: 'c', name: '叶瞬光' },
+    ]},
+    STATE: { notes: [
+      mk('w1', { personaId: 'a' }),                    // 世界轨·自动·温柔版→whale
+      mk('w2', { self: false, personaId: 'c' }),      // 世界轨·显式 false·叶瞬光→c
+      mk('s1', { self: true, personaId: 'b' }),       // 自我轨·显式·依恋版→同 whale
+      mk('s2', { kind: 'attitude', content: '对某人：立场', personaId: 'c' }), // 自我轨·attitude·叶瞬光→c
+    ]},
+    $: (id: string) => controls[id],
+  };
+  const { libFiltered } = runInNewContext(`${fns}; ({libFiltered})`, sandbox) as { libFiltered: () => { id: string }[] };
+  controls.libTrack!.value = '';
+  assert.deepEqual(libFiltered().map((n) => n.id).sort(), ['s1', 's2', 'w1', 'w2']);
+  controls.libTrack!.value = 'self';
+  assert.deepEqual(libFiltered().map((n) => n.id).sort(), ['s1', 's2']);
+  controls.libTrack!.value = 'world';
+  assert.deepEqual(libFiltered().map((n) => n.id).sort(), ['w1', 'w2']);
+  controls.libTrack!.value = '';
+  controls.libChar!.value = 'whale';
+  assert.deepEqual(libFiltered().map((n) => n.id).sort(), ['s1', 'w1']);
+  controls.libChar!.value = 'c';
+  controls.libTrack!.value = 'self';
+  assert.deepEqual(libFiltered().map((n) => n.id).sort(), ['s2']);
+});
+
 test('脑图标签在共同开头之后显示可区分的内容', () => {
   const notes = [
     { id: 'a', content: '用户今天提到下个月要去青岛看海，已经订好车票' },
