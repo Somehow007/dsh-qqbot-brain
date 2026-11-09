@@ -112,6 +112,7 @@ python3 ./.trellis/scripts/add_session.py --title "<标题>" --commit <hash或->
 - **密钥不落 git**：`BRAIN_*` 环境变量、服务器 `cordis.patch.yml`、`~/.dsh/brain.env`（600）；`brain-data/` 与 `参赛材料/` 已 gitignore。
 - **本仓库无真实数据**：生产全在 `ubuntu@124.222.65.169`（插件 `~/dsh-qqbot-brain/`、数据 `~/brain-data/`）；`demo/` 数据全虚构可公开。
 - **改这些必须同步**（详见 `spec/backend/index.md`）：新增记忆 kind / JSONL op → types + distill + http + page 四处；改 mood 枚举 → prompt 文案 + page 桶表 + 测试；影响边集的 op → `graphVersion` 集合。
+- **成本是一线约束**（详见 `AGENTS.md`「成本一线」）：新增 LLM 调用/注入 section 先过成本评估——输入有界、前缀缓存友好、可关闭、失败静默。
 - **部署只动三样**：`dist`（不带尾斜杠）+ `package.json`（+ 首次 `cordis.patch.yml`），远端 patch 不覆盖；线上口令走 env。
 - **脑图=全部写 API**：公网直连必须 token + 安全组限源 IP，不要裸奔。
 

@@ -27,6 +27,7 @@ Managed by Trellis. Edits outside this block are preserved; edits inside may be 
   - MAP：新目录/新入口/新机制层/命令或部署方式变化 → 必改；
   - README：痛点/解法新增、机制层变化、实测数字或阶段结论过期 → 必改。README 按需求漏斗组织（定位 → 痛点解法映射 → 机制 → 证据 → 阶段 → 上手），易腐数字/结论集中在「实测效果/当前阶段」并注明评估时点；
   - 两份都不复述实现细节（以源文件为准）。动手前用 MAP 定位，归档 task 前顺手核对两份文档。
+- **成本一线**：AI 服务按 token 计费，成本是设计约束不是事后指标。新增 LLM 调用 / 注入 section / 记忆或画像字段时先过成本评估：输入有界（截断/配额/攒批）、前缀缓存友好（稳定段在前、易变段贴尾）、可配置关闭、失败静默不阻塞回复；成本实测数字随评估刷新进 README「成本透明」，长期增长项要能建模说明不发散（范式见 `archive/2026-11/11-03-cost-growth-analysis`）。
 - **线上数据在哪**：生产数据全在腾讯云 `ubuntu@124.222.65.169`（SSH 直连，无别名），本仓库不含真实数据。
   - 插件目录 `~/dsh-qqbot-brain/`——部署 = 本地 `npm run build` 后 `rsync` `dist`（不带尾斜杠）+`package.json` 上去（不动远端 `cordis.patch.yml`），`sudo systemctl restart dsh-qqbot` 生效；服务器 dsh/node 在 `PATH=/opt/node-v24/bin`。
   - 脑数据目录 `~/brain-data/`（BRAIN_DATA_DIR：persona.md、op 流水、brain.log）；宿主会话原文 `~/.dsh/sessions/**/session.v4.jsonl.zstd`，QQ key→sessionId 映射 `~/.dsh-qqbot/model-prefs.json`。
