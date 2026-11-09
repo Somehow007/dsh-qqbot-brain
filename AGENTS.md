@@ -27,6 +27,10 @@ Managed by Trellis. Edits outside this block are preserved; edits inside may be 
   - MAP：新目录/新入口/新机制层/命令或部署方式变化 → 必改；
   - README：痛点/解法新增、机制层变化、实测数字或阶段结论过期 → 必改。README 按需求漏斗组织（定位 → 痛点解法映射 → 机制 → 证据 → 阶段 → 上手），易腐数字/结论集中在「实测效果/当前阶段」并注明评估时点；
   - 两份都不复述实现细节（以源文件为准）。动手前用 MAP 定位，归档 task 前顺手核对两份文档。
+- **跨会话广播位**：多会话并行时靠 `.trellis/CHANGES.md` 互相同步——
+  - *写*：定了优化方案/设计方向、完成一项改动或部署、定了后续发展方向、项目状态或结论性认知变化，四类事件**落地即在文件尾部追加一行**（`- 日期时间 | 事件 | → 指针`），不等会话结束、不写细节（细节仍在 task prd/journal）；
+  - *读*：每个会话接到第一个实际需求时先 `tail -30 .trellis/CHANGES.md`，扫到自己不掌握的条目就顺指针读对应归档再动手——并行会话同 checkout 文件即时可见，靠这一步保证鲜活性；
+  - *界*：只留最近 ~100 条删旧；它不替代「问题存档」和 journal，只是广播位/目录。
 - **成本一线**：AI 服务按 token 计费，成本是设计约束不是事后指标。新增 LLM 调用 / 注入 section / 记忆或画像字段时先过成本评估：输入有界（截断/配额/攒批）、前缀缓存友好（稳定段在前、易变段贴尾）、可配置关闭、失败静默不阻塞回复；成本实测数字随评估刷新进 README「成本透明」，长期增长项要能建模说明不发散（范式见 `archive/2026-11/11-03-cost-growth-analysis`）。
 - **线上数据在哪**：生产数据全在腾讯云 `ubuntu@124.222.65.169`（SSH 直连，无别名），本仓库不含真实数据。
   - 插件目录 `~/dsh-qqbot-brain/`——部署 = 本地 `npm run build` 后 `rsync` `dist`（不带尾斜杠）+`package.json` 上去（不动远端 `cordis.patch.yml`），`sudo systemctl restart dsh-qqbot` 生效；服务器 dsh/node 在 `PATH=/opt/node-v24/bin`。

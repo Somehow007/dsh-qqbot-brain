@@ -13,6 +13,7 @@
 | 动手改代码 / 写进项目 | `AGENTS.md` 项目约定 + `.trellis/spec/backend/index.md` | `.trellis/workflow.md` 走 Trellis 流程 |
 | 规划新功能/任务 | `.trellis/workflow.md` + `tasks/` 里主题相近的旧任务 prd.md | `task.py create` |
 | 查「当时为什么这么定」 | `.trellis/tasks/archive/` 按目录名搜主题，读 prd.md | `workspace/sunhao/journal-1.md` 按日期还原 session |
+| 开工前看别的会话改了啥 | `tail -30 .trellis/CHANGES.md`（跨会话广播位） | 顺条目指针读对应 task/journal |
 | 部署 / 运维 / 排障 | `dsh-qqbot-brain/README.md` 部署 runbook + `AGENTS.md`「线上数据在哪」 | `docs/brain-backup-restore.md` |
 | 不带 bot 只玩脑图 | `demo/serve-demo.ts`（`node --experimental-strip-types`，即起即抛） | `demo/README.md` 演示数据解读表 |
 | 对外讲这个项目 | `求职材料/README.md`（简历条目 + 面试聊点 + 数字速查） | `参赛材料/`（gitignored）、`demo/` |
@@ -68,6 +69,7 @@ brain-data/                 线上记忆导出的本地备份（gitignored）
 | `spec/` | 沉淀的编码约定（按 backend/frontend/guides 分层） | **每条约定都是踩过的坑**：n-gram 归一化、画像 openid 幻觉校验、mood 枚举同步点……读 `spec/backend/index.md` 等于读一份排雷实录 |
 | `tasks/` | 任务档案：每个问题一个目录，prd.md 记「遇到什么问题/怎么解决/什么时候干的」 | `tasks/` 是进行中的，`tasks/archive/2026-XX/` 是完结的；按目录名搜主题 |
 | `workspace/sunhao/journal-1.md` | 会话时间线（88 条，含 commit hash） | 按日期还原「某天做了什么、为什么」；`index.md` 是目录 |
+| `CHANGES.md` | 跨会话广播位：四类事件一行一条（约定见 AGENTS.md） | **每个会话开工先 `tail -30`**；并行会话靠它互相同步 |
 | `scripts/` | task.py / add_session.py / get_context.py | 见「命令速查」 |
 
 **值得精读的代表性档案**（看「问题→排查→方案→验证」的完整回路）：
@@ -102,6 +104,7 @@ rsync -av dist cordis.patch.yml package.json server:~/dsh-qqbot-brain/   # dist 
 ssh ubuntu@124.222.65.169 'sudo systemctl restart dsh-qqbot'
 
 # Trellis 档案
+tail -30 .trellis/CHANGES.md                                    # 开工先扫：别的会话最近干了啥
 python3 ./.trellis/scripts/task.py create "<标题>" --slug <名> -d "<描述>"
 python3 ./.trellis/scripts/task.py archive <任务名>          # main 上直接做的加 --skip-branch-validation
 python3 ./.trellis/scripts/add_session.py --title "<标题>" --commit <hash或-> --summary "<摘要>"
