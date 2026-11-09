@@ -43,3 +43,5 @@
 - 2026-11-09 | 迭代升级方案定稿：七迭代路线图 A-G（人设三轨地基→叶瞬光接入→主动召回→prospective memory→储备项→companion壳层→体验层），每迭代带验收+云端数据走查；决策点已列（attitude粒度已定角色级，余4项随方案评审） | → `tasks/11-09-iteration-upgrade-plan/iteration-plan.md`
 - 2026-11-09 | 迭代A·人设三轨地基开发完成并部署上线：角色→人设两级、自我轨按 characterId 隔离、批次戳、存量迁移；线上 whale 三人设归并验证通过 | → `tasks/archive/2026-11/11-09-iteration-a-three-track` + journal #96
 - 2026-11-09 | 迭代A 走查补修上线：self 三态 API 透传、情绪盖章/蒸馏提示词按批次角色口径、modalPersonaId 并列取较晚、strength 地板幂等、noteChar whale 回落 | → `tasks/archive/2026-11/11-09-iteration-a-three-track` prd 走查补修节
+- 2026-11-09 | 迭代A前端补全上线：记忆库新增「角色」「轨道」筛选（审计三轨隔离用），人设下拉同角色多版本标注 ·characterId | → commit 085d828
+- 2026-11-09 | 迭代A 走查补修 journal #97 | → `tasks/archive/2026-11/11-09-iteration-a-three-track` prd 走查补修节
