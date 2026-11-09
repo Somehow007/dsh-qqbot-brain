@@ -1942,3 +1942,25 @@ SSH 线上取证后按用户指示用已有优化标齐数据：PATCH 把 13 条
 ### Status
 
 [OK] **Completed**
+
+
+## Session 92: 成本关注约定：成本一线入 AGENTS.md
+<!-- trellis-session: v=2 fp=4e8eeea52abe34b1 -->
+
+**Date**: 2026-11-09
+**Task**: 成本关注约定：成本一线入 AGENTS.md
+**Branch**: `main`
+
+### Summary
+
+需求：用户价值观「AI 相关服务应当关注成本」——项目有审计/有界/建模实践但无书面约定。方案：AGENTS.md 项目约定新增「成本一线」（新增 LLM 调用/注入 section/记忆画像字段必过成本评估：输入有界、前缀缓存友好、可关闭、失败静默；实测数字随评估刷 README；增长项须建模说明不发散）；README 痛点表补「成本失控」行（按需求-实现映射原则落点）；MAP 红线同步。查证：README「待 DeepSeek usage 面板验证」仍为待办属诚实表述，usage 面板本地不可核实保持原样。已归档 archive/2026-11/11-09-cost-first-convention。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `ded91de` | docs: 成本一线约定入 AGENTS.md + README/MAP 同步 |
+
+### Status
+
+[OK] **Completed**
