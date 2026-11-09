@@ -49,3 +49,25 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 96: 迭代A·人设三轨地基：角色→人设两级模型落地并上线
+<!-- trellis-session: v=2 fp=06253ce418ccaa04 -->
+
+**Date**: 2026-11-09
+**Task**: 迭代A·人设三轨地基：角色→人设两级模型落地并上线
+**Branch**: `main`
+
+### Summary
+
+按 iteration-plan §2 把记忆可见性从「事实共享·态度按人设分轨」升级为三轨：世界轨（非 attitude 且 self≠true）全角色共享，自我轨（attitude+self:true）与情绪按 characterId 隔离，同角色人设版本共享、跨角色互不可见且切换不删数据。实现：types 加 self 三态/characterId/WHALE 常量/isSelfContent 启发式（引号外含「我」，显式 false 优先）；store 三态 sanitize+op patch+import/export 透传+persona-save/delete 触发 graphVersion 失效；Brain 收口 characterOf/trackVisible/trackKeyOf，判重/归并/巩固喂料/forget/regenerate 全过轨道守卫，emotionFor 角色不符读 NEUTRAL；endOfTurn 在 ingest 钉批次人设（批内众数）防运行中切换错乱；distill prompt 加可选 self 字段；http/page 透传并加轨道徽标/所属角色框；migrateTracks 幂等迁移（whale 三版本归 whale+启发式补标存量）。排查插曲：resolveSelfFlag 初版让启发式覆盖显式 false 已修；page.test mock DOM 缺字段已补；eval/单测查询词与内容不相关导致的假失败换词后通过；部署踩坑 rsync 目的路径写成 dist/ 造成 dist/dist 嵌套、服务仍跑旧代码，rm 后按 runbook 改 rsync 到插件根才生效。验证：typecheck 0 错、node --test 173/173、eval 人设隔离 100%/0%、build 通过；生产备份后部署，/api/personas 三人设 characterId=whale、/api/state 283 notes 含 4 self:true（whale-devotion 第一人称正确入轨）+9 attitude 全归 whale、emotion 回落 whale、启动日志迁移行确认、journalctl 无 error。文档同步：spec/backend 三轨约定、MAP/README（根+插件）机制层与阶段清单、任务归档 archive/2026-11/11-09-iteration-a-three-track。后续：迭代B 接叶瞬光实战验证跨角色隔离；self 启发式误标率待线上抽查；digest/profiles 仍共享不分轨（设计使然）。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `cf1b3f5` | feat(brain): 迭代A·人设三轨地基——角色→人设两级、自我轨按 characterId 隔离 |
+
+### Status
+
+[OK] **Completed**

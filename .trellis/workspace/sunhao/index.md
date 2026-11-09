@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-2.md`
-- **Total Sessions**: 95
+- **Total Sessions**: 96
 - **Last Active**: 2026-11-09
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-2.md` | ~51 | Active |
+| `journal-2.md` | ~73 | Active |
 | `journal-1.md` | ~1988 | Archived |
 <!-- @@@/auto:active-documents -->
 
@@ -30,6 +30,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 96 | 2026-11-09 | 迭代A·人设三轨地基：角色→人设两级模型落地并上线 | `cf1b3f5` | `main` |
 | 95 | 2026-11-09 | 记忆/人格架构市面调研两轮（Letta/Mem0/Zep + 人格方案/陪伴产品形态） | `56c4ee7` | `main` |
 | 94 | 2026-11-09 | 归档大扫除：清坏档 + 归档 7 个失真任务 | `d39f599` | `main` |
 | 93 | 2026-11-09 | 跨会话鲜活性约定：CHANGES.md 广播位 | `7d298c0` | `main` |
