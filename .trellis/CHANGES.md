@@ -37,3 +37,5 @@
 - 2026-11-09 | 广播位约定补充：「开工」定义扩到旧会话恢复/跨时段继续，时间戳增量补课 | → `tasks/archive/2026-11/11-09-cross-session-changes`
 - 2026-11-09 | 陪伴型 Agent 方向评估：可行，建议 web 1-on-1 先行（library import 内核），定位为简历「第二 deployment」证据而非独立项目 | → tasks/11-09-companion-agent-eval
 - 2026-11-09 | 归档大扫除：删空目录、11-04-p2→consolidation-absorb-merge 改名补档、3处年份typo、补4个task.json、7个陈旧进行中任务归档 | → `tasks/archive/2026-11/11-09-archive-hygiene-sweep`
+- 2026-11-09 | 记忆架构调研首轮完成：Letta/Mem0/Zep 对照报告，结论=不整体引入、6条思想级借鉴（brain_search主动召回/dreaming重组/双时态/entity boost/图扩散） | → `tasks/11-09-memory-persona-arch-research/memory-arch-survey.md`
+- 2026-11-09 | 记忆架构调研第二轮完成：人格方案+陪伴产品形态（OpenClaw为最近表亲），合并借鉴清单10条，调研范围全部完成 | → `tasks/11-09-memory-persona-arch-research/persona-companion-survey.md`
