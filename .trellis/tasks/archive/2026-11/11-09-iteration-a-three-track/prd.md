@@ -44,3 +44,16 @@
 - **什么时候干的**：2026-11-09 当天完成实现→测试→eval→build→备份→部署→线上数据走查全流程。
 - **Key Decisions**：attitude/self 归属=角色级（用户拍板）；self 启发式=引号外含「我」；trackKey 分轨防吸收；情绪免迁移读时判定；批次戳在 ingest 钉住防在途切换错乱。
 - **验证结论**：`npm run typecheck` 0 错；`node --test` 全量 173/173 通过（brain 145 + http/page/eval 其余）；`npm run eval` 人设三轨隔离用例 100% recall / 0% noise（词表基线 q08/q15/n01/n03 为存量问题未动）；`npm run build` 通过；生产部署后 `/api/personas` 三人设 `characterId=whale`、`/api/state` 283 notes 中 4 条 self:true（2 条 whale-devotion 第一人称自我记忆正确入轨）+ 9 条 attitude 全归 whale、emotion personaId 回落 whale、启动日志迁移行确认、journalctl 无 error。部署路径事故已修正并记入本档案。
+
+### 走查补修（2026-11-09 深夜复审）
+
+上线后按「稳定性走查」复审全量 diff，修 6 处：
+
+1. **`/api/state` self 三态被吞**：graph 序列化只透传 `self===true`，显式 `self:false` 到页面变 `undefined`——编辑器显示「自动」，无关字段保存会把显式世界轨静默清回启发式。改为布尔三态透传。
+2. **情绪盖章跨角色**：`emotionStamp` 直读 `emotion.get` 不过滤——他角色情绪会盖进本轨记忆的 label 快照与强度加权。改走 `emotionFor(pid)`，endOfTurn 传 batchPid、consolidate 传 notePid。
+3. **蒸馏/巩固提示词人设口径**：`personaForPrompts()` 恒取活动人设——批次戳是形成时人设（众数），切换窗口内提示词会用新角色口吻写旧角色的轨。改接受 pid 参数，endOfTurn→batchPid、consolidate→notePid。
+4. **`modalPersonaId` 并列取早**：实现是 Map 插入序首个最大者，与 prd「并列取较晚」不符；改为计数并列取较晚出现位置（对 turns=时序、sessNotes≈创建序均成立）。
+5. **`sanitizeNote` strength 地板 0.5 非幂等**：该地板原为导入校验，迭代A 起快照/op 回放也走 sanitize——strength∈[0.1,0.5) 的合法记忆每次加载被抬一档。地板降到入库可产最小值 0.1。
+6. **页面 `noteChar` 缺 whale 保留 id 回落**：服务端 `characterOf` 对无 characterId 的 whale 系 id 归 'whale'，页面原实现归自身 id——补 `WHALE_IDS` 常量对齐。
+
+另删 `EmotionEngine.describe()`（无调用且绕过角色过滤的死路径）。新增 5 个判别性单测（提示词人设一致/并列取较晚/情绪盖章过滤/self:false 透传/strength 幂等）+ page 角色回落断言；179/179 绿，eval 人设隔离不变，已重新部署。

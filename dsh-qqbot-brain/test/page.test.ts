@@ -93,11 +93,13 @@ test('记忆库轨道筛选：自我轨=attitude+self:true，世界轨=其余含
     PERSONAS: { activeId: 'a', personas: [
       { id: 'a', name: '鲸鱼娘·温柔', characterId: 'whale' },
       { id: 'b', name: '鲸鱼娘·依恋', characterId: 'whale' },
+      { id: 'legacy', name: '原有人设' },                    // whale 保留 id 无 characterId → 服务端回落 whale
       { id: 'c', name: '叶瞬光' },
     ]},
     STATE: { notes: [
       mk('w1', { personaId: 'a' }),                    // 世界轨·自动·温柔版→whale
       mk('w2', { self: false, personaId: 'c' }),      // 世界轨·显式 false·叶瞬光→c
+      mk('w3', { personaId: 'legacy' }),              // 存量无 tag 归属→whale（保留 id 回落）
       mk('s1', { self: true, personaId: 'b' }),       // 自我轨·显式·依恋版→同 whale
       mk('s2', { kind: 'attitude', content: '对某人：立场', personaId: 'c' }), // 自我轨·attitude·叶瞬光→c
     ]},
@@ -105,14 +107,14 @@ test('记忆库轨道筛选：自我轨=attitude+self:true，世界轨=其余含
   };
   const { libFiltered } = runInNewContext(`${fns}; ({libFiltered})`, sandbox) as { libFiltered: () => { id: string }[] };
   controls.libTrack!.value = '';
-  assert.deepEqual(libFiltered().map((n) => n.id).sort(), ['s1', 's2', 'w1', 'w2']);
+  assert.deepEqual(libFiltered().map((n) => n.id).sort(), ['s1', 's2', 'w1', 'w2', 'w3']);
   controls.libTrack!.value = 'self';
   assert.deepEqual(libFiltered().map((n) => n.id).sort(), ['s1', 's2']);
   controls.libTrack!.value = 'world';
-  assert.deepEqual(libFiltered().map((n) => n.id).sort(), ['w1', 'w2']);
+  assert.deepEqual(libFiltered().map((n) => n.id).sort(), ['w1', 'w2', 'w3']);
   controls.libTrack!.value = '';
   controls.libChar!.value = 'whale';
-  assert.deepEqual(libFiltered().map((n) => n.id).sort(), ['s1', 'w1']);
+  assert.deepEqual(libFiltered().map((n) => n.id).sort(), ['s1', 'w1', 'w3']);
   controls.libChar!.value = 'c';
   controls.libTrack!.value = 'self';
   assert.deepEqual(libFiltered().map((n) => n.id).sort(), ['s2']);

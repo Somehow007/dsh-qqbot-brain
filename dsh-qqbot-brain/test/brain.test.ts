@@ -552,6 +552,84 @@ test('endOfTurn: mergeIndex 跨类指回落空——态度输出不改写事实�
   assert.equal(added.personaId, 'whale-devotion');
 });
 
+test('endOfTurn: 批次戳与蒸馏提示词人设一致——切换后批内提示词仍用形成时人设', async () => {
+  const { store } = tmpStore();
+  store.createPersona('温柔版', '温柔口吻XYZ', 'whale-gentle', { characterId: 'whale' });
+  store.createPersona('叶瞬光', '叶口吻ABC', 'ye-shunguang');
+  store.activatePersona('whale-gentle');
+  let prompt = '';
+  const distiller = new Distiller(
+    { enabled: true, baseUrl: 'https://x.test', apiKey: 'k', model: 'm', timeoutMs: 1000, maxNotes: 5 },
+    async (_url, init) => {
+      prompt = (JSON.parse(init.body) as { messages: { content: string }[] }).messages[0]!.content;
+      return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content: '{"memories":[]}' } }] }) };
+    },
+  );
+  const brain = new Brain({ store, distiller, now });
+  brain.ingest('s1', { userText: '你好', assistantText: '咕嘟', at: NOW });
+  // 蒸馏前切到另一角色：归属戳 whale，提示词人设也应是 whale 而非当前活动 ye
+  store.activatePersona('ye-shunguang');
+  await brain.endOfTurn('s1');
+  assert.ok(prompt.includes('温柔口吻XYZ'), '提示词应使用批次人设全文');
+  assert.ok(!prompt.includes('叶口吻ABC'), '不应串用切换后的活动人设');
+});
+
+test('endOfTurn: 批次人设并列取较晚——交替切换时归属最后形成侧', async () => {
+  const { store } = tmpStore();
+  store.createPersona('温柔版', '温柔', 'whale-gentle', { characterId: 'whale' });
+  store.createPersona('叶瞬光', '叶', 'ye-shunguang');
+  store.activatePersona('whale-gentle');
+  const brain = new Brain({
+    store, now,
+    distiller: mockDistiller({ memories: [{ content: '用户决定晨跑', importance: 3 }] }),
+  });
+  brain.ingest('s1', { userText: 'a', assistantText: 'b', at: NOW });   // whale
+  store.activatePersona('ye-shunguang');
+  brain.ingest('s1', { userText: 'c', assistantText: 'd', at: NOW });   // ye
+  store.activatePersona('whale-gentle');
+  brain.ingest('s1', { userText: 'e', assistantText: 'f', at: NOW });   // whale
+  store.activatePersona('ye-shunguang');
+  brain.ingest('s1', { userText: 'g', assistantText: 'h', at: NOW });   // ye
+  await brain.endOfTurn('s1');
+  // 2:2 并列取较晚出现者 → ye
+  assert.equal(store.allNotes()[0]!.personaId, 'ye-shunguang');
+});
+
+test('endOfTurn: 情绪盖章按批次角色过滤——他角色情绪不进本轨记忆快照', async () => {
+  const { store } = tmpStore();
+  store.createPersona('温柔版', '温柔', 'whale-gentle', { characterId: 'whale' });
+  store.createPersona('叶瞬光', '叶', 'ye-shunguang');
+  store.activatePersona('ye-shunguang');
+  // whale 角色留下的情绪态：ye 批次不该盖它的章（否则 label/强度加权串台）
+  store.setEmotion('s1', { v: 0.8, a: 0.7, d: 0.5, label: '得意忘形', mood: '开心', personaId: 'whale-gentle', updatedAt: NOW });
+  const brain = new Brain({
+    store, now,
+    distiller: mockDistiller({ memories: [{ content: '用户决定晨跑', importance: 3 }] }),
+  });
+  brain.ingest('s1', { userText: '我决定晨跑了', assistantText: '好', at: NOW });
+  await brain.endOfTurn('s1');
+  const n = store.allNotes()[0]!;
+  assert.equal(n.personaId, 'ye-shunguang');
+  assert.equal(n.emotion!.label, '平静'); // NEUTRAL 而非 whale 的「得意忘形」
+});
+
+test('graph: self 三态透传——显式世界轨 false 不被吞成自动', async () => {
+  const { store } = tmpStore();
+  const n = store.addNote('s1', { content: '我其实是外星人', self: false }, NOW);
+  const brain = new Brain({ store, distiller: mockDistiller({}), now });
+  const g = await brain.graph('s1');
+  assert.equal(g.notes.find((x) => x.id === n.id)!.self, false);
+});
+
+test('store: 低强度记忆重放不被地板抬升——strength sanitize 幂等', () => {
+  const { dir, store } = tmpStore();
+  const n = store.addNote('s1', { content: '随手记', importance: 1, strengthBoost: 0.1 }, NOW);
+  assert.ok(n.strength < 0.5);
+  store.flush();
+  const store2 = new BrainStore(dir);
+  assert.equal(store2.noteById(n.id)!.strength, n.strength);
+});
+
 test('purgeNotesByPersona: 按归属人设批量删除，缺 tag 存量按 whale-gentle 计', () => {
   const { store } = tmpStore();
   store.addNote('s1', { content: '事实A', importance: 3, personaId: 'whale-gentle' }, NOW);

@@ -100,7 +100,9 @@ function sanitizeNote(raw: unknown, now: number): MemoryNote | undefined {
     importance: Math.min(5, Math.max(1, Math.round(num(n.importance, 3)))),
     kind: n.kind === 'semantic' || n.kind === 'attitude' ? n.kind : 'episodic',
     createdAt: num(n.createdAt, now),
-    strength: Math.max(0.5, num(n.strength, 3)),
+    // 地板取入库可产最小值 0.1（importance≥1 × strengthBoost≥0.1）：
+    // 加载/回放是热路径，地板必须幂等——0.5 会把合法低强度记忆每次重放都抬一档
+    strength: Math.max(0.1, num(n.strength, 3)),
     hits: Math.max(0, Math.round(num(n.hits, 0))),
     lastAccessAt: num(n.lastAccessAt, now),
     embedding: (Array.isArray(n.embedding) && n.embedding.length)

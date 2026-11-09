@@ -70,11 +70,8 @@ export class EmotionEngine {
     return sid ? { sessionId: sid, state: this.get(sid, now) } : undefined;
   }
 
-  describe(sessionId: string, now: number): string {
-    return this.describeState(this.get(sessionId, now));
-  }
-
-  /** 纯格式化：Brain 侧先按角色过滤再喂（跨角色给 NEUTRAL_EMOTION→自然空串不注入） */
+  /** 纯格式化：Brain 侧先按角色过滤再喂（跨角色给 NEUTRAL_EMOTION→自然空串不注入）。
+   *  不提供「按 sessionId 直读」的 describe——那条路径绕过 character 过滤，会泄漏他角色情绪 */
   describeState(s: EmotionState): string {
     // 平静态（≈中性基线 v=0/a=0.3/d=0）不渲染：这行注入无信息量，省 ~20 tok/轮
     if (Math.abs(s.v) < 0.1 && Math.abs(s.d) < 0.1 && Math.abs(s.a - 0.3) < 0.1) return '';

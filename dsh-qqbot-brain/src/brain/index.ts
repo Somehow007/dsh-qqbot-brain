@@ -84,9 +84,12 @@ export class Brain {
     return this.store.persona() || this.defaultPersona;
   }
 
-  /** 内部 LLM 调用（蒸馏/脉络/巩固）用的人设：配了精简版就用，否则全量内核 */
-  private personaForPrompts(): string {
-    return this.cfg.personaDigest.trim() || this.persona();
+  /** 内部 LLM 调用（蒸馏/脉络/巩固）用的人设：配了精简版就用，否则取 pid 人设全文；缺省/查无此人设回落活动人设 */
+  private personaForPrompts(pid?: string): string {
+    const digest = this.cfg.personaDigest.trim();
+    if (digest) return digest;
+    const text = pid ? this.store.personaEntry(pid)?.text : undefined;
+    return text || this.persona();
   }
 
   /** 整体替换人格内核（导入路径；写入需经此入口而非直接改文件） */
@@ -278,7 +281,7 @@ export class Brain {
         .slice(0, 8)
         .map((s) => s.note);
       const result = await this.distiller.distill(
-        viewTurns, this.personaForPrompts(), existing, this.emotionFor(sessionId, batchPid, now),
+        viewTurns, this.personaForPrompts(batchPid), existing, this.emotionFor(sessionId, batchPid, now),
         this.existingProfiles(sessionId, actors),
         { now, timeZone: this.cfg.timeZone },
       );
@@ -296,7 +299,7 @@ export class Brain {
         const s = this.emotion.apply(sessionId, e, now, batchPid);
         this.store.setEmotion(sessionId, s);
       }
-      const stamp = this.emotionStamp(sessionId, now);
+      const stamp = this.emotionStamp(sessionId, now, batchPid);
       // 强情绪下形成的记忆更难忘：|v|·a 加权初始强度（最高 ×1.5）
       const boost = this.emotionBoost(stamp);
       // 待取向量集合：merge 目标（content 被改写需重算）+ 批量取向量失败的新记忆。
@@ -414,16 +417,22 @@ export class Brain {
       ? `char:${this.characterOf(notePersonaId(note))}` : undefined;
   }
 
-  /** 人设 id 众数（缺省回落活动人设）：批次/会话归属统一口径 */
+  /** 人设 id 众数（缺省回落活动人设）：批次/会话归属统一口径；计数并列取较晚出现者（更新上下文优先） */
   private modalPersonaId(ids: (string | undefined)[]): string {
-    const counts = new Map<string, number>();
-    for (const p of ids) {
+    const counts = new Map<string, { n: number; last: number }>();
+    ids.forEach((p, i) => {
       const k = p || this.store.activePersonaId() || '';
-      if (k) counts.set(k, (counts.get(k) ?? 0) + 1);
-    }
+      if (!k) return;
+      const c = counts.get(k) ?? { n: 0, last: -1 };
+      c.n++; c.last = i;
+      counts.set(k, c);
+    });
     let best = '';
     let bestN = 0;
-    for (const [p, n] of counts) if (n > bestN) { best = p; bestN = n; }
+    let bestLast = -1;
+    for (const [p, c] of counts) {
+      if (c.n > bestN || (c.n === bestN && c.last > bestLast)) { best = p; bestN = c.n; bestLast = c.last; }
+    }
     return best || this.store.activePersonaId() || '';
   }
 
@@ -833,13 +842,14 @@ export class Brain {
     const profileText = this.existingProfiles(sessionId, epActors)
       .map((p) => `${p.actor ?? '会话整体'}：${p.text}`)
       .join('\n');
-    const result = await this.distiller.consolidate(eps, profileText, this.personaForPrompts(), { now, timeZone: this.cfg.timeZone });
-    const stamp = this.emotionStamp(sessionId, now);
+    // 归属=巩固视角人设（本会话众数）：自我轨按角色隔离后，
+    // 「巩固碰巧跑在谁头上」不再是归属依据——视角即归属，跨角色内容已被喂料过滤挡住；
+    // 提示词人设与情绪盖章同用视角，防「活动人设口吻」写进别角色的轨
+    const notePid = viewPid || this.store.activePersonaId();
+    const result = await this.distiller.consolidate(eps, profileText, this.personaForPrompts(notePid), { now, timeZone: this.cfg.timeZone });
+    const stamp = this.emotionStamp(sessionId, now, notePid);
     const sourceIds = eps.map((e) => e.id);
     const boost = this.emotionBoost(stamp);
-    // 归属=巩固视角人设（本会话众数）：自我轨按角色隔离后，
-    // 「巩固碰巧跑在谁头上」不再是归属依据——视角即归属，跨角色内容已被喂料过滤挡住
-    const notePid = viewPid || this.store.activePersonaId();
     // 入库判重：候选先批量取向量，与库内 cos>=dedupeEmbedCos 判同义转强化——
     // 历史上多轮巩固对同批源产过逐字重复的 semantic（线上实测），源退池后此处兜底产出侧
     const vecs = this.embedder?.enabled && result.memories.length
@@ -954,9 +964,10 @@ export class Brain {
     return this.emotionFor(sessionId, this.store.activePersonaId(), this.now());
   }
 
-  /** 当前会话情绪快照（写入记忆时钉上；op 流水会 compact，快照存记忆上才可靠） */
-  private emotionStamp(sessionId: string, now: number): NoteEmotion {
-    const e = this.emotion.get(sessionId, now);
+  /** 当前会话情绪快照（写入记忆时钉上；op 流水会 compact，快照存记忆上才可靠）。
+   *  pid=盖章视角角色：跨角色情绪不盖到本轨记忆上（否则他角色情绪串台进 label/强度加权） */
+  private emotionStamp(sessionId: string, now: number, pid?: string): NoteEmotion {
+    const e = this.emotionFor(sessionId, pid ?? this.store.activePersonaId(), now);
     return { v: e.v, a: e.a, d: e.d, label: e.label, mood: e.mood };
   }
 
@@ -1188,7 +1199,7 @@ export class Brain {
       emotion: n.emotion,
       personaId: n.personaId,
       /** 自我轨标记（脑图页徽标/过滤用）；attitude 隐含自我轨无需另标 */
-      self: n.self === true ? true : undefined,
+      self: typeof n.self === 'boolean' ? n.self : undefined,
       /** 已被语义巩固吸收退池的存档条（可视化区分/验收用） */
       absorbed: !!n.absorbedAt,
       /** 私域手动覆盖；生效域=private ?? 来源会话域（图谱徽标用） */
