@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 90
+- **Total Sessions**: 91
 - **Last Active**: 2026-11-09
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1922 | Active |
+| `journal-1.md` | ~1944 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 91 | 2026-11-09 | README 保鲜约定 + 需求导向刷新 | `a732eff` | `main` |
 | 90 | 2026-11-09 | MAP.md 保鲜约定入 AGENTS.md | `51223d7` | `main` |
 | 89 | 2026-11-08 | 根目录项目地图 MAP.md | `03fb714` | `main` |
 | 88 | 2026-11-08 | 为什么自研认知层而不用 LangGraph/Dify | - | `main` |

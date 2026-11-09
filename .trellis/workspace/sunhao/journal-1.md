@@ -1920,3 +1920,25 @@ SSH 线上取证后按用户指示用已有优化标齐数据：PATCH 把 13 条
 ### Status
 
 [OK] **Completed**
+
+
+## Session 91: README 保鲜约定 + 需求导向刷新
+<!-- trellis-session: v=2 fp=b0b8c0bf8d78c132 -->
+
+**Date**: 2026-11-09
+**Task**: README 保鲜约定 + 需求导向刷新
+**Branch**: `main`
+
+### Summary
+
+需求：README 也纳入保鲜约定并立刻更新，价值观「实现服务于需求」。方案：AGENTS.md「MAP.md 保鲜」扩为「导览文档保鲜」（MAP/README 分列触发条件+需求漏斗结构入约）；README 按需求导向刷新——单测实测 153→167、痛点表补隐私越界行（私域隔离+放行阀按「需求-实现映射」原则入表而非堆机制段）、阶段数字→~237 commits/90 session 注评估时点、checklist 补隐私域/归因护栏/发言人绑定/刷新保护、仓库结构瘦身指向 MAP.md、文档分工落字（README=what&why/MAP=where&how/AGENTS=约定/.trellis=过程档案）。设计原则五条已写入 task prd（需求漏斗/痛点映射表为核心/易腐信息快照化/诚实清单/分工去重）。已归档 archive/2026-11/11-09-readme-freshness-refresh。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `a732eff` | docs: README 需求导向刷新 + 导览文档保鲜约定 |
+
+### Status
+
+[OK] **Completed**
