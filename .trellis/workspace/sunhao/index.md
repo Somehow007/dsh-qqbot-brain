@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 92
+- **Total Sessions**: 93
 - **Last Active**: 2026-11-09
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1966 | Active |
+| `journal-1.md` | ~1988 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 93 | 2026-11-09 | 跨会话鲜活性约定：CHANGES.md 广播位 | `7d298c0` | `main` |
 | 92 | 2026-11-09 | 成本关注约定：成本一线入 AGENTS.md | `ded91de` | `main` |
 | 91 | 2026-11-09 | README 保鲜约定 + 需求导向刷新 | `a732eff` | `main` |
 | 90 | 2026-11-09 | MAP.md 保鲜约定入 AGENTS.md | `51223d7` | `main` |

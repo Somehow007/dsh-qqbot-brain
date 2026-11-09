@@ -1964,3 +1964,25 @@ SSH 线上取证后按用户指示用已有优化标齐数据：PATCH 把 13 条
 ### Status
 
 [OK] **Completed**
+
+
+## Session 93: 跨会话鲜活性约定：CHANGES.md 广播位
+<!-- trellis-session: v=2 fp=f368d016e8736574 -->
+
+**Date**: 2026-11-09
+**Task**: 跨会话鲜活性约定：CHANGES.md 广播位
+**Branch**: `main`
+
+### Summary
+
+需求：多会话并行时要能实时感知彼此变动（定方案/完成改动/定方向/状态变化），开工先扫保持鲜活。排查：现有留痕（task归档/journal/index.md）全在会话结束才落笔，get_context 无语义层变动信息，且无任何读侧约定——写侧有档案、读侧空白，缺口确认。方案：新增 .trellis/CHANGES.md 追加式广播位（四类事件落地即记一行+指针、只留~100条、只写索引不写细节）；AGENTS.md 项目约定加「跨会话广播位」（写侧四触发+读侧 tail -30）；MAP.md 意图表/档案层表/命令速查三处同步；8条种子条目回填+本任务dogfood。验证：commit 7d298c0 含全部改动（顺带带上两个前序会话遗留staged归档目录，无害）；任务已归档 archive/2026-11/11-09-cross-session-changes。后续：观察约定是否空转，必要时把tail并入get_context或hook强制注入；四类触发清单按实盘遗漏修订。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `7d298c0` | docs: 跨会话广播位约定——CHANGES.md + 开工先扫硬约定 |
+
+### Status
+
+[OK] **Completed**
