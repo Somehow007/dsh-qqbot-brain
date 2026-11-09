@@ -71,3 +71,25 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 97: 迭代A走查：六处稳定性补修上线
+<!-- trellis-session: v=2 fp=40e50b3f499f2157 -->
+
+**Date**: 2026-11-09
+**Task**: 迭代A走查：六处稳定性补修上线
+**Branch**: `main`
+
+### Summary
+
+对迭代A全量 diff 做稳定性走查，修 6 处：①/api/state graph 序列化只透传 self===true，显式 self:false 到页面变 undefined，编辑器显示「自动」且无关保存会静默清回启发式——改三态透传；②emotionStamp 直读 emotion.get 不过滤角色，他角色情绪会盖进本轨记忆 label 快照与强度加权——改走 emotionFor(pid)，endOfTurn 传 batchPid、consolidate 传 notePid；③personaForPrompts() 恒取活动人设，蒸馏/巩固在切换窗口内会用新角色口吻写旧角色的轨——改接受 pid，endOfTurn→batchPid、consolidate→notePid；④modalPersonaId 并列取 Map 插入序最早者，与 prd「并列取较晚」不符——改计数并列取较晚位置；⑤sanitizeNote strength 地板 0.5 原为导入校验，迭代A 起快照/op 回放共用，strength∈[0.1,0.5) 合法记忆每次加载被抬一档——地板降到入库可产最小值 0.1；⑥页面 noteChar 缺 whale 系保留 id 回落，与服务端 characterOf 不一致——补 WHALE_IDS 常量。另删 EmotionEngine.describe() 无调用且绕过角色过滤的死路径。验证：新增 5 个判别性单测（旧代码均会失败）+page 角色回落断言，179/179 绿，eval 人设隔离不变；build+rsync+重启上线，迁移日志不再出现（幂等实证），/api/personas 三人设 char=whale、284 notes 正常。补修记录追加进已归档任务 prd「走查补修」节。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `fd20597` | fix(brain): 迭代A走查补修——六处稳定性修正 |
+
+### Status
+
+[OK] **Completed**
