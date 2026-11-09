@@ -78,3 +78,11 @@
 - ~~插件 `ctx.logger` 输出不进 `/var/log/dsh/qqbot.log`~~ → 已解：新增 `src/setup/file-log.ts`，全部插件日志落 `<dataDir>/brain.log`（1MB 轮转 .old），蒸馏失败不再仅 debug 可见；已部署并在服务器验证「蒸馏 on / 数据目录 /home/ubuntu/brain-data」
 - `dsh plugin add` 以 `link:` 依赖安装，本地目录重建 dist 后需重启服务生效
 - 服务器系统 Node 是 18，dsh 用 `/opt/node-v24`——插件编译产物 ES2022 无影响，但所有 dsh 命令要 `PATH=/opt/node-v24/bin:$PATH`
+
+## Resolution（2026-11-09 补录）
+
+- **遇到了什么问题**：首轮上云需要端口收敛、数据迁移、备份策略、systemd 保活一整套准备，否则脑图与写 API 裸奔公网。
+- **怎么解决的**：P0+P1 全部落地并已于 2026-10-30 部署验证（见上文「部署记录」）：patch host→127.0.0.1 + SSH 隧道、页面 token 感知 fapi 17 处、`~/.dsh/brain.env` + systemd drop-in 注入密钥、每日 cron 备份 `~/brain-data`、file-log.ts 补插件日志落点。首轮真实对话验证通过，效果复盘见 `archive/2026-11/10-31-two-day-trial-eval`。
+- **后续优化方向**：访问方式 11-02 起演进为公网直连+token（`archive/2026-11/11-02-brain-public-access`）；当前部署惯例已固化进 `AGENTS.md`「线上数据在哪」。
+- **什么时候干的**：2026-10-30 部署完成；2026-11-09 归档清理补 Resolution 关闭。
+- **验证结论**：部署记录逐项在案（ss 绑定、备份首包、迁移数据、Bot ready）；服务持续运行至今。

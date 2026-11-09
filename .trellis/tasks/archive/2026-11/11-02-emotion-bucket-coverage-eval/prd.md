@@ -91,3 +91,11 @@ typecheck + 92 tests + build 全过；9 节点槽位经 layoutSlots 复算确认
 - 现象：用户聊出「害羞」op 后脑图仍不显示害羞。排查：/api/state 已正确返回 mood=害羞、ops 带 mood，链路正常；页面响应无 Cache-Control，用户标签页运行的是部署前旧 JS（旧版仅 5 桶、无害羞节点）。
 - 修复：http.ts 页面与 JSON API 响应统一加 `Cache-Control: no-cache`，已随 dist 再次部署并验证响应头生效。
 - 认知更新：数据是每轮蒸馏即写（非攒批），页面 15s 轮询；显示滞后的唯一来源是旧页面/缓存。
+
+## Resolution（2026-11-09 补录）
+
+- **遇到了什么问题**：线上情绪 label 只出「开心/平静」两三种——五桶 PAD→情绪映射实际可达仅 2 桶，temperature=0 下「无明显变化」判定让旧情绪黏住。
+- **怎么解决的**：蒸馏侧引入 mood 九桶显式枚举（开心/平静/害羞/炸毛/委屈/好奇/心疼/得意/困倦），蒸馏直出 mood 字段，v/a 仍走 PAD；`MOOD_VALENCE` 一致性护栏（11-02-brain-link-issues P1）。11-02 部署；插曲修复：旧页面缓存导致新 mood 不显示 → http.ts 响应统一 `Cache-Control: no-cache`。
+- **后续优化方向**：情绪 label 话痨/复读已于 11-03 限 10 字；九桶与脑图情绪桶的映射观察延续在各 UI 迭代。
+- **什么时候干的**：2026-11-02 完成并部署；2026-11-09 归档清理补录关闭。
+- **验证结论**：92 测试 + typecheck + build 过；7/7 场景回放 mood 合法枚举；部署后情绪 label 多样性经 two-day-trial-eval D3 与后续走查实证。

@@ -35,3 +35,5 @@
 - 2026-11-09 | 进行中未提交：叶瞬光人设包 `tasks/11-07-ye-shunguang-persona`、多人设切换设计 `tasks/11-08-persona-switch-design`、`personas/`、`求职材料/` | → 对应 task 目录 prd.md
 - 2026-11-09 | 跨会话广播位约定落地：新增本文件 + AGENTS.md 硬约定（开工先 tail） | → `tasks/archive/2026-11/11-09-cross-session-changes`
 - 2026-11-09 | 广播位约定补充：「开工」定义扩到旧会话恢复/跨时段继续，时间戳增量补课 | → `tasks/archive/2026-11/11-09-cross-session-changes`
+- 2026-11-09 | 陪伴型 Agent 方向评估：可行，建议 web 1-on-1 先行（library import 内核），定位为简历「第二 deployment」证据而非独立项目 | → tasks/11-09-companion-agent-eval
+- 2026-11-09 | 归档大扫除：删空目录、11-04-p2→consolidation-absorb-merge 改名补档、3处年份typo、补4个task.json、7个陈旧进行中任务归档 | → `tasks/archive/2026-11/11-09-archive-hygiene-sweep`

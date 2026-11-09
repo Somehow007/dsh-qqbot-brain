@@ -137,3 +137,10 @@ spec — a one-time setup so every future AI session follows the team's
 conventions instead of writing generic code. Before we start, do you have
 any existing convention docs (CLAUDE.md, .cursorrules, CONTRIBUTING.md,
 etc.) I can pull from, or should I scan the codebase from scratch?"
+
+## Resolution（2026-11-09 补录）
+
+- **遇到了什么问题**：`trellis init` 后 `.trellis/spec/` 为空脚手架，需要填充团队真实编码约定供后续 AI 会话加载。
+- **怎么解决的**：`.trellis/spec/` 已按 backend/frontend/guides 分层填充——每条约定都来自实战踩坑（n-gram 归一化、画像 openid 幻觉校验、mood 枚举同步点、page.html 皮层地图约定等），并在后续任务中持续增补。
+- **什么时候干的**：spec 填流于 2026-10-29 起的早期会话完成并持续演进；本任务状态漏标，2026-11-09 归档清理时补 Resolution 关闭。
+- **验证结论**：`spec/backend/`、`spec/frontend/`、`spec/guides/` 均有实质内容，被 trellis-before-dev / trellis-check 等链路正常加载使用。

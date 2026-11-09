@@ -1,3 +1,8 @@
+# 巩固增强：episodic 退池 + attitude 同对象归并
+
+## Goal
+
+commit `567529f`（P2 巩固增强）的存档：语义巩固产出后给源 episodic 打 `absorbedAt` 退出检索池；规范格式的 attitude 按同对象原位归并；蒸馏 prompt 收紧 attitude 格式约束。本目录原名 `11-04-p2`（建档时命名不规范），2026-11-09 归档清理时改为现名并补标题。
 
 ## Resolution（2026-11-04）
 

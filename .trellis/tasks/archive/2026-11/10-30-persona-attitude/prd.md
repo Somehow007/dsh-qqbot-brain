@@ -33,3 +33,11 @@
 - [ ] 蒸馏 mock 返回 `kind:"attitude"` 时写入 kind=attitude 的记忆并在 assemble 的 `attitudeLines` 中出现
 - [ ] 发言人昵称匹配时对应态度进入检索命中
 - [ ] 脑图页 attitude 类型有独立 badge 颜色与筛选项
+
+## Resolution（2026-11-09 补录）
+
+- **遇到了什么问题**：人格内核静态无自我更新，回复死板；需要一层「可被他人塑造的态度记忆」使人格在不动内核的前提下随时间演化。
+- **怎么解决的**：按方案 A 落地 `kind='attitude'`——蒸馏产出「对<对象>：<立场>」条目、同对象 merge 更新、topK 检索 + 发言人昵称保底（≤3 条）双通道唤起、`brain:attitude` section（初 order 83，11-02 token 审计后移至 10310 保前缀缓存）、脑图「态度立场」脑区与紫色 badge。commit `027eb6c`/`b074657`（journal #19）。后续 `11-03-persona-v2-devotion` 为其加 `personaId` 分轨，`11-04` 系列补「对X：」格式硬校验与同对象归并。
+- **后续优化方向**：已分流的演进——分轨召回（devotion）、格式校验（memory-kind-boundary）、跨会话保底（c2c-no-sender-tag）各自有档。
+- **什么时候干的**：2026-10-30~10-31 落地；2026-11-09 归档清理补录关闭。
+- **验证结论**：attitude 机制现网运行（保底/分轨/格式校验均在案）；原 AC 项已由后续迭代任务与测试满足。

@@ -172,7 +172,7 @@ compact 后兜底——架构互补合理。可确认线上 compaction 阈值是
   distillEveryTurns 具体数值为启发式起点需实测调参；R11 persona 精简版有质量
   风险需 A/B，非定论。
 
-## Resolution（2025-11-02）
+## Resolution（2026-11-02）
 
 ### 遇到了什么问题
 

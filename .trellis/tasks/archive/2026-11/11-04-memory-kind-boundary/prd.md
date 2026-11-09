@@ -34,3 +34,11 @@
 - 数据安全：R1 只加 `absorbedAt` 戳不删数据，op 流水可审计可重放
 - 进度（2026-11-04）：R1-R4 全部实现（design.md 落地方案），`npm test` 118/118、`tsc` 通过。**部署暂缓**：dist 会连带工作区未提交的在途改动（resolveActorTag、page.html 美化改版），用户选择先不部署。部署后启动即自动追溯退池（`absorbCovered` 幂等），亦可 `POST /api/absorb-covered` 手动重跑。
 - 已部署（2026-11-04 16:52）：与 `11-04-brain-ui-aesthetic` 页面改版一起上线（远端 dist 备份 `dist.bak-1104`，page.html md5 `51497ca4` 一致），重启后 brain.log 出现「追溯退池：87 条已覆盖情景记忆退出检索池」，全部功能 on。代码提交 `490e87b`。
+
+## Resolution（2026-11-09 补录）
+
+- **遇到了什么问题**：线上标齐后仍存三个机制缺口——历史巩固的 ~486 个 live sourceId 指向的 episodic 永不退池（源与摘要永久双占检索位）；蒸馏 attitude 错标率实测 13/15；`consolidate()` 入库不走 findNearDup 产出逐字重复 semantic。
+- **怎么解决的**：R1 `Brain.absorbCovered()` 启动幂等追溯退池（+ `POST /api/absorb-covered` 手动重跑）；R2 蒸馏入库前 `^对.{1,24}[：:]` 格式硬校验，不合格 attitude 降级 episodic；R3 巩固产出走同款 embedding 判重，cos≥0.9 转 reinforce；R4 巩固 prompt 补立场引导。commit `490e87b`，11-04 16:52 部署，启动即退池 87 条。
+- **后续优化方向**：R2/R4 待真实样本触发后复核日志；semantic 主体错乱（欲望主语误标）可在巩固 prompt 补主语规范（见 `11-04-memory-kind-effect-persona-visibility`）。
+- **什么时候干的**：2026-11-04 实现、部署并验证；2026-11-09 归档清理补录关闭。
+- **验证结论**：`npm test` 118/118、`tsc` 过；线上实证检索池 187→77 live、merge op×17、nearDup 归零（`11-04-memory-kind-effect-persona-visibility`）。
