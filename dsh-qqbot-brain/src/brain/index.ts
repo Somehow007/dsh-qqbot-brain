@@ -823,37 +823,73 @@ export class Brain {
    * 提炼为语义记忆并重写画像。返回新产生的语义记忆条数。
    * 只处理尚未被 semantic 笔记吸收的 episodic——旧池不变时
    * 重跑只会反复压缩画像，形成只缩不涨的棘轮。
+   * 多角色会话按角色分批各跑一次（自我轨不再只有众数视角能巩固）。
    */
   async consolidate(sessionId: string): Promise<number> {
     const now = this.now();
     const covered = this.consolidatedIds(sessionId);
-    // 巩固视角=本会话人设众数：会话内自我轨只归并到形成它的角色，
-    // 跨角色 self 条目不进本批喂料（否则角色A的自我被角色B的巩固吞掉）；
-    // 世界轨对各角色可见，天然全量入池
     const sessNotes = this.store.allNotes().filter((n) => n.sessionId === sessionId);
-    const viewPid = this.modalPersonaId(sessNotes.map((n) => notePersonaId(n)));
-    const eps = sessNotes.filter(
-      (n) => n.kind === 'episodic' && !n.absorbedAt
-        && this.trackVisible(n, viewPid)
-        && ageInDays(n, now) >= this.cfg.consolidateMinAgeDays
-        && !covered.has(n.id)
+    const batches = this.consolidationBatches(sessNotes, now, covered)
+      .filter((b) => b.eps.length >= this.cfg.consolidateMinNotes);
+    let kept = 0;
+    for (const b of batches) kept += await this.consolidateBatch(sessionId, b.viewPid, b.eps, now);
+    return kept;
+  }
+
+  /**
+   * 巩固分批：自我轨 episodic（self:true）按所属角色分组——各角色自我独立沉淀，
+   * 同会话多角色不再只有众数视角能巩固（manual 会话多包并存时其余角色永远轮不到）；
+   * 世界轨 episodic 并入会话人设众数角色那批（世界轨全角色共享，随谁的视角提炼都成立）。
+   * 返回 {viewPid, eps} 批次（不设 minNotes 门槛，由调用方判定）。
+   */
+  private consolidationBatches(
+    sessNotes: MemoryNote[], now: number, covered: Set<string>,
+  ): { viewPid: string; eps: MemoryNote[] }[] {
+    const modalPid = this.modalPersonaId(sessNotes.map((n) => notePersonaId(n)));
+    const modalChar = this.characterOf(modalPid);
+    const groups = new Map<string, MemoryNote[]>();
+    for (const n of sessNotes) {
+      if (n.kind !== 'episodic' || n.absorbedAt || covered.has(n.id)
+        || n.sourceIds?.length
         // 巩固自身的产出（含降级回 episodic 的条）不再回喂，防循环再加工
-        && !(n.sourceIds?.length),
-    );
-    if (eps.length < this.cfg.consolidateMinNotes) return 0;
+        || ageInDays(n, now) < this.cfg.consolidateMinAgeDays) continue;
+      // episodic 的自我轨=self:true（attitude 不会是 episodic）；世界轨归众数角色批
+      const char = n.self === true ? this.characterOf(notePersonaId(n)) : modalChar;
+      const arr = groups.get(char) ?? [];
+      arr.push(n);
+      groups.set(char, arr);
+    }
+    return [...groups.entries()].map(([char, eps]) => ({
+      // 批次视角：众数角色批沿用会话众数口径（单角色会话与旧行为一致）；
+      // 其余角色批取批内人设众数——自我轨批得到本角色人设而非活动人设
+      viewPid: char === modalChar
+        ? modalPid
+        : this.modalPersonaId(eps.map((n) => notePersonaId(n))),
+      eps,
+    }));
+  }
+
+  /** 单批次巩固：一批（同角色视角的）episodic → semantic/attitude + 画像修订。返回新增语义记忆条数 */
+  private async consolidateBatch(
+    sessionId: string, viewPid: string, eps: MemoryNote[], now: number,
+  ): Promise<number> {
     const epActors = eps.map((n) => n.actor);
     // 现有画像（会话级 + 涉及发言人的个人画像）一并喂入，巩固在旧画像上修订
     const profileText = this.existingProfiles(sessionId, epActors)
       .map((p) => `${p.actor ?? '会话整体'}：${p.text}`)
       .join('\n');
-    // 归属=巩固视角人设（本会话众数）：自我轨按角色隔离后，
-    // 「巩固碰巧跑在谁头上」不再是归属依据——视角即归属，跨角色内容已被喂料过滤挡住；
+    // 归属=巩固视角人设（本批人设众数）：自我轨按角色隔离后，
+    // 「巩固碰巧跑在谁头上」不再是归属依据——视角即归属，跨角色内容已被分批挡在批外；
     // 提示词人设与情绪盖章同用视角，防「活动人设口吻」写进别角色的轨
     const notePid = viewPid || this.store.activePersonaId();
     const result = await this.distiller.consolidate(eps, profileText, this.personaForPrompts(notePid), { now, timeZone: this.cfg.timeZone });
     const stamp = this.emotionStamp(sessionId, now, notePid);
     const sourceIds = eps.map((e) => e.id);
     const boost = this.emotionBoost(stamp);
+    // 自我轨继承：本批源全是同角色自我轨 episodic 时，产出默认也是该角色的自我沉淀——
+    // LLM 把第一人称改写成「流萤与开拓者…」式第三人称后「我」字启发式会漏标→世界轨→跨角色串味；
+    // LLM 显式 self（含 false）优先于继承，继承只填缺省
+    const allSelfSources = eps.every((n) => n.self === true);
     // 入库判重：候选先批量取向量，与库内 cos>=dedupeEmbedCos 判同义转强化——
     // 历史上多轮巩固对同批源产过逐字重复的 semantic（线上实测），源退池后此处兜底产出侧
     const vecs = this.embedder?.enabled && result.memories.length
@@ -872,10 +908,11 @@ export class Brain {
         kind = 'episodic';
         this.log?.(`巩固降级：含时效锚点按情景入库：${m.content.slice(0, 24)}…`);
       }
+      const selfHint = m.self ?? (allSelfSources ? true : undefined);
       const vec = vecs?.[i] ?? null;
       const dup = vec ? this.findNearDup(vec, {
         kind,
-        self: resolveSelfFlag(kind, m.self, m.content),
+        self: resolveSelfFlag(kind, selfHint, m.content),
         personaId: notePid,
       }, this.draftScope(sessionId, m)) : undefined;
       if (dup) {
@@ -889,8 +926,9 @@ export class Brain {
       }
       const n = this.store.addNote(
         sessionId,
-        // 语义记忆沿用源记忆全 tag（巩固输出同样常只写昵称）
-        { ...m, actor: resolveActorTag(m.actor, epActors), kind, emotion: stamp, strengthBoost: boost, sourceIds, personaId: notePid },
+        // 语义记忆沿用源记忆全 tag（巩固输出同样常只写昵称）；
+        // selfHint 覆盖 m.self——全自我轨源批次的缺省继承在此落定
+        { ...m, self: selfHint, actor: resolveActorTag(m.actor, epActors), kind, emotion: stamp, strengthBoost: boost, sourceIds, personaId: notePid },
         now,
       );
       if (vec) this.store.setEmbedding(n.id, vec);
@@ -946,21 +984,14 @@ export class Brain {
       arr.push(n);
       bySession.set(n.sessionId, arr);
     }
-    const eligible = new Map<string, number>();
+    const out: string[] = [];
     for (const [sid, notes] of bySession) {
-      // 与 consolidate 同口径：按会话人设众数定视角，自我轨只数本角色可见的 episodic
-      const viewPid = this.modalPersonaId(notes.map((n) => notePersonaId(n)));
-      for (const n of notes) {
-        if (n.kind !== 'episodic' || n.absorbedAt || covered.has(n.id)) continue;
-        if (n.sourceIds?.length) continue;
-        if (!this.trackVisible(n, viewPid)) continue;
-        if (ageInDays(n, now) < this.cfg.consolidateMinAgeDays) continue;
-        eligible.set(sid, (eligible.get(sid) ?? 0) + 1);
-      }
+      // 与 consolidate 同口径：自我轨按角色分批，任一批次够量即触发
+      const max = Math.max(0, ...this.consolidationBatches(notes, now, covered)
+        .map((b) => b.eps.length));
+      if (max >= this.cfg.consolidateMinNotes) out.push(sid);
     }
-    return [...eligible.entries()]
-      .filter(([, count]) => count >= this.cfg.consolidateMinNotes)
-      .map(([id]) => id);
+    return out;
   }
 
   emotionOf(sessionId: string): EmotionState {
@@ -1172,9 +1203,16 @@ export class Brain {
     return this.store.exportData(this.now());
   }
 
-  /** 备份导入：merge 按 id 去重补入；replace 清库后整包恢复 */
+  /**
+   * 备份导入：merge 按 id 去重补入；replace 清库后整包恢复。
+   * 导入条目即时补向量——人设种子包本就不带 embedding，靠启动回填要等下次重启才轮到；
+   * fire-and-forget 不阻塞导入响应，失败静默留给常驻回填清扫。
+   */
   importData(data: unknown, mode: 'merge' | 'replace'): ReturnType<BrainStore['importData']> {
-    return this.store.importData(data, mode, this.now());
+    const res = this.store.importData(data, mode, this.now());
+    const pending = this.store.allNotes().filter((n) => !n.embedding && n.content.trim());
+    if (pending.length) void this.embedNotes(pending);
+    return res;
   }
 
   recentOps(limit = 100): ReturnType<BrainStore['recentOps']> {

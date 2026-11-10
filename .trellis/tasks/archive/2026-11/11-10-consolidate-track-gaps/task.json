@@ -1,0 +1,32 @@
+{
+  "id": "consolidate-track-gaps",
+  "name": "consolidate-track-gaps",
+  "title": "人设包走查遗留问题集：巩固轨继承 / modal 单视角 / 导入向量",
+  "description": "流萤人设包上线后多角度评估发现：F1 语义巩固产出无 self 轨继承（迭代A 遗留，种子满 1 天即触发，或致跨角色串味）；F2 'manual' 会话 modal 众数致单包 episodic 永不巩固；F3 import 不补向量+backfill 一次性自清（迭代B 方法层缺口，firefly 28 种子当前 0 向量）；F4 人设包缺 AI 身份条款。",
+  "status": "completed",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P1",
+  "creator": "sunhao",
+  "assignee": "sunhao",
+  "createdAt": "2026-11-10",
+  "completedAt": "2026-11-11",
+  "branch": "main",
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [
+    "dsh-qqbot-brain/src/brain/index.ts",
+    "dsh-qqbot-brain/src/brain/distill.ts",
+    "dsh-qqbot-brain/src/brain/types.ts",
+    "personas/firefly/persona.md",
+    "personas/ye-shunguang/persona.md"
+  ],
+  "notes": "F1 有生产时效：种子导入次日 episodic 满足 minAgeDays=1+minNotes=4 即被语义巩固，修复窗口为明天前。",
+  "meta": {}
+}

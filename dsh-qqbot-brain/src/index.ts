@@ -144,12 +144,13 @@ export async function apply(ctx: unknown, config?: Partial<BrainPluginConfig>): 
     tick.unref();
   }
 
-  // ── embedding 回填：启动后分批给旧记忆补向量 ──
+  // ── embedding 回填：常驻低频清扫，给缺向量的记忆补 embedding ──
+  // 不再一次性自清：import/embed 瞬时失败留下的无向量条目靠它自愈；
+  // 无待补条目时只是本地数组扫描，不产生 API 调用
   if (embedder.enabled) {
     const refill = setInterval(async () => {
       const n = await brain.backfillEmbeddings(5);
       if (n > 0) log(`语义向量回填：${n} 条`);
-      if (n === 0) clearInterval(refill);
     }, 30_000);
     refill.unref();
   }

@@ -2493,6 +2493,130 @@ test('consolidate: 含时效锚点的产出降级为 episodic，且不再回喂�
   assert.deepEqual(brain.sessionsNeedingConsolidation(), []);
 });
 
+test('consolidate: 全自我轨源批次产出继承自我轨——第三人称改写不再漏标世界轨', async () => {
+  const { store } = tmpStore();
+  store.createPersona('流萤', '流萤文', 'firefly', { characterId: 'firefly' });
+  store.activatePersona('firefly');
+  // 种子形态：self:true episodic 第一人称
+  for (let i = 0; i < 4; i++) {
+    store.addNote('manual', { content: `我第${i}次陪开拓者看星星`, importance: 3, self: true, personaId: 'firefly' }, NOW - 3 * DAY);
+  }
+  const distiller = new Distiller(
+    { enabled: true, baseUrl: 'https://x.test', apiKey: 'k', model: 'm', timeoutMs: 1000, maxNotes: 5 },
+    async () => ({
+      ok: true, status: 200,
+      // LLM 把第一人称改写成第三人称且不标 self——旧路径会漏进世界轨
+      json: async () => ({ choices: [{ message: { content: JSON.stringify({
+        memories: [{ content: '流萤与开拓者约定每晚星空下散步', importance: 3 }], profiles: [],
+      }) } }] }),
+    }),
+  );
+  const brain = new Brain({ store, distiller, now, config: { consolidateMinNotes: 1 } });
+  assert.equal(await brain.consolidate('manual'), 1);
+  const sem = store.allNotes().find((n) => n.kind === 'semantic')!;
+  assert.equal(sem.self, true);
+  assert.equal(sem.personaId, 'firefly');
+});
+
+test('consolidate: 全自我轨源批次中 LLM 显式 self:false 仍优先于继承', async () => {
+  const { store } = tmpStore();
+  store.createPersona('流萤', '流萤文', 'firefly', { characterId: 'firefly' });
+  store.activatePersona('firefly');
+  store.addNote('manual', { content: '我答应开拓者明晚讲故事', importance: 3, self: true, personaId: 'firefly' }, NOW - 3 * DAY);
+  const distiller = new Distiller(
+    { enabled: true, baseUrl: 'https://x.test', apiKey: 'k', model: 'm', timeoutMs: 1000, maxNotes: 5 },
+    async () => ({
+      ok: true, status: 200,
+      json: async () => ({ choices: [{ message: { content: JSON.stringify({
+        memories: [{ content: '开拓者是星核猎人', importance: 3, self: false }], profiles: [],
+      }) } }] }),
+    }),
+  );
+  const brain = new Brain({ store, distiller, now, config: { consolidateMinNotes: 1 } });
+  await brain.consolidate('manual');
+  const sem = store.allNotes().find((n) => n.kind === 'semantic')!;
+  assert.equal(sem.self, false); // 显式世界轨不被继承规则翻回
+});
+
+test('consolidate: 多角色会话按角色分批——各角色自我轨都能被巩固', async () => {
+  const { store } = tmpStore();
+  store.createPersona('叶瞬光', '叶', 'ye-shunguang', { characterId: 'ye' });
+  store.createPersona('流萤', '流萤文', 'firefly', { characterId: 'firefly' });
+  store.activatePersona('firefly');
+  // manual 会话并存两角色自我轨 episodic（人设包种子形态）
+  store.addNote('manual', { content: '我答应师弟明晚教剑法', importance: 3, self: true, personaId: 'ye-shunguang' }, NOW - 3 * DAY);
+  store.addNote('manual', { content: '我收集了新的星核碎片', importance: 3, self: true, personaId: 'ye-shunguang' }, NOW - 3 * DAY);
+  store.addNote('manual', { content: '我修好了开拓者的义体', importance: 3, self: true, personaId: 'firefly' }, NOW - 3 * DAY);
+  store.addNote('manual', { content: '我给开拓者讲了星空故事', importance: 3, self: true, personaId: 'firefly' }, NOW - 3 * DAY);
+  let calls = 0;
+  const distiller = new Distiller(
+    { enabled: true, baseUrl: 'https://x.test', apiKey: 'k', model: 'm', timeoutMs: 1000, maxNotes: 5 },
+    async (_url, init) => {
+      const prompt = (JSON.parse(init.body) as { messages: { content: string }[] }).messages[0]!.content;
+      if (prompt.includes('长期人物画像的编辑')) return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content: '{"profiles":[]}' } }] }) };
+      calls++;
+      return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content: JSON.stringify({
+        memories: [{ content: `语义沉淀${calls}`, importance: 3 }], profiles: [],
+      }) } }] }) };
+    },
+  );
+  const brain = new Brain({ store, distiller, now, config: { consolidateMinNotes: 1 } });
+  assert.deepEqual(brain.sessionsNeedingConsolidation(), ['manual']);
+  assert.equal(await brain.consolidate('manual'), 2);
+  assert.equal(calls, 2); // 两角色各跑一次，不再只有众数视角
+  const sems = store.allNotes().filter((n) => n.kind === 'semantic');
+  assert.equal(sems.length, 2);
+  const pids = new Set(sems.map((s) => s.personaId));
+  assert.ok(pids.has('ye-shunguang') && pids.has('firefly'));
+  for (const s of sems) assert.equal(s.self, true); // 各批次自我轨继承
+  // 两批源都退池
+  assert.equal(store.allNotes().filter((n) => n.kind === 'episodic' && !n.absorbedAt).length, 0);
+});
+
+test('consolidate: 混合源批次（世界轨+自我轨）不启用全自我轨继承', async () => {
+  const { store } = tmpStore();
+  store.createPersona('叶瞬光', '叶', 'ye-shunguang', { characterId: 'ye' });
+  store.activatePersona('ye-shunguang');
+  store.addNote('s1', { content: '用户养了一只橘猫', importance: 3, personaId: 'ye-shunguang' }, NOW - 3 * DAY);
+  store.addNote('s1', { content: '我答应师弟明晚教剑法', importance: 3, self: true, personaId: 'ye-shunguang' }, NOW - 3 * DAY);
+  const distiller = new Distiller(
+    { enabled: true, baseUrl: 'https://x.test', apiKey: 'k', model: 'm', timeoutMs: 1000, maxNotes: 5 },
+    async () => ({
+      ok: true, status: 200,
+      json: async () => ({ choices: [{ message: { content: JSON.stringify({
+        memories: [{ content: '用户与师弟都是叶瞬光的朋友', importance: 3 }], profiles: [],
+      }) } }] }),
+    }),
+  );
+  const brain = new Brain({ store, distiller, now, config: { consolidateMinNotes: 1 } });
+  await brain.consolidate('s1');
+  const sem = store.allNotes().find((n) => n.kind === 'semantic')!;
+  assert.equal(sem.self, undefined); // 非全自我轨源→走启发式，第三人称无「我」落世界轨
+});
+
+test('importData: 导入条目即时补向量——人设种子包不再等重启回填', async () => {
+  const { store } = tmpStore();
+  const embedder = mockEmbedder([[0.1, 0.2], [0.3, 0.4]]);
+  const brain = new Brain({ store, distiller: mockDistiller({}), embedder, now });
+  brain.importData({ notes: [
+    { id: 'n1', content: '种子记忆一', importance: 3 },
+    { id: 'n2', content: '种子记忆二', importance: 3 },
+  ] }, 'merge');
+  await new Promise((r) => setTimeout(r, 10)); // embedNotes 是 fire-and-forget
+  assert.deepEqual(store.noteById('n1')!.embedding, [0.1, 0.2]);
+  assert.deepEqual(store.noteById('n2')!.embedding, [0.3, 0.4]);
+  // 已有向量的条目不重复嵌入：二次导入同包 skipped，不再发起 embed
+  let embedCalls = 0;
+  const counting = new Embedder(
+    { enabled: true, baseUrl: 'https://x.test', apiKey: 'k', model: 'm', timeoutMs: 1000 },
+    async () => { embedCalls++; return { ok: true, status: 200, json: async () => ({ data: [] }) }; },
+  );
+  const brain2 = new Brain({ store, distiller: mockDistiller({}), embedder: counting, now });
+  brain2.importData({ notes: [{ id: 'n3', content: '第三条', importance: 3 }] }, 'merge');
+  await new Promise((r) => setTimeout(r, 10));
+  assert.equal(embedCalls, 1); // 只嵌入新增的 n3，n1/n2 已有向量不在 pending 里
+});
+
 test('prompt: 蒸馏/巩固/脉络提示含敏感场景与时效锚通用规则', () => {
   const d = buildDistillPrompt([{ userText: 'x', assistantText: 'y', at: NOW }], 'p', 5);
   assert.match(d, /只记约定、边界或结论/);

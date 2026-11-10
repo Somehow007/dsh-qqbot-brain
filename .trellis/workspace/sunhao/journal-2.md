@@ -186,7 +186,7 @@
 
 ### Summary
 
-修复流萤人设包走查发现的四个迭代遗留缺口。F1 语义巩固产出无 self 轨继承（迭代A漏改巩固产出侧）：CONSOLIDATE_PROMPT schema 补 self 字段+判定说明，consolidateBatch 加确定性兜底——全自我轨源批次产出缺省继承 self:true，LLM 显式 self 含 false 优先。F2 manual 会话 modal 单视角致非众数角色 episodic 永不巩固：consolidate 重构为 consolidationBatches 按 characterOf 分批各跑一次（世界轨并入众数角色批），sessionsNeedingConsolidation 同口径，单角色会话零回归。F3 importData 不补向量+backfill 一次性自清：Brain.importData 导入后对无向量条目 fire-and-forget embedNotes，回填 interval 删 n===0 自清改常驻清扫。F4 两包 persona.md 补 AI 身份条款并 PATCH 同步生产（顺带对齐 firefly 包走查后的 persona.md 修订）。验证：单测+5 共 189/189 绿、typecheck/build 0 错、eval 人设隔离 100%/0%（lexical 段存量 FAIL 经 stash 验证与本次无关）；部署前成对备份，rsync+restart 干净，生产验证 firefly 向量 0→29/29、回填日志 5条/30s 节奏正常、personas PATCH ok active 保持 firefly。排查插曲：测试 mock JSON.stringify 括号少一层已修；git stash 验证 eval 基线时连同其他会话未提交档案一起暂存，pop 后确认完好。后续：观察 'manual' 会话下一轮巩固产出轨归属；whale persona.md 同缺 AI 条款未修（超出两包范围）；求职材料/ 目录保持未跟踪。
+修复流萤人设包走查发现的四个迭代遗留缺口。F1 语义巩固产出无 self 轨继承（迭代A漏改巩固产出侧）：CONSOLIDATE_PROMPT schema 补 self 字段+判定说明，consolidateBatch 加确定性兜底——全自我轨源批次产出缺省继承 self:true，LLM 显式 self 含 false 优先。F2 manual 会话 modal 单视角致非众数角色 episodic 永不巩固：consolidate 重构为 consolidationBatches 按 characterOf 分批各跑一次（世界轨并入众数角色批），sessionsNeedingConsolidation 同口径，单角色会话零回归。F3 importData 不补向量+backfill 一次性自清：Brain.importData 导入后对无向量条目 fire-and-forget embedNotes，回填 interval 删 n===0 自清改常驻清扫。F4 两包 persona.md 补 AI 身份条款并 PATCH 同步生产（顺带对齐 firefly 包走查后的 persona.md 修订）。验证：单测+5 共 188/188 绿、typecheck/build 0 错、eval 人设隔离 100%/0%（lexical 段存量 FAIL 经 stash 验证与本次无关）；部署前成对备份，rsync+restart 干净，生产验证 firefly 向量 0→29/29、回填日志 5条/30s 节奏正常、personas PATCH ok active 保持 firefly。排查插曲：测试 mock JSON.stringify 括号少一层已修；git stash 验证 eval 基线时连同其他会话未提交档案一起暂存，pop 后确认完好。后续：观察 'manual' 会话下一轮巩固产出轨归属；whale persona.md 同缺 AI 条款未修（超出两包范围）；求职材料/ 目录保持未跟踪。
 
 ### Git Commits
 
