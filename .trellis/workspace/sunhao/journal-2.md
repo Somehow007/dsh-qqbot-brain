@@ -155,3 +155,23 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 101: 人设包走查遗留问题集归档
+<!-- trellis-session: v=2 fp=9ec048ac57768987 -->
+
+**Date**: 2026-11-10
+**Task**: 人设包走查遗留问题集归档
+**Branch**: `main`
+
+### Summary
+
+问题：用户要求从用户体验/工程/长期质量多角度评估人设包当前做法。排查：核对注入链路（persona全量注入+种子相关性召回）、衰减（retention只排序不删除）、巩固（minAgeDays=1自动压缩episodic）、导入（不补向量）与线上 export 数据。发现：F1语义巩固产出无self字段靠我字启发式判轨，或致世界轨串味（迭代A遗留，种子次日即触发）；F2 manual会话modal众数28v28取firefly，叶瞬光episodic永不巩固；F3 import不embed+backfill interval清盘后自杀，firefly 28种子0向量（叶瞬光有向量纯属时机）；F4人设包缺AI身份条款。已排除：抖搂/问什么答什么/记忆彻底丢失均非问题，端到端已验证（线上已有1条firefly戳demo记忆正确落世界轨）。方案：归档 tasks/11-10-consolidate-track-gaps（P1，F1有明日时效），修法建议=巩固按源轨继承self+importData补embedNotes+两包补AI条款。验证：代码行号锚点+两次线上export快照对照。后续：明天巩固触发后拉export核对产出轨归属。
+
+### Git Commits
+
+(No commits - planning session)
+
+### Status
+
+[OK] **Completed**
