@@ -93,3 +93,25 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 98: 迭代B·叶瞬光接入上线
+<!-- trellis-session: v=2 fp=a6c7cbb424a52510 -->
+
+**Date**: 2026-11-10
+**Task**: 迭代B·叶瞬光接入上线
+**Branch**: `main`
+
+### Summary
+
+迭代B落地：personas/ye-shunguang 种子 18 条非 attitude 全标 self:true（显式不依赖启发式）+ personas 条目带 10 词 moods；内核 per-persona MOODS 接线——distill prompt 枚举/解析允许集按批次人设注入（buildDistillPrompt/parseDistillOutput/Distiller.distill/call 贯通，endOfTurn 取 personaEntry(batchPid).moods，与批次戳同口径），自定义词表换通用指引不套 whale 锚点，未配 moods 回落全局零回归；MOOD_VALENCE 补心疼/寂寞/释然。验证：183/183 单测（新增 parse 允许集/枚举注入/endOfTurn 双向/seed merge 幂等+whale↔ye 可见性端到端 4 例）、eval 同迭代A基线、人设隔离 100%/0%。部署：成对备份→rsync→restart→export 基线 285→merge 导入 {notes:28,persona:true}→复导 {0,skipped:28} 幂等→总量 313 恰+28→28 条全补 embedding→激活 ye-shunguang（persona.md 同步、whale↔ye 双向切换验证、op 流水可审计）。后续观察项：影子面语气频率/种子衰减/蒸馏 self 标记准确率/新蒸馏 personaId+self/attitude 落 ye 轨/画像 lastWrittenByPersona/世界轨共享；merge 不更新已存在人设（改 moods 走 PATCH）；清理路径 purge+delete 已确认未执行。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `444213e` | feat(brain): 迭代B·叶瞬光接入——per-persona MOODS + 种子自我轨 + 云端激活 |
+
+### Status
+
+[OK] **Completed**
