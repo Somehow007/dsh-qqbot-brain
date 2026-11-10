@@ -135,3 +135,23 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 100: 流萤人设包内容走查与修订
+<!-- trellis-session: v=2 fp=ce3190f2fb62f8e6 -->
+
+**Date**: 2026-11-10
+**Task**: 流萤人设包内容走查与修订
+**Branch**: `main`
+
+### Summary
+
+问题：首轮走查只核了 BrainExport 格式契约，用户要求审内容层（串味/死板/合适性）。排查：读 trackVisible/characterOf 确认三轨隔离——28条种子全 personaId=firefly 落自有轨，whale/叶瞬光激活时不可见，蒸馏 merge 按 char:firefly 判轨；种子零世界轨最保守。内容审出两处修订：persona.md「默认唤对方开拓者」群聊语境含糊→改为失忆前后旧事对象的专属称呼；荤梗关系例外收紧——她外形偏小年龄未明且自带纯真童心特质，原允许恋人下配合性描写过宽，改为亲密可不躲但露骨一律不展开（底线节同步），与叶瞬光包在此点刻意不对称。种子28条不动：前史占比半数可接受（相关性门控+不卖惨兜底）。验证：重生成 seed-export.json（persona 4693字），静态校验全过，BrainStore.importData 实测 merge 幂等 {28,0}→{0,28} 全落自我轨。后续：灌实例试跑观察兵器回声触发频率；3.x/4.x剧情推进后校订。落点：personas/firefly/persona.md+seed-export.json+prd.md 内容走查节+CHANGES.md。
+
+### Git Commits
+
+(No commits - planning session)
+
+### Status
+
+[OK] **Completed**
