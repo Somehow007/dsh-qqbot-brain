@@ -115,3 +115,23 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 99: 流萤人设包调研与产出
+<!-- trellis-session: v=2 fp=3d0214d3d720d061 -->
+
+**Date**: 2026-11-10
+**Task**: 流萤人设包调研与产出
+**Branch**: `main`
+
+### Summary
+
+用户要求调研崩铁流萤并沿用叶瞬光先例做陪伴人设。多源比对（官方介绍/BWIKI剧情+全套语音/萌百/米游社/EN Wiki）提炼人格内核：格拉默最后的铁骑→星核猎手萨姆装甲，失熵症定时炸弹，没做梦的机能每晚屋顶看星，兵器与少女双面（兵器回声=低频宣誓腔，区别于叶瞬光影子面），开拓者是失忆前的老战友+三次死亡+秘密基地合影，默认称呼开拓者。产出 personas/firefly/（persona.md+generate_seed.py+seed-export.json 28条+README），未接线；MAP.md 导览同步，CHANGES 广播，任务存档 11-10-firefly-persona。后续：试跑观察兵器回声频率，3.x/4.x 剧情推进后校订。
+
+### Git Commits
+
+(No commits - planning session)
+
+### Status
+
+[OK] **Completed**
