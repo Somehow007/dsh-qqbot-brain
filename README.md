@@ -119,7 +119,7 @@ QQ 消息 ──► dsh-qqbot ──► system-prompt/assemble
 | 纯字符 n-gram TF-IDF | 88.2% | 40% |
 | + embedding 混合召回（text-embedding-v3 校准） | **100%** | **20%** |
 
-**单测**：`node --test` **167/167** 通过（brain 内核 / filelog / http / page 四个测试文件 + eval 评测集），typecheck + build 全绿（截至 2026-11-09）。
+**单测**：`node --test` **183/183** 通过（brain 内核 / filelog / http / page 四个测试文件 + eval 评测集），typecheck + build 全绿（截至 2026-11-10）。
 
 **成本透明**：
 
@@ -147,7 +147,7 @@ QQ 消息 ──► dsh-qqbot ──► system-prompt/assemble
 - [x] 记忆质量修复：蒸馏 v2 白名单、检索相关性门控、身份层、滚动摘要、embedding 混合召回
 - [x] 人格工程：多版本人设 + 脑图切换、画像边界二次审核、鲸鱼娘温柔版上线
 - [x] 脑图重构：鲸脑皮层侧剖面版落地（概念②③留作皮肤）；关联边后端化（语义/特质/派生边）
-- [x] 情绪系统：mood 受控枚举九桶（修复「只有开心/平静」）、mood↔PAD 护栏、情绪增强记忆权重
+- [x] 情绪系统：mood 受控枚举（全局九桶默认 + 人设可配 `moods` 换词表，迭代B 起）、mood↔PAD 护栏、情绪增强记忆权重
 - [x] 时间感知：当前时刻注入 + 对话行时间戳 + 记忆年龄粒度细化
 - [x] 成本审计：前缀缓存保命中、history 拆离、输入有界、攒批/精简版开关
 - [x] 注入延迟：向量获取与宿主装配并行，emb ~0.3s 不再串行阻塞每轮注入
@@ -156,18 +156,18 @@ QQ 消息 ──► dsh-qqbot ──► system-prompt/assemble
 - [x] 归因护栏：蒸馏/巩固立场不再错记到人、sess 画像绑定发言人；脑图滚轮收敛 + 15s 刷新编辑保护
 - [x] 脑图公网直连：`0.0.0.0:4099` + token（安全组放行，SSH 隧道降级为备选）
 - [x] 迭代A·人设三轨地基：角色→人设两级模型、自我轨按 characterId 隔离、蒸馏批次戳、存量迁移上线（路线图 A→G 见 `tasks/11-09-iteration-upgrade-plan/`）
+- [x] 迭代B·叶瞬光接入：第二角色人设上线（`personas/ye-shunguang/` 种子 28 条全落自我轨 + 自定义情绪词表），三轨隔离首次实战，merge 导入幂等
 - [ ] **webserver-shim 分支**：`:4099` 共享为 cordis `webServer` 服务，dsh-meme 斗图已本机全链路实测（send_meme → qqbot_send_file 真实投递），待合入上线
 
 下一步候选（迭代路线图 A→G 详见 `tasks/11-09-iteration-upgrade-plan/iteration-plan.md`）：
 
-1. **迭代B·叶瞬光接入**：第二角色人设激活，三轨隔离首次实战检验（跨角色互不泄漏自我轨/情绪）
-2. **迭代C/D·主动召回与 Prospective memory**——Generative Agents 式 brain_search / 「记得要做某事」
-3. **webserver-shim 合入** → `brain:meme` 情绪桶注入（用脑情绪模型给斗图插件喂信号）→ /brain 页表情预览
-4. **管理面加固**：写回竞态 dataEpoch/CAS、时段删除预览同源、批量画像重生成
-5. **Reflection**——巩固时生成高层洞察（Generative Agents 缺的那块）
-6. **蒸馏攒批 / personaDigest 线上 A/B**——成本与质量权衡实测
-7. **记忆关联 / 扩散激活**（图谱边已铺底）、**干扰式遗忘**
-8. **跳出 dsh**——演进路线已定：HostAdapter 显式化 + `/api/ingest`/`/api/assemble` 补齐 → 库导出（`@brain/core`，价值保留最高）→ HTTP sidecar → MCP 薄壳（降级形态放最后）；dsh 永远 first-class（`11-03-brain-roadmap-beyond-dsh`）
+1. **迭代C/D·主动召回与 Prospective memory**——Generative Agents 式 brain_search / 「记得要做某事」
+2. **webserver-shim 合入** → `brain:meme` 情绪桶注入（用脑情绪模型给斗图插件喂信号）→ /brain 页表情预览
+3. **管理面加固**：写回竞态 dataEpoch/CAS、时段删除预览同源、批量画像重生成
+4. **Reflection**——巩固时生成高层洞察（Generative Agents 缺的那块）
+5. **蒸馏攒批 / personaDigest 线上 A/B**——成本与质量权衡实测
+6. **记忆关联 / 扩散激活**（图谱边已铺底）、**干扰式遗忘**
+7. **跳出 dsh**——演进路线已定：HostAdapter 显式化 + `/api/ingest`/`/api/assemble` 补齐 → 库导出（`@brain/core`，价值保留最高）→ HTTP sidecar → MCP 薄壳（降级形态放最后）；dsh 永远 first-class（`11-03-brain-roadmap-beyond-dsh`）
 
 ## 快速开始
 

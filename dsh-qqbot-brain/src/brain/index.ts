@@ -280,10 +280,14 @@ export class Brain {
         )
         .slice(0, 8)
         .map((s) => s.note);
+      // 情绪枚举随批次人设走（PersonaEntry.moods）：与提示词人设/归属戳同口径，
+      // 未配 moods 的人设回落全局 MOODS
+      const batchMoods = this.store.personaEntry(batchPid)?.moods;
       const result = await this.distiller.distill(
         viewTurns, this.personaForPrompts(batchPid), existing, this.emotionFor(sessionId, batchPid, now),
         this.existingProfiles(sessionId, actors),
         { now, timeZone: this.cfg.timeZone },
+        batchMoods?.length ? batchMoods : undefined,
       );
       this.log?.(
         `蒸馏 ${sessionId.slice(0, 8)}…：记忆 ${result.memories.length} 条 / `

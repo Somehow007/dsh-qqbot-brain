@@ -45,3 +45,5 @@
 - 2026-11-09 | 迭代A 走查补修上线：self 三态 API 透传、情绪盖章/蒸馏提示词按批次角色口径、modalPersonaId 并列取较晚、strength 地板幂等、noteChar whale 回落 | → `tasks/archive/2026-11/11-09-iteration-a-three-track` prd 走查补修节
 - 2026-11-09 | 迭代A前端补全上线：记忆库新增「角色」「轨道」筛选（审计三轨隔离用），人设下拉同角色多版本标注 ·characterId | → commit 085d828
 - 2026-11-09 | 迭代A 走查补修 journal #97 | → `tasks/archive/2026-11/11-09-iteration-a-three-track` prd 走查补修节
+- 2026-11-10 | 简历优化版产出：删工作经历换 qqbot-brain 项目，Java 向 bullet 重构 | → `tasks/11-10-resume-optimize` + `~/Documents/简历/Java简历-优化版.md`
+- 2026-11-10 | 迭代B·叶瞬光接入上线：种子28条全落自我轨+merge幂等导入+per-persona MOODS（10词表）接线，生产已激活 ye-shunguang 待用户自测 | → `tasks/11-09-iteration-b-ye-shunguang` + journal #98

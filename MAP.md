@@ -48,7 +48,7 @@ brain-data/                 线上记忆导出的本地备份（gitignored）
 
 按「数据模型 → 落盘 → 编排 → 读路径 → 写路径 → 外围」走，每一步都有对应 spec 约定可查：
 
-1. **`src/brain/types.ts`**（~300 行）——单一出处：三类记忆 kind（episodic/semantic/attitude）、三轨模型（世界轨共享 / 自我轨 `self:true`+attitude 按 `characterId` 隔离 / 情绪按角色）、Note/PAD 情绪/mood 九桶枚举、BrainConfig 全字段。先知道「脑里装了什么」。
+1. **`src/brain/types.ts`**（~300 行）——单一出处：三类记忆 kind（episodic/semantic/attitude）、三轨模型（世界轨共享 / 自我轨 `self:true`+attitude 按 `characterId` 隔离 / 情绪按角色）、Note/PAD 情绪/mood 枚举（全局九桶默认，人设可用 `PersonaEntry.moods` 换词表）、BrainConfig 全字段。先知道「脑里装了什么」。
 2. **`src/brain/store.ts`**（~900 行）——持久化：JSONL op 流水 + 快照，一切写操作都是可重放的 op。
 3. **`src/brain/index.ts`**（~1.2k 行，最大文件）——Brain 门面：`endOfTurn`/`retrieve`/`consolidate` 的编排中枢。
 4. **读路径 `src/inject/prompt.ts`**（~150 行）——七段注入；两段排序为什么保 DeepSeek 前缀缓存（README 有图）。

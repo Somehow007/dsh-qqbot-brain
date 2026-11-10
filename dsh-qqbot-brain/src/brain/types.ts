@@ -16,17 +16,17 @@ export interface NoteEmotion {
   a: number;
   d: number;
   label: string;
-  /** 受控情绪类别（见 MOODS），可视化按它分桶；老数据缺省走 v/a 推断 */
+  /** 受控情绪类别（默认 MOODS 之一，人设可配 moods 换词表）；可视化按它分桶，老数据缺省走 v/a 推断 */
   mood?: string;
 }
 
-/** 受控情绪类别：蒸馏从该集合挑选，脑图情绪桶与之同名对应 */
+/** 受控情绪类别：默认蒸馏枚举，脑图情绪桶与之同名对应；人设可用 PersonaEntry.moods 换自己的词表 */
 export const MOODS = ['平静', '开心', '兴奋', '害羞', '好奇', '委屈', '炸毛', '记仇', '难过'] as const;
 
-/** mood 的效价符号约定：mood 与 v 正负应一致（平静/好奇无约束项） */
+/** mood 的效价符号约定：mood 与 v 正负应一致（平静/好奇等歧义词无约束项）；按词名全局生效，人设自定义词同样适用 */
 export const MOOD_VALENCE: Record<string, 1 | -1> = {
-  开心: 1, 兴奋: 1, 害羞: 1,
-  委屈: -1, 炸毛: -1, 记仇: -1, 难过: -1,
+  开心: 1, 兴奋: 1, 害羞: 1, 释然: 1,
+  委屈: -1, 炸毛: -1, 记仇: -1, 难过: -1, 心疼: -1, 寂寞: -1,
 };
 
 /** 默认时间渲染时区：群成员在国内，云服务器系统时区通常 UTC，必须显式给 */
@@ -145,7 +145,7 @@ export interface EmotionState {
   d: number;
   /** 自然语言状态行，注入 prompt 用，如「慵懒满足」 */
   label: string;
-  /** 受控情绪类别（MOODS 之一）；旧数据可缺省，可视化回退 v/a 推断 */
+  /** 受控情绪类别（MOODS 或人设 moods 之一）；旧数据可缺省，可视化回退 v/a 推断 */
   mood?: string;
   /**
    * 形成该情绪时的人设 id（情绪按角色隔离）：读侧 character 与活动角色不符→中性。

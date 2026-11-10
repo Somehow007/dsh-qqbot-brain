@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { Brain } from '../src/brain/index.ts';
 import { BrainStore } from '../src/brain/store.ts';
 import { Distiller, buildDistillPrompt, buildConsolidatePrompt, buildDigestPrompt, buildProfileReviewPrompt, parseDistillOutput } from '../src/brain/distill.ts';
@@ -11,7 +12,7 @@ import { SessionCapture, parseSenderTag } from '../src/capture/events.ts';
 import type { PromptInjector } from '../src/inject/prompt.ts';
 import { retention } from '../src/brain/decay.ts';
 import { EmotionEngine } from '../src/brain/emotion.ts';
-import { DAY_MS, DEFAULT_BRAIN_CONFIG } from '../src/brain/types.ts';
+import { DAY_MS, DEFAULT_BRAIN_CONFIG, MOODS } from '../src/brain/types.ts';
 
 const DAY = DAY_MS;
 let NOW = Date.parse('2026-03-24T12:00:00Z');
@@ -322,6 +323,27 @@ test('parseDistillOutput: mood 只收受控类别，非法值丢弃', () => {
   assert.equal(r2.emotion?.mood, '害羞');
 });
 
+test('parseDistillOutput: 人设 moods 允许集——收自定义词、拒表外词（含全局表词）', () => {
+  const moods = ['平静', '心疼', '想念'];
+  const r = parseDistillOutput(JSON.stringify({
+    memories: [],
+    emotion: { label: '心头一酸', mood: '心疼', v: -0.4, a: 0.3, d: 0 },
+  }), moods);
+  assert.equal(r.emotion?.mood, '心疼');
+  // 「炸毛」在全局 MOODS 但不在该人设允许集 → 丢弃
+  const r2 = parseDistillOutput(JSON.stringify({
+    memories: [],
+    emotion: { label: '气鼓鼓', mood: '炸毛', v: -0.6, a: 0.7, d: 0.2 },
+  }), moods);
+  assert.equal(r2.emotion?.mood, undefined);
+  // 反向：「想念」是自定义词，走默认 MOODS 校验同样被拒
+  const r3 = parseDistillOutput(JSON.stringify({
+    memories: [],
+    emotion: { label: '有点想念', mood: '想念', v: -0.2, a: 0.4, d: 0 },
+  }));
+  assert.equal(r3.emotion?.mood, undefined);
+});
+
 test('parseDistillOutput: kind=attitude 被保留，非法 kind 回落情景', () => {
   const r = parseDistillOutput(JSON.stringify({
     memories: [
@@ -574,6 +596,31 @@ test('endOfTurn: 批次戳与蒸馏提示词人设一致——切换后批内提
   assert.ok(!prompt.includes('叶口吻ABC'), '不应串用切换后的活动人设');
 });
 
+test('endOfTurn: 情绪枚举随批次人设 moods——ye 词表注入、whale 回落全局', async () => {
+  const { store } = tmpStore();
+  store.createPersona('温柔版', '温柔', 'whale-gentle', { characterId: 'whale' });
+  store.createPersona('叶瞬光', '叶', 'ye-shunguang', { moods: ['平静', '心疼', '想念'] });
+  store.activatePersona('ye-shunguang');
+  const prompts: string[] = [];
+  const distiller = new Distiller(
+    { enabled: true, baseUrl: 'https://x.test', apiKey: 'k', model: 'm', timeoutMs: 1000, maxNotes: 5 },
+    async (_url, init) => {
+      prompts.push((JSON.parse(init.body) as { messages: { content: string }[] }).messages[0]!.content);
+      return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content: '{"memories":[]}' } }] }) };
+    },
+  );
+  const brain = new Brain({ store, distiller, now });
+  brain.ingest('s1', { userText: '你好', assistantText: '咕嘟', at: NOW });
+  await brain.endOfTurn('s1');
+  assert.match(prompts[0]!, /只选其一：平静\/心疼\/想念/);
+  assert.ok(!prompts[0]!.includes('炸毛'), 'ye 批次不应出现 whale 词表');
+  // 未配 moods 的人设回落全局 MOODS
+  store.activatePersona('whale-gentle');
+  brain.ingest('s1', { userText: '在吗', assistantText: '在', at: NOW });
+  await brain.endOfTurn('s1');
+  assert.match(prompts[1]!, /只选其一：平静\/开心\/兴奋\/害羞\/好奇\/委屈\/炸毛\/记仇\/难过/);
+});
+
 test('endOfTurn: 批次人设并列取较晚——交替切换时归属最后形成侧', async () => {
   const { store } = tmpStore();
   store.createPersona('温柔版', '温柔', 'whale-gentle', { characterId: 'whale' });
@@ -725,6 +772,20 @@ test('buildDistillPrompt: mood 枚举与刺激锚点约束情绪判定', () => {
   assert.match(p, /被夸\/被撩\/被关心→害羞/);
   assert.match(p, /不要只按角色回复的语气反推/);
   assert.match(p, /负向类别（委屈\/炸毛\/记仇\/难过）v 为负/);
+});
+
+test('buildDistillPrompt: 人设 moods 替换枚举并换通用指引（不套全局锚点）', () => {
+  const turns = [{ userText: '你好', assistantText: '咕嘟', at: NOW }];
+  const p = buildDistillPrompt(turns, '叶瞬光', 5,
+    undefined, undefined, undefined, undefined, ['平静', '心疼', '想念']);
+  assert.match(p, /只选其一：平静\/心疼\/想念/);
+  assert.ok(!p.includes('炸毛'), '自定义词表不应出现全局表独有词');
+  assert.match(p, /类别词义按角色设定理解/);
+  assert.ok(!p.includes('被夸/被撩/被关心→害羞'), '不应套全局锚点');
+  // 传全局 MOODS 原表仍走默认锚点（内容相同视为未自定义）
+  const p2 = buildDistillPrompt(turns, '大肥鱼', 5,
+    undefined, undefined, undefined, undefined, [...MOODS]);
+  assert.match(p2, /被夸\/被撩\/被关心→害羞/);
 });
 
 test('endOfTurn: mood 与 v 符号矛盾时记 debug 日志', async () => {
@@ -2649,4 +2710,41 @@ test('放行候选队列：无私词域条入队，私词/钉死/公开/态度�
   store.addNote('priv', { content: '对某事：立场', importance: 4, kind: 'attitude' }, NOW);
   const brain = new Brain({ store, distiller: mockDistiller({}), now });
   assert.deepEqual(brain.releaseCandidates().map((x) => x.id), [cand.id]);
+});
+
+// ── 人设包种子（personas/ye-shunguang/seed-export.json）──
+test('叶瞬光 seed-export：merge 导入结构合规 + 跨角色可见性端到端', () => {
+  const { store } = tmpStore();
+  // 生产形态：whale 角色在位激活，ye 尚未导入
+  store.createPersona('温柔版', '温柔', 'whale-gentle', { characterId: 'whale' });
+  store.activatePersona('whale-gentle');
+  const seedPath = fileURLToPath(new URL('../../personas/ye-shunguang/seed-export.json', import.meta.url));
+  const data = JSON.parse(readFileSync(seedPath, 'utf-8'));
+  const brain = new Brain({ store, distiller: mockDistiller({ memories: [] }), now });
+
+  const r = store.importData(data, 'merge', NOW);
+  assert.equal(r.notes, 28);
+  assert.equal(r.persona, true);
+  // merge 不抢占已激活人设
+  assert.equal(store.activePersonaId(), 'whale-gentle');
+  // 幂等：重复 merge 全跳过
+  const r2 = store.importData(data, 'merge', NOW);
+  assert.equal(r2.notes, 0);
+  assert.equal(r2.skipped, 28);
+
+  const ys = store.personaEntry('ye-shunguang')!;
+  assert.ok(ys.moods?.includes('心疼') && ys.moods?.includes('想念'), 'personas 条目应带 moods');
+  const notes = store.allNotes();
+  assert.equal(notes.length, 28);
+  assert.ok(notes.every((n) => n.personaId === 'ye-shunguang'));
+  assert.ok(notes.filter((n) => n.kind !== 'attitude').every((n) => n.self === true), '非 attitude 种子全落自我轨');
+  assert.ok(notes.filter((n) => n.kind === 'attitude').every((n) => n.self === undefined), 'attitude 不写 self');
+
+  // whale 激活：ye 自我轨（含桂花糖记忆）不可见
+  const underWhale = brain.assemble('s1', '桂花糖');
+  assert.ok(!underWhale.memoryLines.some((l) => l.includes('桂花糖')), 'whale 下不应召回 ye 自我轨');
+  // 切到 ye：种子可被唤起
+  store.activatePersona('ye-shunguang');
+  const underYe = brain.assemble('s1', '桂花糖');
+  assert.ok(underYe.memoryLines.some((l) => l.includes('桂花糖')), 'ye 激活后种子应可召回');
 });

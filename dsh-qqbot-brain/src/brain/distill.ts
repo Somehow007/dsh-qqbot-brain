@@ -25,10 +25,36 @@ export type FetchLike = (url: string, init: {
   method: string; headers: Record<string, string>; body: string; signal?: AbortSignal;
 }) => Promise<{ ok: boolean; json(): Promise<unknown>; status: number }>;
 
-const PROMPT = `你是陪伴型聊天角色的记忆提炼模块。阅读下面这段最新对话，输出 JSON：
+/**
+ * mood 枚举与判定指引：人设未配 moods（或配的就是全局表）走默认锚点；
+ * 自定义词表换通用指引——锚点里的类别名是按全局词表写的，套到人设词表会误导。
+ */
+function moodPromptParts(moods: readonly string[] | undefined): { moodEnum: string; guide: string } {
+  const isDefault = !moods?.length
+    || (moods.length === MOODS.length && moods.every((m, i) => m === MOODS[i]));
+  if (isDefault) {
+    return {
+      moodEnum: MOODS.join('/'),
+      guide: `mood 参照锚点：被夸/被撩/被关心→害羞；分享好消息/被投喂/被惦记→开心或兴奋；被挑衅/被拆台/吃亏→炸毛或记仇；
+被冷落/被误解/被凶→委屈或难过；听到八卦/新奇玩意→好奇；日常寒暄无波动→平静。
+角色傲娇/嘴硬时按内心真实感受给效价（嘴上嫌弃实际开心时 v 仍为正），label 写真实情绪。
+mood 与 v/a 语义须一致：负向类别（委屈/炸毛/记仇/难过）v 为负，正向类别（开心/兴奋/害羞）v 为正。`,
+    };
+  }
+  return {
+    moodEnum: moods.join('/'),
+    guide: `mood 参照：从枚举中选与角色此刻真实状态最贴切的一个类别；类别词义按角色设定理解，不套用其他角色的情绪习惯。
+角色若有嘴硬/隐忍等性格，按内心真实感受给效价，label 写真实情绪。
+mood 与 v/a 语义须一致：负向类别 v 为负，正向类别 v 为正。`,
+  };
+}
+
+const distillPrompt = (moods: readonly string[] | undefined): string => {
+  const { moodEnum, guide } = moodPromptParts(moods);
+  return `你是陪伴型聊天角色的记忆提炼模块。阅读下面这段最新对话，输出 JSON：
 {
   "memories": [{"content": "一句话可长期复用的事实（含相关实体）", "importance": 1-5, "actor": "发言人名（群聊必填，单聊可省略）", "merge": 0, "self": true}],
-  "emotion": {"label": "角色此刻的情绪词，10 字以内、贴合角色性格（如「嘴硬开心」「害羞偷笑」「记仇」），只写情绪不写情境，不要只写「平静」", "mood": "情绪类别，只选其一：${MOODS.join('/')}", "v": -1到1效价, "a": 0到1唤醒, "d": -1到1支配},
+  "emotion": {"label": "角色此刻的情绪词，10 字以内、贴合角色性格（如「嘴硬开心」「害羞偷笑」「记仇」），只写情绪不写情境，不要只写「平静」", "mood": "情绪类别，只选其一：${moodEnum}", "v": -1到1效价, "a": 0到1唤醒, "d": -1到1支配},
   "profiles": [{"actor": "发言人标识", "text": "对该人的画像全文"}],
   "forget": []
 }
@@ -49,10 +75,7 @@ importance 锚点：5=承诺或重要个人信息，4=稳定偏好，3=关系变
 content 用第三人称陈述事实（「某昵称：事实」），不要写成「角色回应了…」的对话记录。
 
 emotion 字段：判定的是「这轮对话给角色带来的情绪」，依据是用户行为对角色的刺激，不要只按角色回复的语气反推（角色可能嘴硬）。
-mood 参照锚点：被夸/被撩/被关心→害羞；分享好消息/被投喂/被惦记→开心或兴奋；被挑衅/被拆台/吃亏→炸毛或记仇；
-被冷落/被误解/被凶→委屈或难过；听到八卦/新奇玩意→好奇；日常寒暄无波动→平静。
-角色傲娇/嘴硬时按内心真实感受给效价（嘴上嫌弃实际开心时 v 仍为正），label 写真实情绪。
-mood 与 v/a 语义须一致：负向类别（委屈/炸毛/记仇/难过）v 为负，正向类别（开心/兴奋/害羞）v 为正。
+${guide}
 
 对话每行形如「[YYYY-MM-DD HH:mm] 发言人：内容」；单聊发言人显示为「用户」，群聊显示为「昵称 (openid)」。
 memories.actor 写记忆主体的昵称——事实关于谁就写谁：某人转述他人事实时写被转述者
@@ -87,6 +110,7 @@ merge 改写不得变更观点归属：原条记的是角色立场就仍归角�
 
 对话：
 %s`;
+};
 
 /** 会话滚动摘要：把最近轮次合并进旧摘要（transcript 与 note 之间的中间层） */
 const DIGEST_PROMPT = `你是陪伴型聊天角色的会话脉络整理模块。下面是「既有脉络摘要」和「最近一段对话记录」。
@@ -185,6 +209,7 @@ export function buildDistillPrompt(
   existing?: MemoryNote[], currentEmotion?: EmotionState,
   existingProfiles?: { actor?: string; text: string }[],
   ctx: TimeCtx = defaultTimeCtx(),
+  moods?: readonly string[],
 ): string {
   // 环境上下文（[Chat history] 末段）取最后一个带 contextText 的轮次：
   // 其块内已含最近环境消息，单块足够；逐轮拼只会重复计费。
@@ -192,7 +217,7 @@ export function buildDistillPrompt(
   const convo = turns
     .map((t) => `[${formatStamp(t.at, ctx.timeZone)}] ${t.actor ?? '用户'}：${capText(t.userText, DISTILL_TURN_CAP)}\n角色：${capText(t.assistantText, DISTILL_TURN_CAP)}`)
     .join('\n');
-  let prompt = fillSlots(PROMPT.replace('%d', String(maxNotes)),
+  let prompt = fillSlots(distillPrompt(moods).replace('%d', String(maxNotes)),
     [persona || '（未设定）', ctxBlock ? `${ctxBlock}\n\n${convo}` : convo]);
   if (existingProfiles?.length) {
     prompt += `\n\n现有画像：\n${existingProfiles
@@ -231,7 +256,7 @@ export function buildDigestPrompt(
     + `\n\n当前时间：${formatClock(ctx.now, ctx.timeZone)}`;
 }
 
-export function parseDistillOutput(raw: string): DistillResult {
+export function parseDistillOutput(raw: string, allowedMoods: readonly string[] = MOODS): DistillResult {
   const m = raw.match(/\{[\s\S]*\}/);
   if (!m) return { memories: [] };
   let obj: unknown;
@@ -256,7 +281,7 @@ export function parseDistillOutput(raw: string): DistillResult {
         v: typeof e.v === 'number' ? e.v : 0,
         a: typeof e.a === 'number' ? e.a : 0.3,
         d: typeof e.d === 'number' ? e.d : 0,
-        mood: typeof e.mood === 'string' && (MOODS as readonly string[]).includes(e.mood) ? e.mood : undefined,
+        mood: typeof e.mood === 'string' && (allowedMoods as readonly string[]).includes(e.mood) ? e.mood : undefined,
       }
     : undefined;
   const profile = typeof o.profile === 'string' && o.profile.trim() ? o.profile.trim() : undefined;
@@ -293,9 +318,13 @@ export class Distiller {
     existing?: MemoryNote[], currentEmotion?: EmotionState,
     existingProfiles?: { actor?: string; text: string }[],
     ctx?: TimeCtx,
+    moods?: readonly string[],
   ): Promise<DistillResult> {
     if (!this.enabled || turns.length === 0) return { memories: [] };
-    return this.call(buildDistillPrompt(turns, persona, this.cfg.maxNotes, existing, currentEmotion, existingProfiles, ctx));
+    return this.call(
+      buildDistillPrompt(turns, persona, this.cfg.maxNotes, existing, currentEmotion, existingProfiles, ctx, moods),
+      moods,
+    );
   }
 
   /** 语义巩固：把情景记忆提炼为语义记忆 + 重写画像 */
@@ -428,8 +457,8 @@ export class Distiller {
     }
   }
 
-  private async call(prompt: string): Promise<DistillResult> {
+  private async call(prompt: string, moods?: readonly string[]): Promise<DistillResult> {
     const text = await this.callRaw(prompt);
-    return text === undefined ? { memories: [] } : parseDistillOutput(text);
+    return text === undefined ? { memories: [] } : parseDistillOutput(text, moods);
   }
 }
