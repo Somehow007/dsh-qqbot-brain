@@ -53,3 +53,12 @@
 
 - 风险：激活即线上生效（bot 立刻以叶瞬光口吻回复）——属里程碑本意，走查含切回验证；seed 是「活的经历层」会自然衰减，核心设定永驻 persona.md。
 - 后续：观察蒸馏 self 标记准确率（迭代 A 遗留观察项）；pack 导入 API `import-pack` 归 G。
+
+## Resolution（2026-11-10）
+
+- **遇到了什么问题**：① MOODS 决策点用户打断提问后回「继续」——按计划推荐项 `PersonaEntry.moods` 直接落地，词表取 10 词（覆盖中性/正向/负向/酸甜并存，歧义词不进 MOOD_VALENCE）；② distill PROMPT 原是模块级模板常量且 mood 锚点硬编码 whale 词表——改为 `distillPrompt(moods)` 函数，枚举与指引按人设分叉（内容与全局 MOODS 相同视为未自定义，仍走默认锚点）；③ README「下一步候选」删项后序号需顺移，首改时误复制 webserver-shim 行已修正。
+- **怎么解决的**：种子侧 `generate_seed.py` 非 attitude 条统一 `self:true`（18 条全第一人称）+ `personas[0].moods` 下发；内核侧 `buildDistillPrompt`/`parseDistillOutput`/`Distiller.distill`/`call` 贯通允许集，`endOfTurn` 按批次人设 `personaEntry(batchPid).moods` 传入（与批次戳/提示词人设同口径）；生产走「成对备份 → rsync dist+package.json → restart → export 基线 285 条 → merge 导入 → 激活」：首导 `{notes:28,persona:true}`、复导 `{notes:0,skipped:28}` 幂等、总量 285→313 恰 +28、ye 28 条 self/attitude 分布正确、28 条全部补齐 embedding、whale 数据零损失；激活后 `/api/state` persona=叶 persona.md 全文、persona.md 文件同步、whale↔ye 双向切换验证通过、op 流水 persona-activate×3 可审计。
+- **后续优化方向**：① 自测期观察项（记录进 journal #98）：影子面语气频率、种子衰减表现、蒸馏 self 标记准确率、新蒸馏 `personaId='ye-shunguang'`+attitude 落 ye 轨、画像 `lastWrittenByPersona` 更新、世界轨用户事实两角色共享；② merge 导入不更新已存在人设条目——改 moods/种子要走 PATCH API 或删了重导（README 已注明）；③ distill label 示例仍是 whale 味（「嘴硬开心」「记仇」）——自定义 moods 时未换，自测若觉违和再参数化；④ 清理路径已确认未执行：`POST /api/notes/purge {"personaId":"ye-shunguang"}` + `DELETE /api/personas?id=ye-shunguang`。
+- **什么时候干的**：2026-11-10 当天完成实现→测试→build→eval→备份→部署→导入→激活→API 级走查全流程；真实会话级冒烟项留待用户自测期观察。
+- **Key Decisions**：MOODS=per-persona 注入（计划推荐，用户「继续」默认采纳）；叶瞬光 moods 10 词表随 seed personas 条目下发；种子全落自我轨（无世界轨内容）；merge 导入不激活（`!activeId` 才激活，激活走独立 API）。
+- **验证结论**：`npm run typecheck` 0 错；`node --test` 183/183 通过（新增 4 例：parse 允许集、buildDistillPrompt 自定义枚举+通用指引+默认不变、endOfTurn 批次 moods 双向、seed-export merge 导入+幂等+whale/ye 可见性端到端）；`npm run build` 通过；`npm run eval` 与迭代A 同基线（q08/q15/n01/n03 存量失败未动，人设三轨隔离 100%/0%）；生产 export diff 恰 +28、复导幂等、双向激活切换 persona 文本正确。
