@@ -47,3 +47,10 @@
 - 2026-11-09 | 迭代A 走查补修 journal #97 | → `tasks/archive/2026-11/11-09-iteration-a-three-track` prd 走查补修节
 - 2026-11-10 | 简历优化版产出：删工作经历换 qqbot-brain 项目，Java 向 bullet 重构 | → `tasks/11-10-resume-optimize` + `~/Documents/简历/Java简历-优化版.md`
 - 2026-11-10 | 迭代B·叶瞬光接入上线：种子28条全落自我轨+merge幂等导入+per-persona MOODS（10词表）接线，生产已激活 ye-shunguang 待用户自测 | → `tasks/archive/2026-11/11-09-iteration-b-ye-shunguang` + journal #98
+- 2026-11-10 | 流萤人设包产出：`personas/firefly/` 与 ye-shunguang 同构（persona.md+28条种子+生成器+README），多源比对完成未接线 | → `tasks/11-10-firefly-persona/prd.md`
+- 2026-11-10 | 流萤人设包走查通过：BrainStore.importData 实测 merge 幂等+分轨+不抢占激活，修订4处表述（娇小/起爆开关歧义/地名） | → `tasks/11-10-firefly-persona/prd.md`
+- 2026-11-10 | 流萤人设包内容走查（串味/死板/合适性）：修「开拓者」称呼专属化+荤梗关系例外收紧（露骨不展开），种子不动；机制层三轨隔离复核无串味 | → `tasks/11-10-firefly-persona/prd.md` 内容走查节
+- 2026-11-10 | 流萤人设包已导入生产实例：merge 导入 28 种子+人设注册（幂等口径实测一致），ye-shunguang 保持激活未被抢占；导入前已落 ~/backups 预导出 | → `tasks/11-10-firefly-persona/prd.md`
+- 2026-11-10 | 人设包走查发现迭代遗留问题集：F1语义巩固产出无self轨继承（迭代A遗留，种子次日即触发或致串味）+F2 manual会话modal单视角致叶瞬光episodic永不巩固；F3 import不补向量+backfill一次性自清（迭代B方法层缺口，firefly 28种子当前0向量）；F4人设包缺AI身份条款 → `tasks/11-10-consolidate-track-gaps`
+- 2026-11-11 | 迭代节奏定调：维持串行小步上线（做完→部署→观察窗→修好→下一个），观察窗信号驱动非固定天数；开发可流水线但部署串行，F1-F4 先于迭代C部署 | → `tasks/11-11-iteration-cadence/prd.md`
+- 2026-11-11 | AI 驱动开发工作范式成文：AI-WORKFLOW.md 落地仓库根（六原则/质量防线/成本两条线/差距自检+backlog），AGENTS.md 首条指针+MAP.md 三处同步 | → `AI-WORKFLOW.md` + `tasks/11-11-ai-dev-workflow/prd.md`

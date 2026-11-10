@@ -22,6 +22,7 @@ Managed by Trellis. Edits outside this block are preserved; edits inside may be 
 
 ## 项目约定
 
+- **AI 工作范式**：`AI-WORKFLOW.md`（仓库根目录）是个人 AI 驱动开发工作法全貌——六条原则 / 日常循环 / 质量防线 / 成本两条线 / 安全卫生 / 差距自检。动手前对照它；新纪律先在 AI-WORKFLOW「待补 backlog」立条，跑通后再沉淀进 spec。
 - **问题存档**：每次探讨过的问题都要在 `.trellis/tasks/` 存档——记清楚「遇到了什么问题 / 怎么解决的 / 什么时候干的」。哪怕是纯讨论、没写代码，也要建 task 写 prd.md 留痕。
 - **导览文档保鲜**：`MAP.md`（where & how 导航）与 `README.md`（what & why 门面）都不能过时——更新项目、添加功能、大幅改动时都要想一下是否要同步：
   - MAP：新目录/新入口/新机制层/命令或部署方式变化 → 必改；

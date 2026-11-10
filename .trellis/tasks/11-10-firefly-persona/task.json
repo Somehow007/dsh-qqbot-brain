@@ -1,0 +1,31 @@
+{
+  "id": "firefly-persona",
+  "name": "firefly-persona",
+  "title": "流萤人格内核 + 人设包",
+  "description": "为崩坏：星穹铁道角色流萤（星核猎手/萨姆装甲/失熵症）撰写陪伴型人格内核并产出独立可携带人设包 personas/firefly/：多源比对角色资料（官方档案、BWIKI 语音/剧情、萌百、米游社、英文 Wiki），提炼人格内核与 28 条种子记忆。",
+  "status": "completed",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "sunhao",
+  "assignee": "sunhao",
+  "createdAt": "2026-11-10",
+  "completedAt": "2026-11-10",
+  "branch": "main",
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [
+    "personas/firefly/persona.md",
+    "personas/firefly/generate_seed.py",
+    "personas/firefly/seed-export.json",
+    "personas/firefly/README.md"
+  ],
+  "notes": "",
+  "meta": {}
+}

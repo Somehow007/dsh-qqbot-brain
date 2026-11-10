@@ -1,0 +1,30 @@
+{
+  "id": "ai-dev-workflow",
+  "name": "ai-dev-workflow",
+  "title": "AI 驱动开发工作范式总结：问题自查 + 差距分析 + 成文",
+  "description": "用户提问：用 Devin/AI 开发工具写项目的方式有啥问题？和行业专人（大小公司开发）还有哪些差距？是否要总结一套工作范式？结论：方式无根本问题，薄弱点=理解债/同源盲区/工程卫生三处；差距集中在理解深度、团队尺度、长时维护；范式已成文 AI-WORKFLOW.md。",
+  "status": "in_progress",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "sunhao",
+  "assignee": "sunhao",
+  "createdAt": "2026-11-11",
+  "completedAt": null,
+  "branch": "main",
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [
+    "AI-WORKFLOW.md",
+    "AGENTS.md",
+    "MAP.md"
+  ],
+  "notes": "",
+  "meta": {}
+}

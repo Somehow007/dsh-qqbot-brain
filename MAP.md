@@ -11,6 +11,7 @@
 | 学「类脑记忆」领域知识 | `.trellis/tasks/archive/2026-10/10-31-brain-learning-roadmap/`（理论↔代码对照表 + 六阶段路线） | README「这个项目在探讨什么」 |
 | 按顺序读源码 | 下文「源码阅读顺序」 | `.trellis/spec/backend/index.md` 对照约定 |
 | 动手改代码 / 写进项目 | `AGENTS.md` 项目约定 + `.trellis/spec/backend/index.md` | `.trellis/workflow.md` 走 Trellis 流程 |
+| 想要一套可复用的 AI 驱动开发工作法 | `AI-WORKFLOW.md`（原则/防线/成本/安全/差距自检） | `.trellis/` 档案层是它的实证 |
 | 规划新功能/任务 | `.trellis/workflow.md` + `tasks/` 里主题相近的旧任务 prd.md | `task.py create` |
 | 查「当时为什么这么定」 | `.trellis/tasks/archive/` 按目录名搜主题，读 prd.md | `workspace/sunhao/journal-1.md` 按日期还原 session |
 | 开工前看别的会话改了啥 | `tail -30 .trellis/CHANGES.md`（跨会话广播位） | 顺条目指针读对应 task/journal |
@@ -34,12 +35,14 @@ dsh-qqbot-brain/            ▶ 代码层：插件本体（TypeScript ESM，零�
 docs/                       README 配图（img/，含 src/ 手绘 SVG 源）· 备份恢复手册 · 生图提示词
 demo/                       虚构演示数据集 + serve-demo.ts（免 dsh 直接开 /brain，公开安全）
 mockup-*.html / *.js        脑图概念稿群：鲸脑皮层已落地为线上版，咖啡馆/回廊/Atlas 留作皮肤
-personas/ye-shunguang/      独立人设包（第二人格资产：persona.md + 种子导出 + 生成器）
+personas/                     独立人设包群（第二人格资产：persona.md + 种子导出 + 生成器）
+  ye-shunguang/ · firefly/    绝区零叶瞬光 · 崩铁流萤——同构模板，可并存分轨
 求职材料/                   简历条目 / 面试聊点手册 / 岗位匹配（对外叙事口径）
 参赛材料/                   比赛申报材料（gitignored，不进库）
 
 .trellis/                   ▶ 档案层：开发过程全留痕（见「四、学开发思路」）
 AGENTS.md                   项目约定：线上数据位置、部署要点、归档流程——动手前必读
+AI-WORKFLOW.md              个人 AI 驱动开发工作范式：六原则/质量防线/成本两条线/安全卫生/差距自检
 brain-data/                 线上记忆导出的本地备份（gitignored）
 .dsh/ · .agents/ · .devin/  Trellis 在各 AI 平台的适配（DSH.md 讲 dsh 侧；skills/workflows 自动生成，一般不用手改）
 ```
@@ -85,7 +88,7 @@ brain-data/                 线上记忆导出的本地备份（gitignored）
 | `tasks/11-08-persona-switch-design/`（设计评估，进行中）+ `tasks/archive/2026-11/11-09-iteration-a-three-track/`（迭代A三轨落地） | 多人设切换：角色→人设两级、自我轨按 characterId 隔离、批次戳防切换错乱（看机制怎么定、怎么验的） |
 | `archive/2026-11/10-31-two-day-trial-eval/` | 三天试运行复盘：实测数据怎么回流成迭代项 |
 
-方法论要点（从档案里能读出来的开发思路）：**评测先行**（没有尺子不改架构）→ **小步上线**（每轮走查→部署→复盘）→ **一切皆档案**（讨论也存 prd）→ **约定沉淀回 spec**（踩过的坑写成下一条 spec 约定）。
+方法论要点（从档案里能读出来的开发思路）：**评测先行**（没有尺子不改架构）→ **小步上线**（每轮走查→部署→复盘）→ **一切皆档案**（讨论也存 prd）→ **约定沉淀回 spec**（踩过的坑写成下一条 spec 约定）。全貌版工作法见根目录 `AI-WORKFLOW.md`。
 
 ## 五、命令速查
 
