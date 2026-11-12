@@ -55,3 +55,4 @@
 - 2026-11-11 | 迭代节奏定调：维持串行小步上线（做完→部署→观察窗→修好→下一个），观察窗信号驱动非固定天数；开发可流水线但部署串行，F1-F4 先于迭代C部署 | → `tasks/11-11-iteration-cadence/prd.md`
 - 2026-11-11 | AI 驱动开发工作范式成文：AI-WORKFLOW.md 落地仓库根（六原则/质量防线/成本两条线/差距自检+backlog），AGENTS.md 首条指针+MAP.md 三处同步 | → `AI-WORKFLOW.md` + `tasks/11-11-ai-dev-workflow/prd.md`
 - 2026-11-11 | 人设包走查遗留问题集 F1-F4 全部修复上线：巩固按角色分批+全自我轨源继承 self、importData 即时补向量+回填常驻自愈、两包补 AI 身份条款并同步生产；firefly 28 种子向量 0→29/29 补齐 | → `tasks/archive/2026-11/11-10-consolidate-track-gaps` + journal
+- 2026-11-12 | 陪伴 Agent 架构定位讨论：brain=核心 library（角色由宿主决定）、业务切分=内核护城河+壳层新建、Java 可行但内核不重写（Java 位置=移植 kata） | → `tasks/11-12-companion-arch-java-eval`
