@@ -61,6 +61,19 @@ MVP 边界（承接上轮评估）：web 1-on-1 + 单 persona + 主动开口 cro
 - ✅ **学习性移植 kata**：挑 retrieval.ts/decay.ts 用 Java 重写，拿 eval 集验证等价性——零生产风险，还能成面试谈资
 - ✅ Java 职业目标由现有路径服务：简历已将 TS 项目写成 Java 视角 bullet；系统设计能力比语言更打动 Java 面试官
 
+## 追问：推进顺序确认（2026-11-12 同日）
+
+**用户提问**：后续推进 = 先设计 MVP（Java 复写留到项目成型稳定再做学习性复写）→ 把套壳层做好 → 最后做完迭代各项和观察窗 → 最后完整设计移植、开发 Agent？
+
+**修正点**：
+
+1. 「套壳层」不是排在迭代之前——它就是迭代 F（`11-09-iteration-upgrade-plan` §7），且 **C/D 是其前置**（`Brain.search` 原语 + intents/provenance）；尤其 D 的 provenance 不落地，bot 主动消息会被当用户事实蒸馏污染记忆。
+2. Java 复写不需要「完整移植设计」——学习目的下是模块级 kata（retrieval→decay→…），拿 eval 集验证等价性；完整移植设计只在真做第二内核时才需要（已否决）。
+3. 修正后顺序：MVP 设计 → C → D → F → E/G 穿插（信号驱动）→ Java kata 最后。
+
+**岔路与用户拍板**：F 是否分期（F-basic reactive chat 零内核前置可先行 dogfooding，C/D 落地后补 brain_search tool + 主动开口）vs 按路线图 C→D→F 整体？
+**用户选择**：**先只做设计，排期后定**——MVP 设计任务把两种排期都写进 design.md，等 C/D 估时更清楚后再定 F 开工点。
+
 ## Resolution（2026-11-12）
 
 - **遇到的问题**：companion agent 落地前的架构定位三连问——brain 是插件还是核心模块、业务上怎么切模块、要不要为 Java 技术栈重写
