@@ -58,3 +58,6 @@
 - 2026-11-12 | 陪伴 Agent 架构定位讨论：brain=核心 library（角色由宿主决定）、业务切分=内核护城河+壳层新建、Java 可行但内核不重写（Java 位置=移植 kata） | → `tasks/11-12-companion-arch-java-eval`
 - 2026-11-12 | companion 推进顺序确认：套壳层=迭代F、C/D是其前置（D provenance 不落地则主动消息污染记忆）；Java复写=末尾模块级kata无需完整移植设计；F节奏拍板=先做MVP设计、两种排期写进design.md后定 | → `tasks/11-12-companion-arch-java-eval`
 - 2026-11-12 | F1-F4 生产走查验收全过：manual首巩固产出4条self轨semantic（源10叶瞬光ep全吸收）、向量351/351零缺口、两包AI身份条款在产；firefly批因种子未满1天+会话冷却预计今日补上；观察=whale系仍含旧式"不自称AI"条款待决 | → `tasks/archive/2026-11/11-10-consolidate-track-gaps` prd 生产走查验收节
+- 2026-11-12 | 存量AI项目接管翻新playbook定调：四阶段（摸底→立约→安全网→小步翻新），首会话只读产出三件套，git基线先行，翻新按风险×收益排序；开口模板已给 | → `tasks/11-12-brownfield-takeover/prd.md`
+- 2026-11-12 | AI工作范式手册库建立：~/dev/code/vibe-coding/ai-workflow/（README+playbooks/含_template），首批入库 brownfield-takeover+iteration-cadence 两册；AI-WORKFLOW.md 加分工指针 | → `~/dev/code/vibe-coding/ai-workflow/` + `tasks/11-12-brownfield-takeover/prd.md`
+- 2026-11-12 | 迭代C·主动召回上线：Brain.search 检索原语（assemble 同口径可见池+ScoredNote[]）+ recall-intent 双门深挖注入段（brain:deeprecall，零 LLM 成本）；深挖地板严于 lane-1（lex0.07/emb0.55，eval 驱动）；eval 深挖子集 100%/0% 噪声；已部署生产，待用户自测 | → `tasks/archive/2026-11/11-12-iteration-c-proactive-recall` + journal #105
