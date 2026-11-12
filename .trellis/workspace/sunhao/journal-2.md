@@ -195,3 +195,23 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 103: 陪伴 Agent 架构定位与 Java 可行性讨论
+<!-- trellis-session: v=2 fp=d4d47ad43304ed55 -->
+
+**Date**: 2026-11-12
+**Task**: 陪伴 Agent 架构定位与 Java 可行性讨论
+**Branch**: `main`
+
+### Summary
+
+用户问 companion agent 落地后三个架构问题：brain 是插件还是核心模块、业务怎么设计、Java 重写是否可行。源码核对确认 src/brain ~3.7k 行零运行时依赖、零 Cordis 引用、fetch 可注入。结论：brain 在 companion 中是核心 library——插件性只在装配层，同一代码在 dsh 是插件、在 companion 是库，角色由宿主决定，这正是宿主无关内核的实证；业务上记忆内核=护城河零重写，新建量集中在壳层（chat loop/session/主动开口/web 渠道/成本账本），单用户假设到底、可观测即产品；Java 完全可行（持久化/检索/衰减/LLM 调用均平凡映射，distill.ts 465 行是唯一密集处，有 153 单测+44 条评测集当 oracle），但内核不重写——价值在决策不在代码、内核是迭代 C-G 未完的移动靶、Java 版会破坏「同一内核两 deployment」的简历支点、且 TS 壳层天级 vs 移植周级延迟真正目标；Java 的正确位置是学习性移植 kata（retrieval.ts/decay.ts + eval 集验证等价性）。纯讨论无代码改动，存档 tasks/11-12-companion-arch-java-eval。
+
+### Git Commits
+
+(No commits - planning session)
+
+### Status
+
+[OK] **Completed**
