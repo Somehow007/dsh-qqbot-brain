@@ -12,7 +12,7 @@ import { SessionCapture, parseSenderTag } from '../src/capture/events.ts';
 import type { PromptInjector } from '../src/inject/prompt.ts';
 import { retention } from '../src/brain/decay.ts';
 import { EmotionEngine } from '../src/brain/emotion.ts';
-import { DAY_MS, DEFAULT_BRAIN_CONFIG, MOODS } from '../src/brain/types.ts';
+import { DAY_MS, DEFAULT_BRAIN_CONFIG, MOODS, RECALL_INTENT_RE } from '../src/brain/types.ts';
 
 const DAY = DAY_MS;
 let NOW = Date.parse('2026-03-24T12:00:00Z');
@@ -2871,4 +2871,167 @@ test('叶瞬光 seed-export：merge 导入结构合规 + 跨角色可见性端�
   store.activatePersona('ye-shunguang');
   const underYe = brain.assemble('s1', '桂花糖');
   assert.ok(underYe.memoryLines.some((l) => l.includes('桂花糖')), 'ye 激活后种子应可召回');
+});
+
+// ── 迭代C：主动召回 Brain.search + recall-intent 深挖门控 ──
+
+test('search: 默认口径与 assemble lane-1 一致（本会话+全局域；三轨/私域/退池过滤）', () => {
+  const { store } = tmpStore();
+  const here = store.addNote('s1', { content: '用户养了一只橘猫叫年糕', importance: 4 }, NOW);
+  const glob = store.addNote('manual', { content: '全局备忘：年糕的猫粮买了', importance: 3 }, NOW);
+  const other = store.addNote('s2', { content: '别的群聊里聊过年糕', importance: 3 }, NOW);
+  const absorbed = store.addNote('s1', { content: '年糕的旧记忆已退池', importance: 3 }, NOW);
+  store.markAbsorbed([absorbed.id], NOW);
+  store.setSessionDomain('priv', 'demo');
+  store.addNote('priv', { content: '私域群里的年糕秘密', importance: 5 }, NOW);
+  const brain = new Brain({ store, distiller: mockDistiller({}), now });
+  const r = brain.search('s1', '年糕');
+  const contents = r.map((s) => s.note.content);
+  assert.ok(contents.includes(here.content), '本会话命中');
+  assert.ok(contents.includes(glob.content), '全局域命中');
+  assert.ok(!contents.includes(other.content), '默认不跨会话');
+  assert.ok(!contents.some((c) => c.includes('秘密')), '私域域外不可见');
+  assert.ok(!contents.includes(absorbed.content), 'absorbed 不进池');
+});
+
+test('search: kinds 过滤、limit 截断、minCos 覆盖三者独立生效', () => {
+  const { store } = tmpStore();
+  store.addNote('s1', { content: ' episodic 条目关于烤鱼', importance: 3, kind: 'episodic' }, NOW);
+  store.addNote('s1', { content: 'semantic 条目关于烤鱼', importance: 3, kind: 'semantic' }, NOW);
+  store.addNote('s1', { content: 'attitude 对烤鱼：喜欢', importance: 3, kind: 'attitude' }, NOW);
+  const brain = new Brain({ store, distiller: mockDistiller({}), now });
+  const all = brain.search('s1', '烤鱼');
+  assert.ok(all.length >= 3, '无过滤应三类都在');
+  const sem = brain.search('s1', '烤鱼', { kinds: ['semantic'] });
+  assert.ok(sem.length > 0 && sem.every((s) => s.note.kind === 'semantic'), 'kinds 过滤');
+  const one = brain.search('s1', '烤鱼', { limit: 1 });
+  assert.ok(one.length <= 1, 'limit 截断');
+  // minCos 抬高到不可能值 → 全过滤；minCos=0 → 全进（仍受 topK/排序影响）
+  const strict = brain.search('s1', '烤鱼', { minCos: 0.99 });
+  assert.equal(strict.length, 0, 'minCos 覆盖可收紧');
+});
+
+test('search: crossSession 纳入他会话，仍守私域/三轨/退池硬过滤', () => {
+  const { store } = tmpStore();
+  store.createPersona('温柔版', '温柔', 'whale-gentle', { characterId: 'whale' });
+  store.createPersona('叶瞬光', '叶', 'ye-shunguang');
+  store.activatePersona('whale-gentle');
+  const world = store.addNote('s2', { content: '别的群聊约定周末爬山', importance: 3 }, NOW);
+  store.addNote('s2', { content: '我叶瞬光去年也想去爬山', importance: 4, self: true, personaId: 'ye-shunguang' }, NOW);
+  store.setSessionDomain('priv', 'demo');
+  store.addNote('priv', { content: '私域群的爬山秘密计划', importance: 5 }, NOW);
+  const brain = new Brain({ store, distiller: mockDistiller({}), now });
+  const r = brain.search('s1', '爬山', { crossSession: true });
+  const contents = r.map((s) => s.note.content);
+  assert.ok(contents.includes(world.content), '跨会话世界轨可见');
+  assert.ok(!contents.some((c) => c.includes('剑穗') || c.includes('叶瞬光')), '他角色自我轨不可见');
+  assert.ok(!contents.some((c) => c.includes('秘密')), '私域域外不可见');
+  // 同查询默认口径下跨会话条目不出现
+  const local = brain.search('s1', '爬山');
+  assert.ok(!local.map((s) => s.note.content).includes(world.content), '默认仍限本会话');
+});
+
+test('search: emb 路径 queryVec 走语义余弦，minEmbedCos 覆盖生效', () => {
+  const { store } = tmpStore();
+  const a = store.addNote('s1', { content: '用户讨厌香菜', importance: 3 }, NOW);
+  const b = store.addNote('s1', { content: '量子场论研讨纪要', importance: 5 }, NOW);
+  store.setEmbedding(a.id, [1, 0]);
+  store.setEmbedding(b.id, [0, 1]);
+  const brain = new Brain({ store, distiller: mockDistiller({}), now });
+  const qv = [0.95, 0.05];
+  const r = brain.search('s1', 'x', {}, qv);
+  assert.equal(r.length, 1);
+  assert.match(r[0]!.note.content, /香菜/);
+  assert.equal(r[0]!.relSrc, 'emb');
+  // minEmbedCos=0 放行正交向量（b 的 cos=0.05 仍 < 默认 0.47 被滤；覆盖后可进）
+  const loose = brain.search('s1', 'x', { minEmbedCos: 0 }, qv);
+  assert.ok(loose.length >= 2, 'minEmbedCos 覆盖可放宽');
+});
+
+test('search: 纯检索无副作用——命中不刷 hits/strength', () => {
+  const { store } = tmpStore();
+  const n = store.addNote('s1', { content: '用户养了一只橘猫叫年糕', importance: 4 }, NOW);
+  const brain = new Brain({ store, distiller: mockDistiller({}), now });
+  const before = { hits: n.hits, strength: n.strength, lastAccessAt: n.lastAccessAt };
+  const r = brain.search('s1', '猫');
+  assert.ok(r.length > 0);
+  const after = store.noteById(n.id)!;
+  assert.deepEqual({ hits: after.hits, strength: after.strength, lastAccessAt: after.lastAccessAt }, before);
+});
+
+test('深挖门控: 召回意图∧弱命中→追加深挖行（跨会话旧记忆可唤起）', () => {
+  const { store } = tmpStore();
+  // 目标记忆在他会话：lane-1 严格本会话+全局域看不到，深挖 crossSession 能捞到
+  store.addNote('s2', { content: '用户去年在云南大理租了三个月民宿', importance: 4 }, NOW - 30 * DAY);
+  store.addNote('s1', { content: '今天天气不错适合出门', importance: 2 }, NOW);
+  const brain = new Brain({ store, distiller: mockDistiller({}), now });
+  const ctx = brain.assemble('s1', '你还记得我去年在云南的事吗');
+  assert.ok(ctx.deepRecallLines.length > 0, '应触发深挖');
+  assert.ok(ctx.deepRecallLines.some((l) => l.includes('云南') || l.includes('大理')), '深挖应命中旧记忆');
+  assert.ok(ctx.deepRecallLines.every((l) => l.startsWith('- [深挖·')), '深挖行带标记');
+  assert.ok(ctx.deepRecallLines.some((l) => l.includes('跨群·')), '跨会话命中标跨群');
+});
+
+test('深挖门控: 意图∧强命中→不追加（成本纪律）', () => {
+  const { store } = tmpStore();
+  store.addNote('s1', { content: '用户养了一只橘猫叫年糕', importance: 4 }, NOW);
+  store.addNote('s1', { content: '年糕是橘猫每天吃小鱼干', importance: 4 }, NOW);
+  const brain = new Brain({ store, distiller: mockDistiller({}), now });
+  const ctx = brain.assemble('s1', '你还记得我的猫叫年糕吗');
+  assert.ok(ctx.hits.length >= 2, 'lane-1 应有真相关命中');
+  assert.equal(ctx.deepRecallLines.length, 0, 'lane-1 足够时不深挖');
+});
+
+test('深挖门控: 无意图词→不追加；enabled=false→不追加', () => {
+  const { store } = tmpStore();
+  store.addNote('s2', { content: '用户去年在云南大理租了三个月民宿', importance: 4 }, NOW);
+  const brain = new Brain({ store, distiller: mockDistiller({}), now });
+  // 无意图词的弱查询不触发
+  const ctx = brain.assemble('s1', '云南 民宿');
+  assert.equal(ctx.deepRecallLines.length, 0, '无意图词不深挖');
+  // 意图词+弱命中但开关关闭
+  const off = new Brain({
+    store, distiller: mockDistiller({}), now,
+    config: { deepRecall: { enabled: false } },
+  });
+  const ctx2 = off.assemble('s1', '你还记得我去年在云南的事吗');
+  assert.equal(ctx2.deepRecallLines.length, 0, 'enabled=false 全关');
+});
+
+test('深挖门控: 与 lane-1 已注入条目去重，不重复注入', () => {
+  const { store } = tmpStore();
+  // s1 本会话条目 lane-1 可见（弱相关，在 hits 但不算真相关）；s2 条目只有深挖能捞
+  store.addNote('s1', { content: '用户养了一只猫', importance: 3 }, NOW);
+  store.addNote('s2', { content: '用户养猫时买过猫爬架', importance: 3 }, NOW);
+  const brain = new Brain({ store, distiller: mockDistiller({}), now });
+  const ctx = brain.assemble('s1', '你还记得我养的猫吗');
+  const laneContents = [...ctx.memoryLines, ...ctx.attitudeLines];
+  for (const l of ctx.deepRecallLines) {
+    assert.ok(!laneContents.some((x) => x.includes(l.replace(/^- \[深挖·[^\]]*\] ?/, ''))), '深挖不重复 lane-1');
+  }
+});
+
+test('深挖门控: 私域与他角色自我轨在深挖下仍不可见', () => {
+  const { store } = tmpStore();
+  store.createPersona('温柔版', '温柔', 'whale-gentle', { characterId: 'whale' });
+  store.createPersona('叶瞬光', '叶', 'ye-shunguang');
+  store.activatePersona('whale-gentle');
+  store.addNote('s2', { content: '别的群聊约定周末爬山看海', importance: 4 }, NOW);
+  store.addNote('s2', { content: '我叶瞬光去年也想去爬山看海', importance: 4, self: true, personaId: 'ye-shunguang' }, NOW);
+  store.setSessionDomain('priv', 'demo');
+  store.addNote('priv', { content: '私域群的爬山秘密计划', importance: 5 }, NOW);
+  const brain = new Brain({ store, distiller: mockDistiller({}), now });
+  const ctx = brain.assemble('s1', '你还记得我们约定周末爬山的事吗');
+  const deep = ctx.deepRecallLines.join('\n');
+  assert.ok(deep.includes('爬山看海'), '深挖应命中跨会话世界轨');
+  assert.ok(!deep.includes('叶瞬光'), '他角色自我轨不进深挖');
+  assert.ok(!deep.includes('秘密'), '私域域外不进深挖');
+});
+
+test('RECALL_INTENT_RE: 召回意图词命中/不命中边界', () => {
+  assert.ok(RECALL_INTENT_RE.test('你还记得我去年说的那个事吗'));
+  assert.ok(RECALL_INTENT_RE.test('什么来着'));
+  assert.ok(RECALL_INTENT_RE.test('do you remember our plan'));
+  assert.ok(!RECALL_INTENT_RE.test('今天天气真好'));
+  assert.ok(!RECALL_INTENT_RE.test('年糕'));
 });

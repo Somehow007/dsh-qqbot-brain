@@ -112,14 +112,15 @@ QQ 消息 ──► dsh-qqbot ──► system-prompt/assemble
 | 记得更久 | ✅ 质变 | 742 次蒸馏中 37% 正确丢弃拌嘴轮（v1 几乎每轮硬塞 1 条）；466 条草稿 → 净存 111 条（merge/判重生效）；importance 分布拉开 2:35/3:47/4:18/5:11 |
 | 上下文更多 | ✅ 超预期 | digest 会话脉络 59 次更新，叙事连贯、保留未完结约定（「约好晚上六点五食堂吃晚饭」）；跨群召回在线 |
 
-**离线检索评测**（`npm run eval`：44 条线上真实记忆 + 22 条人工标注 query）：
+**离线检索评测**（`npm run eval`：44 条线上真实记忆 + 22 条人工标注 query + 5 条深挖召回子集）：
 
 | 检索路径 | recall@topK | 噪声误命中 |
 | --- | --- | --- |
 | 纯字符 n-gram TF-IDF | 88.2% | 40% |
 | + embedding 混合召回（text-embedding-v3 校准） | **100%** | **20%** |
+| 深挖召回子集（recall-intent 门控·lexical，迭代C） | 100%（3/4 lane-1 未中被深挖救回） | 0% |
 
-**单测**：`node --test` **183/183** 通过（brain 内核 / filelog / http / page 四个测试文件 + eval 评测集），typecheck + build 全绿（截至 2026-11-10）。
+**单测**：`node --test` **199/199** 通过（brain 内核 / filelog / http / page 四个测试文件 + eval 评测集），typecheck + build 全绿（截至 2026-11-12）。
 
 **成本透明**：
 

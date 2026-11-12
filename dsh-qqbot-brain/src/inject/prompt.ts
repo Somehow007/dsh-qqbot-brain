@@ -3,12 +3,13 @@ import { splitActor } from '../brain/identity.ts';
 import type { BrainPluginConfig } from '../config.ts';
 
 /**
- * 通过 system-prompt/assemble waterfall 注入七块 section，按稳定性分两段：
+ * 通过 system-prompt/assemble waterfall 注入八块 section，按稳定性分两段：
  *   brain:persona (order 80)    人格内核 · 最稳定锚点
  *   brain:digest  (order 81)    会话脉络 · 每 15 轮才变
  *   brain:speaker (order 10300) 当前发言人（群聊）
  *   brain:attitude(order 10310) 态度立场（对人/事/话题的当前看法，慢变量）
  *   brain:memory  (order 10320) top-k 记忆摘录（含 [跨群] 召回与画像行）
+ *   brain:deeprecall(order 10325) 深挖召回（迭代C：召回意图∧弱命中时追加，标 [深挖]）
  *   brain:emotion (order 10330) 情绪态一行
  *   brain:clock   (order 10340) 当前时刻（每轮必变）
  * 官方 sections 段位：identity -1000 → persona-prefix 0 → policies 500-900 →
@@ -134,14 +135,21 @@ export class PromptInjector {
           text: `【记忆库摘录】\n${brain.memoryLines.join('\n')}`,
         });
       }
+      if (this.config.injectDeepRecall && brain.deepRecallLines.length) {
+        sections.push({
+          name: 'brain:deeprecall',
+          order: 10325,
+          text: `【深挖记忆】\n${brain.deepRecallLines.join('\n')}`,
+        });
+      }
       if (this.config.injectEmotion && brain.emotion) {
         sections.push({ name: 'brain:emotion', order: 10330, text: `【情绪态】${brain.emotion}` });
       }
       if (this.config.injectClock && brain.clock) {
         sections.push({ name: 'brain:clock', order: 10340, text: `【当前时刻】${brain.clock}` });
       }
-      if (this.config.debug && brain.hits.length) {
-        this.log(`brain: 命中 ${brain.hits.length} 条记忆 (session=${sessionId.slice(0, 8)}…)`);
+      if (this.config.debug && (brain.hits.length || brain.deepRecallLines.length)) {
+        this.log(`brain: 命中 ${brain.hits.length} 条记忆${brain.deepRecallLines.length ? ` + 深挖 ${brain.deepRecallLines.length} 条` : ''} (session=${sessionId.slice(0, 8)}…)`);
       }
       return { ...assembled, sections };
     };

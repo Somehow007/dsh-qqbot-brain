@@ -294,6 +294,22 @@ export class BrainHttpServer {
       const sessionId = url.searchParams.get('session') ?? undefined;
       const q = url.searchParams.get('q') ?? '';
       const now = Date.now();
+      // depth=1：深挖召回调试口（迭代C）——Brain.search 跨会话+加深候选，
+      // 返回带 rel/score/relSrc 明细；无 session 时按 manual 域口径（公开域）
+      if (url.searchParams.get('depth') === '1') {
+        const d = this.brain.cfg.deepRecall;
+        const qv = (await this.brain.queryEmbedding(q)) ?? undefined;
+        const hits = this.brain.search(sessionId ?? GLOBAL_SESSION_ID, q, {
+          limit: d.candidates, crossSession: d.crossSession,
+          minCos: d.minCos, minEmbedCos: d.minEmbedCos,
+        }, qv).map((s) => ({
+          id: s.note.id, content: s.note.content, importance: s.note.importance,
+          kind: s.note.kind, sessionId: s.note.sessionId,
+          retention: +retention(s.note, now).toFixed(3), hits: s.note.hits,
+          rel: +s.rel.toFixed(3), score: +s.score.toFixed(3), relSrc: s.relSrc,
+        }));
+        return json(res, { hits });
+      }
       const hits = (await this.brain.preview(sessionId, q)).map((n) => ({
         id: n.id, content: n.content, importance: n.importance,
         retention: +retention(n, now).toFixed(3), hits: n.hits,

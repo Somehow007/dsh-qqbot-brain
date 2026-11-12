@@ -133,6 +133,14 @@ export const ATTITUDE_OBJECT_RE = /^对(.{1,24}?)[：:]/;
  */
 export const EPHEMERAL_TIME_RE = /今天|今晚|明天|昨天|昨晚|前天|后天|刚才|刚刚|这周|本周|上周|下周|今早|\d+\s*月\s*\d+\s*[日号]/;
 
+/**
+ * 召回意图启发式（迭代C）：疑似「考问记忆」的发言是深挖召回的第一道门。
+ * 只作门控信号之一——还需 lane-1 真相关命中不足才追加深挖（成本纪律双门）。
+ * 词表偏宽（「去年」「当时」），由弱命中门 + 同地板 + ≤limit 条上限收敛噪声；
+ * 线上观察误触发率后再收紧。
+ */
+export const RECALL_INTENT_RE = /还记得|记得吗|记不记得|记得不|之前(说|提|聊|讲)|以前(说|提|聊|讲)|上次(说|提|聊|讲)|去年|当时|什么来着|咱们(之前|上次|聊过|说过)|你忘了|忘了没|do you remember|remember when/i;
+
 /** 记忆归属人设：缺 personaId 的存量按 PRE_TAG_PERSONA_ID 计 */
 export function notePersonaId(n: { personaId?: string }): string {
   return n.personaId ?? PRE_TAG_PERSONA_ID;
@@ -259,8 +267,30 @@ export interface BrainContext {
   memoryLines: string[];
   /** 态度立场行（kind=attitude 命中条目），可为空数组 */
   attitudeLines: string[];
+  /**
+   * 深挖召回行（迭代C）：召回意图∧lane-1 弱命中时追加，标 [深挖] 前缀；
+   * 恒在场，空数组=未触发。与 memoryLines 分列——lane-1 口径不被深挖污染。
+   */
+  deepRecallLines: string[];
   /** 本次命中的记忆（用于统计/调试/可视化） */
   hits: MemoryNote[];
+}
+
+/**
+ * Brain.search 检索选项（迭代C 主动召回原语；companion 壳层 brain_search tool 同款口径）。
+ * 纯检索无副作用——不 reinforce；唤起语义由调用方决定。
+ */
+export interface BrainSearchOptions {
+  /** 返回上限（默认 cfg.topK；仍受 candidatePool 粗排帽） */
+  limit?: number;
+  /** 记忆类型过滤（默认全部三类） */
+  kinds?: readonly MemoryNote['kind'][];
+  /** 跨会话召回：false=本会话+全局域（同 assemble lane-1）；true=scopeVisible 允许的全部会话 */
+  crossSession?: boolean;
+  /** 覆盖 cfg.minCosine 的 lex 相关性地板 */
+  minCos?: number;
+  /** 覆盖 cfg.embedMinCos 的 emb 相关性地板 */
+  minEmbedCos?: number;
 }
 
 export interface BrainConfig {
@@ -312,6 +342,34 @@ export interface BrainConfig {
   evictAfterDays: number;
   /** 时间渲染时区（当前时刻行 / convo 时间戳；非法值降级系统时区） */
   timeZone: string;
+  /** 主动召回深挖门控（迭代C；嵌套对象按整对象覆盖，部分字段在插件层合并） */
+  deepRecall: DeepRecallConfig;
+}
+
+/** 主动召回深挖门控配置（BrainConfig.deepRecall） */
+export interface DeepRecallConfig {
+  /** 总开关：false=整路关闭（成本纪律） */
+  enabled: boolean;
+  /** 深挖池是否跨会话（仍受 trackVisible/scopeVisible/absorbed 硬过滤） */
+  crossSession: boolean;
+  /** lane-1 真相关（rel≥路径强化阈）命中数低于该值才触发深挖 */
+  weakRelHits: number;
+  /** 深挖注入条数上限 */
+  limit: number;
+  /** 深挖候选深度（送排序的候选数上限） */
+  candidates: number;
+  /**
+   * 深挖 lex 相关性地板（候选生成与注入同阈）：默认 0.07 严于 lane-1 的
+   * minCosine=0.04——深挖行以「[深挖]」权威口径呈现，宁可漏召不可注噪声；
+   * 0=不限（慎用）。eval 校准：fixture 噪声顶 ~0.066、真命中底 ~0.084。
+   */
+  minCos: number;
+  /**
+   * 深挖 emb 相关性地板：默认 0.55 居 embedMinCos=0.47 与
+   * reinforceMinEmbedCos=0.62 之间（emb 噪声底~0.56），首版取值待线上观察再调；
+   * 0=不限（慎用）。
+   */
+  minEmbedCos: number;
 }
 
 export const DEFAULT_BRAIN_CONFIG: BrainConfig = {
@@ -338,6 +396,15 @@ export const DEFAULT_BRAIN_CONFIG: BrainConfig = {
   dedupeEmbedCos: 0.9,
   evictAfterDays: 30,
   timeZone: DEFAULT_TIME_ZONE,
+  deepRecall: {
+    enabled: true,
+    crossSession: true,
+    weakRelHits: 2,
+    limit: 3,
+    candidates: 12,
+    minCos: 0.07,
+    minEmbedCos: 0.55,
+  },
 };
 
 export const DAY_MS = 86_400_000;

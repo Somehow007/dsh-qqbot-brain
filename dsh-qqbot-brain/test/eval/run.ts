@@ -28,6 +28,7 @@ interface EvalCase {
 const fixture = JSON.parse(readFileSync(new URL('./cases.json', import.meta.url), 'utf8')) as {
   notes: MemoryNote[];
   cases: EvalCase[];
+  deepCases?: EvalCase[];
 };
 
 const NOW = Date.parse('2026-10-31T03:00:00Z');
@@ -58,19 +59,66 @@ async function runEval(embedder?: Embedder): Promise<{ hitRate: number; fpRate: 
     const ctx = brain.assemble(c.sessionId, c.query, c.speaker, qv);
     if (c.expectNone) {
       fpTotal++;
-      const bad = ctx.hits.length > 0;
+      // 深挖行同属注入面：expectNone 语义=整段注入无相关记忆
+      const bad = ctx.hits.length > 0 || ctx.deepRecallLines.length > 0;
       if (bad) fp++;
-      lines.push(`${bad ? 'FAIL' : ' ok '} ${c.id} 噪声${ctx.hits.length}条${bad ? ' ← ' + ctx.hits.map((h) => h.content.slice(0, 24)).join(' | ') : ''}`);
+      lines.push(`${bad ? 'FAIL' : ' ok '} ${c.id} 噪声${ctx.hits.length}+深挖${ctx.deepRecallLines.length}条${bad ? ' ← ' + [...ctx.hits.map((h) => h.content.slice(0, 24)), ...ctx.deepRecallLines.map((l) => l.slice(0, 30))].join(' | ') : ''}`);
       continue;
     }
     hitTotal++;
     const found = (c.expect ?? []).some((sub) =>
       ctx.hits.some((h) => h.content.includes(sub))
-      || ctx.memoryLines.some((l) => l.includes(sub)));
+      || ctx.memoryLines.some((l) => l.includes(sub))
+      || ctx.deepRecallLines.some((l) => l.includes(sub)));
     if (found) hit++;
-    lines.push(`${found ? ' ok ' : 'FAIL'} ${c.id} 「${c.query}」→ ${ctx.hits.length}条${found ? '' : ' 期望:' + (c.expect ?? []).join('|')}`);
+    lines.push(`${found ? ' ok ' : 'FAIL'} ${c.id} 「${c.query}」→ ${ctx.hits.length}条${ctx.deepRecallLines.length ? `+深挖${ctx.deepRecallLines.length}` : ''}${found ? '' : ' 期望:' + (c.expect ?? []).join('|')}`);
   }
   return { hitRate: hit / Math.max(1, hitTotal), fpRate: fp / Math.max(1, fpTotal), lines };
+}
+
+/**
+ * 迭代C 深挖召回子集：召回意图词 + lane-1 弱/不可见的跨会话旧记忆。
+ * 指标：lane-1（hits+memoryLines+attitudeLines）vs lane-1+deepRecallLines 的 recall 归属，
+ * 以及深挖注入的噪声率（expectNone 用例 deepRecallLines 非空即误触发）。
+ */
+async function runDeepEval(embedder?: Embedder): Promise<{ found: number; total: number; rescued: number; noise: number; noiseTotal: number; lines: string[] }> {
+  const dir = mkdtempSync(join(tmpdir(), 'brain-deep-'));
+  const store = new BrainStore(dir);
+  store.importData({ version: 1, exportedAt: NOW, notes: fixture.notes, emotions: {}, profiles: {} }, 'replace', NOW);
+  const brain = makeBrain(store, embedder);
+  if (embedder?.enabled) {
+    while (await brain.backfillEmbeddings(50)) { /* 分批补完 */ }
+  }
+  let found = 0;
+  let rescued = 0;
+  let total = 0;
+  let noise = 0;
+  let noiseTotal = 0;
+  const lines: string[] = [];
+  for (const c of fixture.deepCases ?? []) {
+    const qv = (await brain.queryEmbedding(c.query)) ?? undefined;
+    const ctx = brain.assemble(c.sessionId, c.query, undefined, qv);
+    const lanePool = [...ctx.hits.map((h) => h.content), ...ctx.memoryLines, ...ctx.attitudeLines];
+    const deepPool = ctx.deepRecallLines;
+    const inLane = (sub: string) => lanePool.some((l) => l.includes(sub));
+    const inDeep = (sub: string) => deepPool.some((l) => l.includes(sub));
+    if (c.expectNone) {
+      noiseTotal++;
+      // 只计深挖注入噪声：lane-1 噪声已由主用例 n01-n05 度量，此处隔离迭代C增量
+      const bad = deepPool.length > 0;
+      if (bad) noise++;
+      lines.push(`${bad ? 'FAIL' : ' ok '} ${c.id} 深挖噪声=${deepPool.length} lane1=${ctx.hits.length}${bad ? ' ← ' + deepPool.map((l) => l.slice(0, 30)).join(' | ') : ''}`);
+      continue;
+    }
+    total++;
+    const laneHit = (c.expect ?? []).some(inLane);
+    const deepHit = (c.expect ?? []).some(inDeep);
+    const hit = laneHit || deepHit;
+    if (hit) found++;
+    if (!laneHit && deepHit) rescued++;
+    lines.push(`${hit ? ' ok ' : 'FAIL'} ${c.id} 「${c.query}」→ lane1=${laneHit ? '中' : '未中'} 深挖=${deepHit ? '中' : '未中'}${hit ? '' : ' 期望:' + (c.expect ?? []).join('|')}`);
+  }
+  return { found, total, rescued, noise, noiseTotal, lines };
 }
 
 function report(tag: string, r: { hitRate: number; fpRate: number }, lines?: string[]): void {
@@ -81,6 +129,14 @@ function report(tag: string, r: { hitRate: number; fpRate: number }, lines?: str
 
 const lex = await runEval();
 report('lexical', lex, lex.lines);
+
+// ── 迭代C 深挖召回子集（recall-intent 门控；lexical 路径）──
+const deepLex = await runDeepEval();
+report('深挖召回·lexical', {
+  hitRate: deepLex.total ? deepLex.found / deepLex.total : 0,
+  fpRate: deepLex.noiseTotal ? deepLex.noise / deepLex.noiseTotal : 0,
+}, deepLex.lines);
+console.log(`  深挖独记命中（lane-1 未中、深挖救回）：${deepLex.rescued}/${deepLex.total}；深挖噪声：${deepLex.noise}/${deepLex.noiseTotal}`);
 
 // ── 迭代A 三轨隔离冒烟：世界轨共享 / 自我轨按角色隔离（确定性，无 LLM）──
 function runIsolationEval(): { ok: boolean; lines: string[] } {
@@ -130,6 +186,12 @@ const embedder = new Embedder({
 if (embedder.enabled) {
   const emb = await runEval(embedder);
   report('embedding+lex混合', emb, emb.lines);
+  const deepEmb = await runDeepEval(embedder);
+  report('深挖召回·emb', {
+    hitRate: deepEmb.total ? deepEmb.found / deepEmb.total : 0,
+    fpRate: deepEmb.noiseTotal ? deepEmb.noise / deepEmb.noiseTotal : 0,
+  }, deepEmb.lines);
+  console.log(`  深挖独记命中（lane-1 未中、深挖救回）：${deepEmb.rescued}/${deepEmb.total}；深挖噪声：${deepEmb.noise}/${deepEmb.noiseTotal}`);
 } else {
   console.log('\n（未设 BRAIN_EMBED_API_KEY，跳过 embedding 路径对比）');
 }

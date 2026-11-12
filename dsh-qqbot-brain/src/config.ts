@@ -8,6 +8,7 @@
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { DEFAULT_TIME_ZONE } from './brain/types.ts';
+import type { DeepRecallConfig } from './brain/types.ts';
 
 export interface LlmConfig {
   /** 是否启用蒸馏（无 apiKey 时自动关闭） */
@@ -37,6 +38,8 @@ export interface RetrievalConfig {
   embedMinCos: number;
   /** emb 命中强化阈值（emb 余弦整体偏高，与 lexical 分开判） */
   reinforceMinEmbedCos: number;
+  /** 主动召回深挖门控（迭代C；Partial 覆盖，缺省字段由 Brain 层补默认） */
+  deepRecall?: Partial<DeepRecallConfig>;
 }
 
 /** 语义向量（OpenAI 兼容 /embeddings；无 apiKey 自动关闭回退 lexical） */
@@ -100,6 +103,8 @@ export interface BrainPluginConfig {
   injectSpeaker: boolean;
   /** 注入「当前时刻」section（锚定消息是何时说的） */
   injectClock: boolean;
+  /** 注入「深挖记忆」section（迭代C recall-intent 门控命中时） */
+  injectDeepRecall: boolean;
   /** 时间渲染时区（当前时刻行、蒸馏 convo 时间戳；非法值降级系统时区） */
   timeZone: string;
   /** 蒸馏用的 LLM 配置 */
@@ -134,6 +139,7 @@ export const DEFAULT_CONFIG: BrainPluginConfig = {
   injectAttitude: true,
   injectSpeaker: true,
   injectClock: true,
+  injectDeepRecall: true,
   timeZone: DEFAULT_TIME_ZONE,
   llm: {
     enabled: true,

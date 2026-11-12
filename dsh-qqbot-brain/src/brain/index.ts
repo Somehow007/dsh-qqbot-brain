@@ -1,9 +1,10 @@
-import { ATTITUDE_OBJECT_RE, DEFAULT_BRAIN_CONFIG, EPHEMERAL_TIME_RE, GLOBAL_SESSION_ID, MOOD_VALENCE, PRE_TAG_PERSONA_ID, WHALE_CHARACTER_ID, WHALE_PERSONA_IDS, notePersonaId, resolveSelfFlag } from './types.ts';
-import type { BrainConfig, BrainContext, DistillResult, EmotionState, MemoryNote, NoteDraft, NoteEmotion, Turn } from './types.ts';
+import { ATTITUDE_OBJECT_RE, DEFAULT_BRAIN_CONFIG, EPHEMERAL_TIME_RE, GLOBAL_SESSION_ID, MOOD_VALENCE, PRE_TAG_PERSONA_ID, RECALL_INTENT_RE, WHALE_CHARACTER_ID, WHALE_PERSONA_IDS, notePersonaId, resolveSelfFlag } from './types.ts';
+import type { BrainConfig, BrainContext, BrainSearchOptions, DistillResult, EmotionState, MemoryNote, NoteDraft, NoteEmotion, Turn } from './types.ts';
 import { isUserKey, normalizeProfileKey, resolveActorTag, sessionProfileKey, splitActor, userProfileKey } from './identity.ts';
 import { ageInDays, retention } from './decay.ts';
 import { ageLabel, formatClock } from './time.ts';
 import { Retriever } from './retrieval.ts';
+import type { ScoredNote } from './retrieval.ts';
 import { EmotionEngine, NEUTRAL_EMOTION } from './emotion.ts';
 import { BrainStore, PRIVATE_MARK, PROFILE_TEXT_CAP, stripPrivateMarks, stripPrivateSegments, truncateProfileText } from './store.ts';
 import { Distiller } from './distill.ts';
@@ -59,7 +60,12 @@ export class Brain {
   private digesting = new Set<string>();
 
   constructor(opts: BrainOptions) {
-    this.cfg = { ...DEFAULT_BRAIN_CONFIG, ...(opts.config ?? {}) };
+    this.cfg = {
+      ...DEFAULT_BRAIN_CONFIG,
+      ...(opts.config ?? {}),
+      // 嵌套对象深合并：Partial 传入半个 deepRecall 不丢其余默认字段
+      deepRecall: { ...DEFAULT_BRAIN_CONFIG.deepRecall, ...(opts.config?.deepRecall ?? {}) },
+    };
     this.store = opts.store;
     this.distiller = opts.distiller;
     this.embedder = opts.embedder;
@@ -160,6 +166,8 @@ export class Brain {
       }
     }
     const hits = scored.map((s) => s.note);
+    // 已注入记忆 id 集：深挖召回去重用（attitude 保底/xpool 命中不在 scored 内）
+    const injectedIds = new Set<string>(hits.map((n) => n.id));
 
     const attitudeLines: string[] = [];
     const memoryLines: string[] = [];
@@ -178,7 +186,7 @@ export class Brain {
           && !attitudeHitIds.has(n.id) && n.content.includes(sp.nick!))
         .sort((a, b) => retention(b, now) - retention(a, now));
       const room = Math.max(0, 3 - attitudeLines.length);
-      for (const n of extra.slice(0, room)) attitudeLines.push(`- ${n.content}`);
+      for (const n of extra.slice(0, room)) { attitudeLines.push(`- ${n.content}`); injectedIds.add(n.id); }
     }
     if (sp && (sp.openid || sp.nick)) {
       const xpool = visible.filter((n) => {
@@ -197,6 +205,7 @@ export class Brain {
         for (const s of xhits.slice(0, 2)) {
           const n = s.note;
           memoryLines.push(`- [跨群·${ageLabel(n.createdAt, now)}记] ${n.actor ? `[${n.actor}] ` : ''}${n.content}`);
+          injectedIds.add(n.id);
           const th = s.relSrc === 'emb' ? this.cfg.reinforceMinEmbedCos : this.cfg.reinforceMinCos;
           if (s.rel >= th) {
             this.store.reinforce(n, this.cfg.reinforceStep, this.cfg.strengthCap, now);
@@ -215,6 +224,9 @@ export class Brain {
     if (sessProfile) memoryLines.unshift(`- ${personProfile ? '[会话画像]' : '[画像]'} ${sessProfile}`);
     if (personProfile) memoryLines.unshift(`- [画像] ${personProfile}`);
 
+    // 主动召回深挖（迭代C）：意图∧弱命中双门触发，注入前已与 lane-1/xpool 去重
+    const deep = this.maybeDeepRecall(sessionId, queryText, queryVec, scored, injectedIds, now);
+
     return {
       persona: this.persona(),
       emotion: this.emotion.describeState(this.emotionFor(sessionId, this.store.activePersonaId(), now)),
@@ -222,8 +234,89 @@ export class Brain {
       clock: formatClock(now, this.cfg.timeZone),
       memoryLines,
       attitudeLines,
+      deepRecallLines: deep.lines,
       hits,
     };
+  }
+
+  /**
+   * 主动召回检索原语（迭代C）：与 assemble lane-1 同口径的可见池
+   * （trackVisible + scopeVisible + absorbed 读时判定），供 companion 壳层
+   * brain_search tool 与深挖门控复用。纯检索无副作用——不 reinforce；
+   * 「被唤起」语义由调用方决定（深挖路径对 picked 条目自理强化）。
+   * queryVec：调用方可复用 queryEmbedding 结果（同 query 不重复调 embed API）。
+   */
+  search(
+    sessionId: string,
+    query: string,
+    opts?: BrainSearchOptions,
+    queryVec?: number[],
+  ): ScoredNote[] {
+    const now = this.now();
+    let visible = this.store.allNotes().filter((n) =>
+      this.trackVisible(n) && !n.absorbedAt && this.scopeVisible(n, sessionId));
+    const kinds = opts?.kinds?.length ? new Set(opts.kinds) : undefined;
+    if (kinds) visible = visible.filter((n) => kinds.has(n.kind));
+    const cross = opts?.crossSession === true;
+    const rq = { limit: opts?.limit, minCos: opts?.minCos, minEmbedCos: opts?.minEmbedCos };
+    // 默认形态与 assemble 同调用：sessionId 索引键共享 TF-IDF 缓存。
+    // 变体（kinds/crossSession）必须换命名空间 indexKey——不同池形态同键会
+    // 命中旧池索引静默串味（Retriever.indexFor 按 key+version 复用）。
+    if (!kinds && !cross) {
+      return this.retriever.query(visible, sessionId, query, now, this.store.graphVersion, queryVec, rq);
+    }
+    const pool = cross
+      ? visible
+      : visible.filter((n) => n.sessionId === sessionId || n.sessionId === GLOBAL_SESSION_ID);
+    const kindTag = kinds ? [...kinds].sort().join('+') : 'all';
+    return this.retriever.query(visible, sessionId, query, now, this.store.graphVersion, queryVec, {
+      ...rq,
+      pool,
+      indexKey: `__search__${cross ? 'x' : 's'}:${sessionId}:${kindTag}`,
+    });
+  }
+
+  /**
+   * 主动召回深挖（迭代C）：召回意图 ∧ lane-1 真相关命中不足时，
+   * 用 Brain.search 做一次更深的召回（默认跨会话、候选加深），
+   * 与已注入条目去重后取 ≤deepRecall.limit 条。
+   * 双门+有界+复用 queryVec——零 LLM 成本，失败静默。
+   */
+  private maybeDeepRecall(
+    sessionId: string,
+    queryText: string,
+    queryVec: number[] | undefined,
+    scored: ScoredNote[],
+    injectedIds: Set<string>,
+    now: number,
+  ): { lines: string[] } {
+    const d = this.cfg.deepRecall;
+    if (!d?.enabled || !queryText.trim() || !RECALL_INTENT_RE.test(queryText)) return { lines: [] };
+    // 弱命中判定：lane-1 真相关（rel≥路径强化阈）条数不足才值得深挖——
+    // hits.length 会被擦边弱命中凑满，考问场景下仍属召回失败
+    const relHits = scored.filter((s) =>
+      s.rel >= (s.relSrc === 'emb' ? this.cfg.reinforceMinEmbedCos : this.cfg.reinforceMinCos)).length;
+    if (relHits >= d.weakRelHits) return { lines: [] };
+    const deep = this.search(sessionId, queryText, {
+      limit: d.candidates,
+      crossSession: d.crossSession,
+      minCos: d.minCos,
+      minEmbedCos: d.minEmbedCos,
+    }, queryVec);
+    const picked = deep.filter((s) => !injectedIds.has(s.note.id)).slice(0, d.limit);
+    if (!picked.length) return { lines: [] };
+    const lines = picked.map((s) => {
+      const n = s.note;
+      const cross = n.sessionId !== sessionId && n.sessionId !== GLOBAL_SESSION_ID ? '跨群·' : '';
+      return `- [深挖·${cross}${ageLabel(n.createdAt, now)}记] ${n.actor ? `[${n.actor}] ` : ''}${n.content}`;
+    });
+    // 深挖命中=真实唤起：picked 条目按 lane-1 同规则强化（rel≥路径阈才刷）
+    for (const s of picked) {
+      const th = s.relSrc === 'emb' ? this.cfg.reinforceMinEmbedCos : this.cfg.reinforceMinCos;
+      if (s.rel >= th) this.store.reinforce(s.note, this.cfg.reinforceStep, this.cfg.strengthCap, now);
+    }
+    this.log?.(`深挖召回 ${sessionId.slice(0, 8)}…：${picked.length} 条（lane-1 真相关 ${relHits}）`);
+    return { lines };
   }
 
   /** 捕获一轮完整对话（不立即蒸馏，攒到 endOfTurn）；同步滚动摘要输入与轮数 */

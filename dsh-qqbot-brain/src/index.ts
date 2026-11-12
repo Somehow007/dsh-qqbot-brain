@@ -8,7 +8,7 @@
  */
 import { resolve } from 'node:path';
 import { readFileSync } from 'node:fs';
-import { Brain, BrainStore, Distiller, Embedder, WHALE_CHARACTER_ID } from './brain/index.ts';
+import { Brain, BrainStore, DEFAULT_BRAIN_CONFIG, Distiller, Embedder, WHALE_CHARACTER_ID } from './brain/index.ts';
 import { DEFAULT_CONFIG, type BrainPluginConfig } from './config.ts';
 import { PromptInjector } from './inject/prompt.ts';
 import { SessionCapture } from './capture/events.ts';
@@ -96,6 +96,13 @@ export async function apply(ctx: unknown, config?: Partial<BrainPluginConfig>): 
       distillEveryTurns: cfg.llm.distillEveryTurns,
       personaDigest: cfg.llm.personaDigest,
       timeZone: cfg.timeZone,
+      // 深挖门控 Partial 覆盖：缺省字段在此补齐（Brain 构造器再兜一层）。
+      // injectDeepRecall=false 时整路关闭——不为不注入的 section 白付深挖检索成本
+      deepRecall: {
+        ...DEFAULT_BRAIN_CONFIG.deepRecall,
+        ...(cfg.retrieval.deepRecall ?? {}),
+        enabled: cfg.injectDeepRecall && (cfg.retrieval.deepRecall?.enabled ?? true),
+      },
     },
     log,
   });
@@ -163,7 +170,7 @@ export async function apply(ctx: unknown, config?: Partial<BrainPluginConfig>): 
   log(`已启动：人格内核(${personaFrom}) ${cfg.injectPersona ? 'on' : 'off'} / `
     + `情绪 ${cfg.injectEmotion ? 'on' : 'off'} / 脉络 ${cfg.injectDigest ? 'on' : 'off'} / `
     + `立场 ${cfg.injectAttitude ? 'on' : 'off'} / 记忆 ${cfg.injectMemory ? 'on' : 'off'} / `
-    + `时刻 ${cfg.injectClock ? 'on' : 'off'} / `
+    + `时刻 ${cfg.injectClock ? 'on' : 'off'} / 深挖 ${cfg.injectDeepRecall ? 'on' : 'off'} / `
     + `蒸馏 ${distiller.enabled ? 'on' : 'off(无apiKey)'} / `
     + `向量 ${embedder.enabled ? 'on' : 'off(无apiKey)'} / 脑图 ${where} / 数据目录 ${dataDir}`);
 }

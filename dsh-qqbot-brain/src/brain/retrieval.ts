@@ -109,6 +109,8 @@ export class Retriever {
    * queryVec：有 embedding 时对带向量的条目用语义余弦（embedMinCos 门槛），
    * 无向量的条目仍走 lexical 余弦（minCosine 门槛）。
    * 不修改 notes（强化由调用方按 rel >= reinforceMinCos 处理）。
+   * opts.limit/minCos/minEmbedCos：深挖召回（Brain.search）用的覆盖项——
+   * limit 替换 topK 位（仍受 candidatePool 帽），两道地板缺省回落 cfg。
    */
   query(
     allNotes: MemoryNote[],
@@ -117,7 +119,7 @@ export class Retriever {
     now: number,
     version: number,
     queryVec?: number[],
-    opts?: { pool?: MemoryNote[]; indexKey?: string },
+    opts?: { pool?: MemoryNote[]; indexKey?: string; limit?: number; minCos?: number; minEmbedCos?: number },
   ): ScoredNote[] {
     // 会话记忆 + 全局域（手动写入等无会话归属的条目对全体会话可见）
     const pool = opts?.pool
@@ -131,6 +133,9 @@ export class Retriever {
     for (const g of ngrams(text)) qc.set(g, (qc.get(g) ?? 0) + 1);
     const qv = this.vectorize(qc, idx);
     const { alpha, beta, gamma, topK, candidatePool } = this.cfg;
+    const minCos = opts?.minCos ?? this.cfg.minCosine;
+    const minEmbedCos = opts?.minEmbedCos ?? this.cfg.embedMinCos;
+    const limit = opts?.limit ?? topK;
 
     const scored: ScoredNote[] = [];
     idx.docs.forEach((n, i) => {
@@ -139,11 +144,11 @@ export class Retriever {
       if (queryVec && n.embedding) {
         rel = vecCosine(queryVec, n.embedding);
         relSrc = 'emb';
-        if (rel < this.cfg.embedMinCos) return;
+        if (rel < minEmbedCos) return;
       } else {
         rel = this.cosine(this.vectorize(idx.tf[i] ?? new Map(), idx), qv);
         relSrc = 'lex';
-        if (rel < this.cfg.minCosine) return;
+        if (rel < minCos) return;
       }
       scored.push({
         note: n,
@@ -153,6 +158,6 @@ export class Retriever {
       });
     });
     scored.sort((a, b) => b.score - a.score);
-    return scored.slice(0, Math.min(topK, candidatePool));
+    return scored.slice(0, Math.min(limit, candidatePool));
   }
 }
