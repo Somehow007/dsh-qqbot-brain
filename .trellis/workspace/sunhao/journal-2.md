@@ -235,3 +235,25 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 105: 迭代C·主动召回 brain_search 上线
+<!-- trellis-session: v=2 fp=bbb28f9d5fab3c16 -->
+
+**Date**: 2026-11-12
+**Task**: 迭代C·主动召回 brain_search 上线
+**Branch**: `main`
+
+### Summary
+
+按 11-09 路线图 §4 落地迭代C：Brain.search 纯检索原语（可见池与 assemble 逐字同口径 trackVisible+scopeVisible+absorbed，返回 ScoredNote[],opts 支持 limit/kinds/crossSession/minCos/minEmbedCos，变体池独立 indexKey 防索引串味）+ assemble 内 maybeDeepRecall 确定性门控（RECALL_INTENT_RE 意图词∧lane-1 真相关命中<2 双门，跨会话深挖≤3条进 deepRecallLines→brain:deeprecall section order 10325，去重+按 lane-1 规则强化，零新增 LLM）。eval 驱动关键修正：初版沿用 lane-1 地板实测注入 rel=0.057 噪声，深挖行权威口径宁缺毋滥，fixture 校准默认 minCos=0.07/minEmbedCos=0.55。验证：199 tests 全绿；eval 深挖子集 d01-d05 lexical recall=100%（3/4 lane-1 未中救回）噪声=0，主集 88.2%/40% 持平。部署插曲：rsync 源目录漏尾斜杠把新 dist 写进 dist/dist/ 嵌套，线上跑的仍是旧码，纠正为 dist/→dist/ 同步+清理嵌套后重启确认「深挖 on」。云端走查：/api/query?depth=1 跨会话 scored 结果正常；活动人设 firefly 下 whale/ye 自我轨按三轨隔离正确不可见（深挖空结果=隔离生效佐证）；向量回填运行中。待用户自测真实「你还记得」提问观察 brain.log 深挖召回行。companion 壳层（迭代F）将包装 Brain.search 为 brain_search tool。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `ac1f906` | feat(brain): 迭代C 主动召回——Brain.search 原语 + recall-intent 深挖门控 |
+
+### Status
+
+[OK] **Completed**
