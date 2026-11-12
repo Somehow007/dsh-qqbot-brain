@@ -215,3 +215,23 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 104: F1-F4 修复生产走查验收
+<!-- trellis-session: v=2 fp=26d6c9b3e7d049a1 -->
+
+**Date**: 2026-11-12
+**Task**: F1-F4 修复生产走查验收
+**Branch**: `main`
+
+### Summary
+
+对 11-11 上线的 F1-F4 修复做部署后 ~32h 生产走查：拉 /api/export 快照(351 notes)+brain.log 逐项核对。F1✅ manual 会话 11-11 09:23Z 首次巩固，产出4条 semantic 全 self:true+personaId=ye-shunguang（第三人称行文正是旧启发式必漏形态），源批10条叶瞬光self轨ep全吸收退池，第5候选判重收编；F2✅ 非众数角色批首次可达；F3✅ 351/351全向量零缺口，常驻回填3分钟drain 29条；F4✅ 两包AI身份条款在产。零错误。预期内延迟：firefly 10条种子11-11 11:54Z才满minAge而manual冷却锁到11-12~09:23Z，预计今日tick补上。待决观察：whale legacy人设仍含'不要自称AI'旧条款与新包口径相反。验收节追加至归档prd，广播+本journal同步。
+
+### Git Commits
+
+(No commits - planning session)
+
+### Status
+
+[OK] **Completed**
