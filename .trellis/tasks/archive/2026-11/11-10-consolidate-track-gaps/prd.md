@@ -92,3 +92,17 @@
 - 单测 +5（全自我轨继承/显式 false 优先/多角色分批/混合源不启用/importData 补向量）：188/188 绿（本文件 159+其余套件）。
 - typecheck/build 0 错；eval 人设三轨隔离 recall=100%/noiseFP=0% 不变（lexical 段 q08/q15/n01/n03 FAIL 为存量基线问题，与本次改动无关——stash 验证 HEAD 同样 FAIL）。
 - 生产验证：部署后向量回填清扫应在数分钟内为 firefly 28 种子补齐 embedding（此前 0/28）；'manual' 会话巩固按角色分批，产出 self 轨归属正确。
+
+## 生产走查验收（2026-11-12）
+
+部署后 ~32h 拉 `/api/export` 快照（351 notes）+ brain.log 逐项核对，四项修复全部见到预期效果：
+
+- **F1 ✅ 自我轨继承**：11-11 09:23Z `manual` 会话巩固产出 4 条 semantic，全部 `self:true` + `personaId=ye-shunguang`。产出行文已是第三人称「对桂花糖与桂花糕：…」式——正是旧「我」字启发式必漏的形态，无兜底必落世界轨。源批 10 条 episodic 全为 `self:true` ye-shunguang → `allSelfSources` 继承触发；第 5 条候选走 `巩固判重合并` 收编进存量条目。10 条源全部 `absorbedAt` 退池。
+- **F2 ✅ 分批巩固**：`manual` 会话史上首次巩固，跑的是非众数角色 ye-shunguang 批（修复前该批永不可达）。
+- **F3 ✅ 向量覆盖**：351/351 notes 全带 embedding，零缺口。重启后常驻回填 3 分钟内 drain 29 条（firefly 28 种子+1）；部署后新增条目（含巩固产出、firefly 戳蒸馏）均即时带向量。
+- **F4 ✅ AI 身份条款**：生产 ye-shunguang / firefly 人设文本均含「被问是不是 AI…如实承认自己是 AI 驱动的数字伙伴」条款原文。
+- **健康面**：部署至今 brain.log 零失败/零错误；服务自 11-11 00:23 CST 持续在线；active=firefly；demo 私聊蒸馏正常（最新 11-12 00:42 episodic `self:false` 世界轨，三态透传口径正确）。
+
+**预期内延迟（非 bug）**：firefly 在 `manual` 的 10 条自我轨种子尚未巩固——它们 11-11 11:54Z 才满 minAge=1d，而 manual 批 09:23Z 跑完后会话级 cooldown=24h 锁到 11-12 ~09:23Z。预计今日 tick 自动补上；机制按配置工作，属「角色种子异步成熟+会话冷却」的串行效应。
+
+**待决观察**：whale 系 legacy 人设仍含旧式「不要自称AI」条款，与两新包「如实承认」口径相反——F4 范围外，但「你是AI吗」的应答现在随激活人设而不同，要不要对齐由人定。

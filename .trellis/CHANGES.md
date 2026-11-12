@@ -57,3 +57,4 @@
 - 2026-11-11 | 人设包走查遗留问题集 F1-F4 全部修复上线：巩固按角色分批+全自我轨源继承 self、importData 即时补向量+回填常驻自愈、两包补 AI 身份条款并同步生产；firefly 28 种子向量 0→29/29 补齐 | → `tasks/archive/2026-11/11-10-consolidate-track-gaps` + journal
 - 2026-11-12 | 陪伴 Agent 架构定位讨论：brain=核心 library（角色由宿主决定）、业务切分=内核护城河+壳层新建、Java 可行但内核不重写（Java 位置=移植 kata） | → `tasks/11-12-companion-arch-java-eval`
 - 2026-11-12 | companion 推进顺序确认：套壳层=迭代F、C/D是其前置（D provenance 不落地则主动消息污染记忆）；Java复写=末尾模块级kata无需完整移植设计；F节奏拍板=先做MVP设计、两种排期写进design.md后定 | → `tasks/11-12-companion-arch-java-eval`
+- 2026-11-12 | F1-F4 生产走查验收全过：manual首巩固产出4条self轨semantic（源10叶瞬光ep全吸收）、向量351/351零缺口、两包AI身份条款在产；firefly批因种子未满1天+会话冷却预计今日补上；观察=whale系仍含旧式"不自称AI"条款待决 | → `tasks/archive/2026-11/11-10-consolidate-track-gaps` prd 生产走查验收节
