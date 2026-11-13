@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-2.md`
-- **Total Sessions**: 105
-- **Last Active**: 2026-11-12
+- **Total Sessions**: 106
+- **Last Active**: 2026-11-13
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-2.md` | ~259 | Active |
+| `journal-2.md` | ~281 | Active |
 | `journal-1.md` | ~1988 | Archived |
 <!-- @@@/auto:active-documents -->
 
@@ -30,6 +30,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 106 | 2026-11-13 | F1-F4次日+迭代C首日联合走查：发现F5视角错配 | `d940d76` | `main` |
 | 105 | 2026-11-12 | 迭代C·主动召回 brain_search 上线 | `ac1f906` | `main` |
 | 104 | 2026-11-12 | F1-F4 修复生产走查验收 | - | `main` |
 | 103 | 2026-11-12 | 陪伴 Agent 架构定位与 Java 可行性讨论 | - | `main` |

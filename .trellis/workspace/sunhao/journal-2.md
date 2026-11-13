@@ -257,3 +257,25 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 106: F1-F4次日+迭代C首日联合走查：发现F5视角错配
+<!-- trellis-session: v=2 fp=3cecef775038c42e -->
+
+**Date**: 2026-11-13
+**Task**: F1-F4次日+迭代C首日联合走查：发现F5视角错配
+**Branch**: `main`
+
+### Summary
+
+迭代C上线次日生产走查（export 395条+brain.log+宿主transcript）。预期项全绿：firefly manual批11-12 02:30Z闭环(5产出/源10条firefly self轨ep全吸收/manual未巩固源=0)；向量395/395零缺口重启回填41条自愈；新增44条全即时带向量；蒸馏122次零失败；记忆实战生效(assistant引用'上次还是108天'打卡记录)。深挖~33h零触发=群106+私聊25条消息零真实召回提问，非漏检但未经实战；AI身份条款同未实战。新发现F5：dbf7162a批4条世界轨源(2ye+2firefly)并入全时段众数whale-devotion→LLM判self:true产出落whale自我轨(内容=ye师姐/澄辉坪桂花糖lore，firefly不可见+whale串味)，世界事实被whale视角消化成主人/恋人态度而firefly轨缺态度。根因=consolidationBatches世界轨并入全时段modalChar。候选修法a世界轨按源角色分批(推荐)/b近期窗口众数/c产出校验(不可行)，待拍板。建任务11-13-consolidate-view-mismatch+广播。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `d940d76` | chore: 走查发现 F5——巩固世界轨批视角错配致 self 产出错轨 |
+
+### Status
+
+[OK] **Completed**
