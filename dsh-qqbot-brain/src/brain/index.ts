@@ -7,6 +7,7 @@ import { Retriever } from './retrieval.ts';
 import type { ScoredNote } from './retrieval.ts';
 import { EmotionEngine, NEUTRAL_EMOTION } from './emotion.ts';
 import { BrainStore, PRIVATE_MARK, PROFILE_TEXT_CAP, stripPrivateMarks, stripPrivateSegments, truncateProfileText } from './store.ts';
+import type { PersonaExtra, PersonaPatch } from './store.ts';
 import { Distiller } from './distill.ts';
 import type { ProfileReviewItem } from './distill.ts';
 import type { Embedder } from './embed.ts';
@@ -109,14 +110,14 @@ export class Brain {
 
   createPersona(
     name: string, text: string, id?: string,
-    extra?: { characterId?: string; moods?: string[] },
+    extra?: PersonaExtra,
   ): ReturnType<BrainStore['createPersona']> {
     return this.store.createPersona(name, text, id, extra);
   }
 
   savePersona(
     id: string, name: string, text: string,
-    patch?: { characterId?: string | null; moods?: string[] | null },
+    patch?: PersonaPatch,
   ): ReturnType<BrainStore['savePersona']> {
     return this.store.savePersona(id, name, text, patch);
   }

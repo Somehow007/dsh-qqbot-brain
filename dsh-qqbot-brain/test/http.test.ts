@@ -79,6 +79,69 @@ test('人设 API: 口令保护、创建编辑切换与备份恢复同步活动�
   }
 });
 
+test('人设 meta API：POST/PATCH 透传与清除，非法色值/traits 越界 400，备份往返保留', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'brain-meta-http-'));
+  const store = new BrainStore(dir);
+  const brain = new Brain({
+    store,
+    distiller: new Distiller({ enabled: false, baseUrl: '', apiKey: '', model: '', timeoutMs: 1000, maxNotes: 1 }),
+  });
+  const http = new BrainHttpServer(brain, {
+    enabled: true, port: 0, host: '127.0.0.1', prefix: '/brain', token: 'test-token',
+  }, () => {});
+  const server = createServer((req, res) => {
+    (http as unknown as { route: (req: typeof req, res: typeof res) => Promise<void> }).route(req, res).catch((err) => {
+      res.writeHead(500).end(String(err));
+    });
+  });
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  try {
+    const addr = server.address();
+    assert.ok(addr && typeof addr !== 'string');
+    const url = `http://127.0.0.1:${addr.port}/brain/api`;
+    const call = (path: string, method = 'GET', body?: object) =>
+      fetch(url + path, {
+        method, headers: { 'x-brain-token': 'test-token', 'Content-Type': 'application/json' },
+        body: body && JSON.stringify(body),
+      });
+    const meta = {
+      theme: { a: '#1a2b3c', a2: '#4d5e6f', soft: '#8899aa', deep: '#0d1e2f' },
+      moodColors: { 开心: '#ffd166' },
+      traits: [{ name: '温柔', v: 0.9 }],
+      mono: '鲸', en: 'WHALE', tagline: '深海里的大家伙',
+    };
+    // 非法 meta → 400 且不落库
+    assert.equal((await call('/personas', 'POST', { name: 'x', text: 'x', meta: { theme: { a: 'red' } } })).status, 400);
+    assert.equal((await call('/personas', 'POST', { name: 'x', text: 'x', meta: { traits: [{ name: 't', v: 2 }] } })).status, 400);
+    assert.equal(store.listPersonas().length, 0);
+    const created = await call('/personas', 'POST', { name: '鲸鱼娘', text: '鲸', characterId: 'whale', meta });
+    assert.equal(created.status, 200);
+    const items = await created.json() as { personas: { id: string; meta?: typeof meta }[] };
+    const id = items.personas.find((p) => p.id !== 'legacy')!.id;
+    assert.deepEqual(items.personas.find((p) => p.id === id)!.meta, meta);
+    // PATCH 不传 meta 保留；PATCH meta:null 清除；PATCH 新 meta 覆盖
+    assert.equal((await call('/personas', 'PATCH', { id, name: '鲸鱼娘', text: '鲸二版' })).status, 200);
+    let got = await (await call('/personas')).json() as { personas: { id: string; meta?: typeof meta }[] };
+    assert.deepEqual(got.personas.find((p) => p.id === id)!.meta, meta);
+    const next = { ...meta, mono: '鱼' };
+    assert.equal((await call('/personas', 'PATCH', { id, name: '鲸鱼娘', text: '鲸二版', meta: next })).status, 200);
+    got = await (await call('/personas')).json() as { personas: { id: string; meta?: typeof meta }[] };
+    assert.deepEqual(got.personas.find((p) => p.id === id)!.meta, next);
+    assert.equal((await call('/personas', 'PATCH', { id, name: '鲸鱼娘', text: '鲸二版', meta: null })).status, 200);
+    got = await (await call('/personas')).json() as { personas: { id: string; meta?: unknown }[] };
+    assert.equal(got.personas.find((p) => p.id === id)!.meta, undefined);
+    // 备份往返：重新写入 meta 后 export→import replace 仍在
+    await call('/personas', 'PATCH', { id, name: '鲸鱼娘', text: '鲸二版', meta });
+    const backup = await (await call('/export')).json() as object;
+    assert.equal((await call('/import?mode=replace', 'POST', backup)).status, 200);
+    const after = await (await call('/personas')).json() as { personas: { id: string; meta?: typeof meta }[] };
+    assert.deepEqual(after.personas.find((p) => p.id === id)!.meta, meta);
+  } finally {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    rmSync(dir, { recursive: true });
+  }
+});
+
 test('启动迁移单份人设、加载完整预置、保持用户选择与手工 persona.md 优先级', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'brain-persona-boot-'));
   try {

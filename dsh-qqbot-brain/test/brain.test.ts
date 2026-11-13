@@ -139,6 +139,48 @@ test('personas: characterId 随创建/编辑/备份往返，缺省回落人设 i
   rmSync(dir, { recursive: true });
 });
 
+test('personas: meta 主题字段随创建/编辑/快照/备份往返，非法值拒绝', () => {
+  const { dir, store } = tmpStore();
+  const meta = {
+    theme: { a: '#1a2b3c', a2: '#4d5e6f', soft: '#8899aa', deep: '#0d1e2f' },
+    moodColors: { 开心: '#ffd166', 难过: '#6a8caf' },
+    traits: [{ name: '温柔', v: 0.9 }, { name: '好奇', v: 0.6 }],
+    mono: '鲸', en: 'WHALE', tagline: '深海里的大家伙',
+  };
+  const p = store.createPersona('鲸鱼娘', '鲸', 'whale-x', { characterId: 'whale', meta });
+  assert.deepEqual(p.meta, meta);
+  // PATCH 不传 meta → 保留旧值；传 null → 清除
+  store.savePersona('whale-x', '鲸鱼娘', '鲸二版');
+  assert.deepEqual(store.personaEntry('whale-x')!.meta, meta);
+  // 非法值一律拒绝：色值/traits 越界/超长文本/非对象
+  assert.throws(() => store.createPersona('b1', 'x', 'b1', { meta: { theme: { a: 'red', a2: '#112233', soft: '#445566', deep: '#778899' } } }));
+  assert.throws(() => store.createPersona('b2', 'x', 'b2', { meta: { theme: { a: '#112233', a2: '#445566', soft: '#778899' } } }));
+  assert.throws(() => store.createPersona('b3', 'x', 'b3', { meta: { moodColors: { 开心: 'gold' } } }));
+  assert.throws(() => store.createPersona('b4', 'x', 'b4', { meta: { traits: Array.from({ length: 7 }, (_, i) => ({ name: `t${i}`, v: 0.5 })) } }));
+  assert.throws(() => store.createPersona('b5', 'x', 'b5', { meta: { traits: [{ name: 'x', v: 1.5 }] } }));
+  assert.throws(() => store.createPersona('b6', 'x', 'b6', { meta: { mono: '长'.repeat(41) } }));
+  assert.throws(() => store.createPersona('b7', 'x', 'b7', { meta: 'whale' as never }));
+  assert.equal(store.personaEntry('b1'), undefined);
+  store.flush();
+  const restored = new BrainStore(dir);
+  assert.deepEqual(restored.personaEntry('whale-x')!.meta, meta);
+  // 备份往返：meta 随 personas 带走；导入侧宽容清洗——非法字段丢弃、合法保留
+  const dump = JSON.parse(JSON.stringify(store.exportData(NOW)));
+  const { store: target } = tmpStore();
+  target.importData(dump, 'merge', NOW);
+  assert.deepEqual(target.personaEntry('whale-x')!.meta, meta);
+  const tampered = JSON.parse(JSON.stringify(dump));
+  const tamperedEntry = tampered.personas.find((x: { id: string }) => x.id === 'whale-x');
+  tamperedEntry.meta = { theme: { a: '#112233', a2: 'bad', soft: '#445566', deep: '#778899' }, mono: '鲸', traits: [{ name: 'x', v: 2 }] };
+  const { store: lenient } = tmpStore();
+  lenient.importData(tampered, 'merge', NOW);
+  assert.deepEqual(lenient.personaEntry('whale-x')!.meta, { mono: '鲸' });
+  // PATCH meta:null 清除
+  store.savePersona('whale-x', '鲸鱼娘', '鲸三版', { meta: null });
+  assert.equal(store.personaEntry('whale-x')!.meta, undefined);
+  rmSync(dir, { recursive: true });
+});
+
 test('self 标记：addNote 启发式兜底，快照/JSONL 回放对存量补标且显式 false 不被覆盖', () => {
   const { dir, store } = tmpStore();
   // LLM 显式 self 优先；启发式补「我」；世界事实不标

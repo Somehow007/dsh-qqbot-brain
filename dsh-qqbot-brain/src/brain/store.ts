@@ -44,6 +44,7 @@ type Op =
 /**
  * 人设条目：persona=版本/衣服（prompt 文本），characterId=所属角色（灵魂，自我轨归属）。
  * characterId 缺省=自身 id（独立角色）；moods 预留给按人设注入蒸馏情绪枚举（迭代 B 用）。
+ * meta=展示主题元数据（B1）：皮肤配色/情绪色/特质/单字头像，永不进 prompt。
  */
 export interface PersonaEntry {
   id: string;
@@ -51,7 +52,32 @@ export interface PersonaEntry {
   text: string;
   characterId?: string;
   moods?: string[];
+  meta?: PersonaMeta;
 }
+
+/** 人设主题四色（#rrggbb）：a 主色 / a2 辅色 / soft 柔色 / deep 底色 */
+export interface PersonaTheme { a: string; a2: string; soft: string; deep: string }
+export interface PersonaTrait { name: string; v: number }
+
+/** 人设展示元数据（脑图皮肤 + D-admin 人设页共用；纯展示字段，不参与检索/蒸馏） */
+export interface PersonaMeta {
+  theme?: PersonaTheme;
+  /** 情绪词 → 色值（覆盖人设 moods 词表的着色；词名键 ≤40 字） */
+  moodColors?: Record<string, string>;
+  /** 特质条 0..1，≤6 条 */
+  traits?: PersonaTrait[];
+  /** 单字头像（非 whale 人设的 cortex 头像块） */
+  mono?: string;
+  /** 英文名（cortex eyebrow 等） */
+  en?: string;
+  /** 一句话简介 */
+  tagline?: string;
+}
+
+/** createPersona 可选扩展字段（Brain/HTTP 层共用同一形状） */
+export interface PersonaExtra { characterId?: string; moods?: string[]; meta?: PersonaMeta | null }
+/** savePersona 补丁：键缺省=保留旧值，null/空=清除（同 characterId/moods 口径） */
+export interface PersonaPatch { characterId?: string | null; moods?: string[] | null; meta?: PersonaMeta | null }
 
 /** 导出文件格式（脑图页「备份迁移」） */
 export interface BrainExport {
@@ -147,6 +173,79 @@ function sanitizeEmotion(raw: unknown): EmotionState | undefined {
     personaId: typeof e.personaId === 'string' && e.personaId ? e.personaId : undefined,
     updatedAt: num(e.updatedAt, Date.now()),
   };
+}
+
+const META_COLOR_RE = /^#[0-9a-f]{6}$/i;
+const META_TEXT_CAP = 40;
+const META_TRAITS_CAP = 6;
+
+function cleanMetaColor(v: unknown): string | undefined {
+  return typeof v === 'string' && META_COLOR_RE.test(v) ? v : undefined;
+}
+function cleanMetaText(v: unknown): string | undefined {
+  if (typeof v !== 'string') return undefined;
+  const t = v.trim();
+  return t && t.length <= META_TEXT_CAP ? t : undefined;
+}
+
+/**
+ * 人设 meta 清洗（B1）：strict=true 时任一字段非法抛错（API 写入→400）；
+ * strict=false 时丢弃非法字段保留合法部分（备份导入容错，不整包拒收）。
+ * 只保留已知键——meta 是纯展示字段，永不进 prompt。
+ */
+export function cleanPersonaMeta(raw: unknown, strict = false): PersonaMeta | undefined {
+  if (raw == null) return undefined;
+  if (typeof raw !== 'object' || Array.isArray(raw)) {
+    if (strict) throw new Error('人设 meta 格式无效');
+    return undefined;
+  }
+  const m = raw as Record<string, unknown>;
+  const bad = (what: string): never => { throw new Error(`人设 meta.${what} 无效`); };
+  const out: PersonaMeta = {};
+
+  if (m.theme !== undefined) {
+    const t = (m.theme && typeof m.theme === 'object' ? m.theme : {}) as Record<string, unknown>;
+    const a = cleanMetaColor(t.a), a2 = cleanMetaColor(t.a2);
+    const soft = cleanMetaColor(t.soft), deep = cleanMetaColor(t.deep);
+    if (a && a2 && soft && deep) out.theme = { a, a2, soft, deep };
+    else if (strict) bad('theme 需含 a/a2/soft/deep 四个 #rrggbb 色值');
+  }
+  if (m.moodColors !== undefined) {
+    if (typeof m.moodColors !== 'object' || m.moodColors === null || Array.isArray(m.moodColors)) {
+      if (strict) bad('moodColors 需为 {情绪词: 色值} 对象');
+    } else {
+      const mc: Record<string, string> = {};
+      for (const [k, v] of Object.entries(m.moodColors as Record<string, unknown>)) {
+        const key = cleanMetaText(k), color = cleanMetaColor(v);
+        if (key && color) mc[key] = color;
+        else if (strict) bad(`moodColors 含非法项「${k.slice(0, 20)}」`);
+      }
+      if (Object.keys(mc).length) out.moodColors = mc;
+    }
+  }
+  if (m.traits !== undefined) {
+    if (!Array.isArray(m.traits)) {
+      if (strict) bad('traits 需为数组');
+    } else {
+      if (m.traits.length > META_TRAITS_CAP && strict) bad(`traits 最多 ${META_TRAITS_CAP} 条`);
+      const traits: PersonaTrait[] = [];
+      for (const t of (m.traits as unknown[]).slice(0, META_TRAITS_CAP)) {
+        const name = cleanMetaText((t as PersonaTrait | null)?.name);
+        const v = (t as PersonaTrait | null)?.v;
+        if (name && typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 1) traits.push({ name, v });
+        else if (strict) bad('traits 条目需 {name≤40字, v∈[0,1]}');
+      }
+      if (traits.length) out.traits = traits;
+    }
+  }
+  for (const k of ['mono', 'en', 'tagline'] as const) {
+    if (m[k] !== undefined) {
+      const v = cleanMetaText(m[k]);
+      if (v) out[k] = v;
+      else if (strict) bad(`${k} 需为 ≤${META_TEXT_CAP} 字字符串`);
+    }
+  }
+  return Object.keys(out).length ? out : undefined;
 }
 
 const INTENT_STATUSES: readonly IntentStatus[] = ['pending', 'fired', 'expired', 'cancelled'];
@@ -433,7 +532,7 @@ export class BrainStore {
         const old = this.personaEntries.get(id);
         this.personaEntries.set(id, {
           id, name: old?.name ?? '原有人设', text: op.text,
-          characterId: old?.characterId, moods: old?.moods,
+          characterId: old?.characterId, moods: old?.moods, meta: old?.meta,
         });
         this.activeId = id;
         this.personaText = op.text;
@@ -917,23 +1016,25 @@ export class BrainStore {
 
   createPersona(
     name: string, text: string, id: string = randomUUID(),
-    extra?: { characterId?: string; moods?: string[] },
+    extra?: PersonaExtra,
   ): PersonaEntry {
     const persona = this.validPersona(id, name, text);
     if (extra?.characterId?.trim()) persona.characterId = extra.characterId.trim();
     if (extra?.moods?.length) persona.moods = extra.moods.filter((m) => typeof m === 'string' && m.trim());
+    const meta = cleanPersonaMeta(extra?.meta, true);
+    if (meta) persona.meta = meta;
     if (this.personaEntries.has(id)) throw new Error('人设 ID 已存在');
     this.persist({ op: 'persona-save', persona });
     return persona;
   }
 
   /**
-   * patch 只覆盖显式给出的键：characterId/moods 缺省保留旧值，null/空串清除——
-   * 改人设文本不应顺手抹掉角色归属。
+   * patch 只覆盖显式给出的键：characterId/moods/meta 缺省保留旧值，null/空串清除——
+   * 改人设文本不应顺手抹掉角色归属与展示主题。
    */
   savePersona(
     id: string, name: string, text: string,
-    patch?: { characterId?: string | null; moods?: string[] | null },
+    patch?: PersonaPatch,
   ): PersonaEntry {
     const prev = this.personaEntries.get(id);
     if (!prev) throw new Error('人设不存在');
@@ -944,6 +1045,9 @@ export class BrainStore {
     persona.moods = patch && 'moods' in patch
       ? (patch.moods?.length ? patch.moods.filter((m) => typeof m === 'string' && m.trim()) : undefined)
       : prev.moods;
+    persona.meta = patch && 'meta' in patch
+      ? cleanPersonaMeta(patch.meta, true)
+      : prev.meta;
     this.persist({ op: 'persona-save', persona });
     return persona;
   }
@@ -1120,10 +1224,12 @@ export class BrainStore {
     if (data.personas?.length) {
       for (const p of data.personas) {
         if (!this.personaEntries.has(p.id)) {
-          // characterId/moods 随整包迁移（旧备份无此字段→undefined，行为同旧版）
+          // characterId/moods/meta 随整包迁移（旧备份无此字段→undefined，行为同旧版）；
+          // meta 走宽容清洗：备份里个别非法字段丢弃，不整包拒收
           this.createPersona(p.name, p.text, p.id, {
             characterId: typeof p.characterId === 'string' ? p.characterId : undefined,
             moods: Array.isArray(p.moods) ? p.moods.filter((m): m is string => typeof m === 'string') : undefined,
+            meta: cleanPersonaMeta(p.meta),
           });
         }
       }

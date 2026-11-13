@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { GLOBAL_SESSION_ID, type Brain, type IntentConfigPatch, type IntentDraft, type IntentKind, type IntentStatus } from '../brain/index.ts';
+import type { PersonaMeta } from '../brain/store.ts';
 import { retention } from '../brain/decay.ts';
 import type { HttpConfig } from '../config.ts';
 
@@ -96,7 +97,7 @@ export class BrainHttpServer {
     if ((p === `${prefix}/api/personas` && (req.method === 'POST' || req.method === 'PATCH'))
       || (p === `${prefix}/api/personas/activate` && req.method === 'POST')) {
       try {
-        const o = parseJson<{ id?: string; name?: string; text?: string; characterId?: string | null; moods?: string[] | null }>(await readBody(req));
+        const o = parseJson<{ id?: string; name?: string; text?: string; characterId?: string | null; moods?: string[] | null; meta?: PersonaMeta | null }>(await readBody(req));
         if (!o || typeof o !== 'object') { res.writeHead(400).end('invalid json'); return; }
         if (p === `${prefix}/api/personas/activate`) {
           if (typeof o.id !== 'string') { res.writeHead(400).end('id required'); return; }
@@ -104,15 +105,18 @@ export class BrainHttpServer {
           this.onPersonaSet?.(this.brain.persona());
         } else if (req.method === 'PATCH') {
           if (typeof o.id !== 'string') { res.writeHead(400).end('id required'); return; }
-          // characterId/moods 仅在显式给出时覆盖（null/空串清除），不传则保留旧值
-          const patch: { characterId?: string | null; moods?: string[] | null } = {};
+          // characterId/moods/meta 仅在显式给出时覆盖（null/空串清除），不传则保留旧值；
+          // meta 形状由 store 严格校验，非法→抛错→400
+          const patch: { characterId?: string | null; moods?: string[] | null; meta?: PersonaMeta | null } = {};
           if ('characterId' in o) patch.characterId = o.characterId ?? null;
           if ('moods' in o) patch.moods = o.moods ?? null;
+          if ('meta' in o) patch.meta = o.meta ?? null;
           this.brain.savePersona(o.id, o.name!, o.text!, patch);
           if (o.id === this.brain.personas().activeId) this.onPersonaSet?.(this.brain.persona());
         } else this.brain.createPersona(o.name!, o.text!, undefined, {
           characterId: typeof o.characterId === 'string' ? o.characterId : undefined,
           moods: Array.isArray(o.moods) ? o.moods.filter((m): m is string => typeof m === 'string') : undefined,
+          meta: 'meta' in o ? (o.meta ?? undefined) : undefined,
         });
         return json(res, { ok: true, ...this.brain.personas() });
       } catch (e) {
