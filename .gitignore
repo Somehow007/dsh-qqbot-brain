@@ -11,3 +11,7 @@ brain-data/
 
 # 参赛材料（含个人信息与打包产物）
 参赛材料/
+
+# Python 缓存
+__pycache__/
+*.pyc
