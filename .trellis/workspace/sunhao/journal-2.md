@@ -279,3 +279,25 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 107: F5 设计决策 + 信息模式活人感分析
+<!-- trellis-session: v=2 fp=4cd25ad3446ea047 -->
+
+**Date**: 2026-11-13
+**Task**: F5 设计决策 + 信息模式活人感分析
+**Branch**: `main`
+
+### Summary
+
+F5：复查发现画像是第二泄漏通道——sess:dbf7162a 画像混写 whale『主人』与 ye『小师弟/师姐/澄辉坪桂花糖』，泛指『角色』行文每轮注入任一角色；只改分批不够。决策 F5a 世界轨也按源角色分批（单角色会话不变，宁慢不错）+F5b 画像关系必须点名角色、角色视角感受落 attitude，存量画像与错轨条人工 PATCH。活人感：解析宿主 transcript 群881+私聊72轮，按人设×搜/非搜统计——搜索回合跨人设共享『结论+markdown链接+免责』骨架，均长2-4×，链接38-86%；legacy 有『嫌麻烦→搜→锐评』口径保住79%口吻，whale-gentle/devotion 0%，firefly 免责50%；知识密集追问不调工具也百科腔（加粗分节/编号）；人设相关怪问题口吻正常。根因：dsh-tool-web 注入 cite as markdown links（QQ不渲染，order 2100 在 persona 后）、搜索返回二手摘要、新人设缺信息模式口径；观察项 firefly 一天22条道德立场 attitude 或致说教自强化。方案 L1 brain:channel-style 静态段 order~10250 / L2 人设包补信息模式节 / L3 走查指标固化。两任务均待用户确认实施。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `d598835` | chore: F5 设计决策 + 信息模式活人感问题分析存档 |
+
+### Status
+
+[OK] **Completed**

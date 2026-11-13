@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-2.md`
-- **Total Sessions**: 106
+- **Total Sessions**: 107
 - **Last Active**: 2026-11-13
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-2.md` | ~281 | Active |
+| `journal-2.md` | ~303 | Active |
 | `journal-1.md` | ~1988 | Archived |
 <!-- @@@/auto:active-documents -->
 
@@ -30,6 +30,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 107 | 2026-11-13 | F5 设计决策 + 信息模式活人感分析 | `d598835` | `main` |
 | 106 | 2026-11-13 | F1-F4次日+迭代C首日联合走查：发现F5视角错配 | `d940d76` | `main` |
 | 105 | 2026-11-12 | 迭代C·主动召回 brain_search 上线 | `ac1f906` | `main` |
 | 104 | 2026-11-12 | F1-F4 修复生产走查验收 | - | `main` |
