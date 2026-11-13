@@ -301,3 +301,25 @@ F5：复查发现画像是第二泄漏通道——sess:dbf7162a 画像混写 wha
 ### Status
 
 [OK] **Completed**
+
+
+## Session 108: F5 修复 + 信息模式活人感 L1-L3 上线
+<!-- trellis-session: v=2 fp=55a9fd5b0158a043 -->
+
+**Date**: 2026-11-13
+**Task**: F5 修复 + 信息模式活人感 L1-L3 上线
+**Branch**: `main`
+
+### Summary
+
+用户确认方案后同日实施部署。归属判定：F5a/F5b 属迭代A遗留（F2 修复覆盖盲区+画像路径未纳入三轨审查），活人感属 G 体验层（宿主 markdown 指令自 legacy 时代即存在+迭代B 人设包缺口）；后续 C/D/E 均不覆盖，须现修，D 开发可与观察窗并行。F5a consolidationBatches 统一按 characterOf(notePersonaId) 分组（代码净减），复现测试旧✖新✔；F5b PROFILE_RELATION_RULE 四路 prompt。L1 brain:style order 10250（宿主 tool:web_fetch 2100/persona-suffix 10200 之后、易变段之前）+injectChannelStyle/channelStyle 可按渠道配；L2 firefly/ye persona.md 与生产 whale-gentle/devotion 补信息模式交付口径（PATCH 保留 characterId/moods）；L3 scripts/reply-style-audit.py 落部署前基线（firefly 搜索 link38/hedge50，whale 搜索 link83）。验证 204/204、typecheck/build、eval 隔离与深挖 100/0 不变。部署前成对备份 pre-F5-*；存量错轨条改点名版+self:null、sess:dbf7162a 画像首句点名改写，复核无残留、回填 18 条清盘、零错误。两任务进入观察窗，待复跑审计与下次多角色巩固核对后补 Resolution 归档。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `18e2dbc` | fix(brain): F5 巩固按源角色分批+画像关系点名；brain:style 渠道表达口径与人设信息模式节 |
+
+### Status
+
+[OK] **Completed**
