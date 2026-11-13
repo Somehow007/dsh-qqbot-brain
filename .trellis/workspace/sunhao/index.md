@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-2.md`
-- **Total Sessions**: 109
+- **Total Sessions**: 110
 - **Last Active**: 2026-11-13
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-2.md` | ~345 | Active |
+| `journal-2.md` | ~365 | Active |
 | `journal-1.md` | ~1988 | Archived |
 <!-- @@@/auto:active-documents -->
 
@@ -30,6 +30,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 110 | 2026-11-13 | 脑图管理端可交互规格稿 d-admin 定稿归档 | - | `main` |
 | 109 | 2026-11-13 | 迭代D开发完成：standing intents + provenance（未部署） | - | `main` |
 | 108 | 2026-11-13 | F5 修复 + 信息模式活人感 L1-L3 上线 | `18e2dbc` | `main` |
 | 107 | 2026-11-13 | F5 设计决策 + 信息模式活人感分析 | `d598835` | `main` |

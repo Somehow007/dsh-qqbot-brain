@@ -343,3 +343,23 @@ F5：复查发现画像是第二泄漏通道——sess:dbf7162a 画像混写 wha
 ### Status
 
 [OK] **Completed**
+
+
+## Session 110: 脑图管理端可交互规格稿 d-admin 定稿归档
+<!-- trellis-session: v=2 fp=2cdf8a815b18ac8b -->
+
+**Date**: 2026-11-13
+**Task**: 脑图管理端可交互规格稿 d-admin 定稿归档
+**Branch**: `main`
+
+### Summary
+
+问题：通用皮肤概念中 D-swiss 只是看板，担不起管理端（流水/记忆无分页、无人设与记忆 CRUD），无法引导后续开发。方案：在瑞士网格视觉上做 d-admin 可交互规格稿——7 页 hash 路由（概览/记忆库/人设/画像/流水/关联图/备份），mock 数据 CRUD 真实生效，分页/筛选/排序/抽屉/二次确认/toast 齐全；可折叠的开发标注逐模块写真实路由、字段口径与 9 项需后端新增（记忆与流水服务端分页、批量接口、人设 theme/moods 颜色/traits、画像分页、dedup 预估等）。验证：7 页截图走查、dump-dom 无报错、?selftest=1 20/20 通过；修了保持率 mock、排序方向、抽屉参数、关联图截断与标签、标注折叠。后续：按页拆任务交给开发模型还原并接真实 API，先补 1/2/5 号后端接口；移动端待做。定稿副本在 archive/2026-11/11-13-brain-admin-spec。
+
+### Git Commits
+
+(No commits - planning session)
+
+### Status
+
+[OK] **Completed**
