@@ -1,0 +1,17 @@
+{
+  "id": "search-reply-liveliness",
+  "name": "search-reply-liveliness",
+  "title": "信息模式回复活人感弱、跨人设同质化",
+  "description": "群聊联网/知识类回合跨人设共享『结论+markdown链接+免责』骨架。根因：宿主 dsh-tool-web 引用 markdown 链接指令（QQ不渲染）、搜索返回二手摘要、新人设包缺信息模式口径（legacy 有此条保住79%口吻，whale-gentle/devotion 0%）。方案 L1 brain:channel-style 静态段 / L2 人设包补信息模式节 / L3 走查指标。",
+  "status": "active",
+  "dev_type": null, "scope": null, "package": null,
+  "priority": "P1",
+  "creator": "sunhao", "assignee": "sunhao",
+  "createdAt": "2026-11-13", "completedAt": null,
+  "branch": "main", "base_branch": "main",
+  "worktree_path": null, "commit": null, "pr_url": null,
+  "subtasks": [], "children": [], "parent": null,
+  "relatedFiles": ["dsh-qqbot-brain/src/inject/prompt.ts", "dsh-qqbot-brain/src/config.ts", "personas/firefly/persona.md", "personas/ye-shunguang/persona.md"],
+  "notes": "方案待用户确认后实施；建议与 F5 同批开发、分开验收。",
+  "meta": {}
+}
