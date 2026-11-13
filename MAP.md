@@ -23,7 +23,7 @@
 
 ```
 dsh-qqbot-brain/            ▶ 代码层：插件本体（TypeScript ESM，零运行时依赖，~5k 行 src）
-  src/brain/                  类脑内核，宿主无关可独立测——store/distill/retrieval/decay/emotion/embed/identity/time；Brain.search 主动召回原语 + assemble 深挖门控（迭代C）
+  src/brain/                  类脑内核，宿主无关可独立测——store/distill/retrieval/decay/emotion/embed/identity/time；Brain.search 主动召回原语 + assemble 深挖门控（迭代C）+ standing intents 前瞻记忆与 via/source 出处（迭代D）
   src/inject/prompt.ts        读路径：system-prompt 九段注入组装（稳定段保前缀缓存；brain:style 渠道表达口径压宿主 markdown 引用指令）
   src/capture/events.ts       写路径入口：会话事件捕获 + 发言人归因
   src/server/                 /brain 脑图页：http.ts（API）+ page.html（单文件前端）

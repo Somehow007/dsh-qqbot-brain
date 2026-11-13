@@ -160,11 +160,13 @@ QQ 消息 ──► dsh-qqbot ──► system-prompt/assemble
 - [x] 脑图公网直连：`0.0.0.0:4099` + token（安全组放行，SSH 隧道降级为备选）
 - [x] 迭代A·人设三轨地基：角色→人设两级模型、自我轨按 characterId 隔离、蒸馏批次戳、存量迁移上线（路线图 A→G 见 `tasks/11-09-iteration-upgrade-plan/`）
 - [x] 迭代B·叶瞬光接入：第二角色人设上线（`personas/ye-shunguang/` 种子 28 条全落自我轨 + 自定义情绪词表），三轨隔离首次实战，merge 导入幂等
+- [x] 迭代C·主动召回：`Brain.search` 检索原语 + recall-intent 双门深挖注入段（零 LLM 成本），eval 深挖子集 100%/0% 噪声，已上线
+- [ ] 迭代D·前瞻记忆+出处：standing intents（event/time、确定性触发、`/api/intents`）+ `Turn.via`/`MemoryNote.source` 出处链，本地开发完成待部署授权
 - [ ] **webserver-shim 分支**：`:4099` 共享为 cordis `webServer` 服务，dsh-meme 斗图已本机全链路实测（send_meme → qqbot_send_file 真实投递），待合入上线
 
 下一步候选（迭代路线图 A→G 详见 `tasks/11-09-iteration-upgrade-plan/iteration-plan.md`）：
 
-1. **迭代C/D·主动召回与 Prospective memory**——Generative Agents 式 brain_search / 「记得要做某事」
+1. **迭代D 部署**（本地已完成，等广播授权）→ 迭代E·记忆质量增强
 2. **webserver-shim 合入** → `brain:meme` 情绪桶注入（用脑情绪模型给斗图插件喂信号）→ /brain 页表情预览
 3. **管理面加固**：写回竞态 dataEpoch/CAS、时段删除预览同源、批量画像重生成
 4. **Reflection**——巩固时生成高层洞察（Generative Agents 缺的那块）

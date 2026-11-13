@@ -64,3 +64,6 @@
 - 2026-11-13 | 迭代C上线次日走查：firefly manual批已闭环(5产出源10全吸收)、向量395/395、深挖零触发=零真实提问非漏检；新发现F5=世界轨源并入全时段众数角色whale批→self:true产出错轨(ye lore落whale轨/whale视角消化世界事实)，修法候选待拍板 | → `tasks/11-13-consolidate-view-mismatch`
 - 2026-11-13 | F5 方案定：a世界轨按源角色分批+F5b画像关系必须点名角色(画像是第二泄漏通道，sess:dbf7162a 混写主人/师姐)，待确认实施；活人感问题确认=集中于信息模式回合，根因宿主markdown引用指令+二手摘要+新人设缺信息模式口径，方案L1 channel-style段/L2人设包补节/L3走查指标 | → `tasks/11-13-consolidate-view-mismatch`、`tasks/11-13-search-reply-liveliness`
 - 2026-11-13 | F5+活人感 L1-L3 同批上线：巩固全按源角色分批、画像关系点名（PROFILE_RELATION_RULE）、brain:style 渠道口径段（10250，压宿主 markdown 引用）、四人设补信息模式节并 PATCH 生产、reply-style-audit.py 落基线；存量错轨条+sess:dbf7162a 画像已清洗；进入观察窗 | → `tasks/11-13-consolidate-view-mismatch`、`tasks/11-13-search-reply-liveliness`
+- 2026-11-13 | 脑图通用皮肤四版概念图产出（A墨刊/B星轨/C软糖/D控制台），人设=主题参数+三轨可视，待用户拍板 | → `tasks/11-13-brain-generic-skin-concepts`
+- 2026-11-13 | 脑图皮肤概念第二轮：用户仅认可A，B/C/D按A标杆重做为 夜航星图/花序/瑞士网格，旧稿入 v1/ | → `tasks/11-13-brain-generic-skin-concepts`
+- 2026-11-13 | 迭代D本地开发完成（未部署）：D1 standing intents（event/time 双型+确定性零LLM触发+intent-fire op自带结果态重放确定+HTTP /api/intents CRUD/tick+插件60s定时器）、D2 provenance（Turn.via三态+agent/system批次跳蒸馏+混合批注标注非用户事实+MemoryNote.source四值贯穿蒸馏/导入/巩固/快照）；typecheck+test 220/220+build 全绿，eval 四处FAIL为HEAD基线既有（与本次无关）；部署等广播授权 | → `tasks/archive/2026-11/11-13-iteration-d-intents-provenance` + journal #109
