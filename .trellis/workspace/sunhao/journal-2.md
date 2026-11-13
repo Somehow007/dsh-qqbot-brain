@@ -323,3 +323,23 @@ F5：复查发现画像是第二泄漏通道——sess:dbf7162a 画像混写 wha
 ### Status
 
 [OK] **Completed**
+
+
+## Session 109: 迭代D开发完成：standing intents + provenance（未部署）
+<!-- trellis-session: v=2 fp=f4ca2c59ef4b4938 -->
+
+**Date**: 2026-11-13
+**Task**: 迭代D开发完成：standing intents + provenance（未部署）
+**Branch**: `main`
+
+### Summary
+
+按11-09路线图§5落地companion前置②③：D1 standing intents——IntentEntry event/time双型、四个可重放op（intent-fire自带firedCount/cooldownUntil/status保证重放确定）、Brain六API+ingest事件匹配/time tick、HTTP /api/intents六路由、插件60s unref定时器、触发零LLM只观测不发送（发送归迭代F壳层）；D2 provenance——Turn.via三态、纯agent/system批次整批跳蒸馏（省LLM且防bot自话当用户事实）、混合批convoLines标注「角色（主动开口）/系统」+prompt口径、MemoryNote.source四值贯穿蒸馏/导入/巩固/快照。测试test/intents.test.ts 16例全绿，总220/220；typecheck/build绿，eval四处FAIL经git worktree基线对照确认为HEAD既有。踩坑：测试共享假时钟污染、compact物理遗忘用真实时间清假时钟数据、digest轮次污染调用计数、/tick须先于/<id>动态匹配。文档：spec/backend/index.md+MAP.md+双README+CHANGES.md广播（注明未部署等授权）。部署待CHANGES.md放行后走runbook+云端走查。
+
+### Git Commits
+
+(No commits - planning session)
+
+### Status
+
+[OK] **Completed**
