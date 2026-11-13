@@ -73,3 +73,19 @@
 
 **测试**：多角色会话 world ep 分批 viewPid 正确；单角色不变；分批后 minNotes 判定；`sessionsNeedingConsolidation` 同口径。prompt 改动走 eval 回归。
 **成本**：零新增常驻调用；巩固调用数随活跃角色数线性，cooldown 24h 封顶。
+
+## 实施与部署（2026-11-13，用户确认方案后同日上线）
+
+- **F5a**：`consolidationBatches` 去掉 modalChar 归并——每条 ep 按 `characterOf(notePersonaId)` 分组，viewPid=批内人设众数；代码净减（自我/世界不再两条路径）。`sessionsNeedingConsolidation` 共用同一分批，口径自动一致。
+- **F5b**：distill.ts 新增 `PROFILE_RELATION_RULE`（画像共享→关系必须点名角色、禁泛指「角色/我」、角色感受落 attitude），蒸馏/巩固/撰稿三路引用；审核 prompt 加「已点名关系句保留点名，不改回泛指」。
+- **单测 +3**（总 204）：生产场景复现（whale 存量众数 + ye/firefly 世界源 + LLM 判 self:true → 两批各落本角色、无 whale 视角批、源与产出同角色）；分批后小角色批 minNotes 延迟且不吸收；四路 prompt 点名口径。复现测试在旧代码上 ✖、新代码 ✔（stash 验证）。
+- **存量清洗**（部署后 PATCH，部署前已备份 `~/backups/pre-F5-{export,data,plugin}-2026-11-13-1555`）：
+  - 错轨条 `e01edf64…` → content 改点名版「与叶瞬光是同门师姐弟，是唯一唤叶瞬光「师姐」的人」+ `self:null`（无「我」→世界轨），已重嵌向量。
+  - `sess:dbf7162a` 画像首句改点名版（「是鲸鱼娘的主人，与叶瞬光是同门师姐弟」），删澄辉坪桂花糖 lore；其余句与〔私〕段原样。
+  - 不动：同批 whale-devotion attitude「对 demo：主人也是恋人」——内容与 whale 自身设定一致，落 whale 轨自洽。
+- **验证**：typecheck/build 0 错；204/204；eval 三轨隔离与深挖 100%/0% 不变（lexical q08/q15/n01/n03 为存量基线 FAIL）；部署后 export 复核错轨条 self=缺省、画像无「角色的」/「澄辉坪」、向量回填 18 条清盘、零错误日志。
+
+## 观察窗（待验收，归档前补 Resolution）
+
+- 下次多角色会话巩固（dbf7162a 下一轮 cooldown 后）：拉 export 核对产出 personaId 与源角色一致、无跨角色 self 产出。
+- 新蒸馏/巩固写的画像：关系句是否点名（抽 `sess:`/`u:` 画像 grep「角色的」）。

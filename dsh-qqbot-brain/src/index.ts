@@ -170,7 +170,7 @@ export async function apply(ctx: unknown, config?: Partial<BrainPluginConfig>): 
   log(`已启动：人格内核(${personaFrom}) ${cfg.injectPersona ? 'on' : 'off'} / `
     + `情绪 ${cfg.injectEmotion ? 'on' : 'off'} / 脉络 ${cfg.injectDigest ? 'on' : 'off'} / `
     + `立场 ${cfg.injectAttitude ? 'on' : 'off'} / 记忆 ${cfg.injectMemory ? 'on' : 'off'} / `
-    + `时刻 ${cfg.injectClock ? 'on' : 'off'} / 深挖 ${cfg.injectDeepRecall ? 'on' : 'off'} / `
+    + `时刻 ${cfg.injectClock ? 'on' : 'off'} / 深挖 ${cfg.injectDeepRecall ? 'on' : 'off'} / 口径 ${cfg.injectChannelStyle && cfg.channelStyle.trim() ? 'on' : 'off'} / `
     + `蒸馏 ${distiller.enabled ? 'on' : 'off(无apiKey)'} / `
     + `向量 ${embedder.enabled ? 'on' : 'off(无apiKey)'} / 脑图 ${where} / 数据目录 ${dataDir}`);
 }

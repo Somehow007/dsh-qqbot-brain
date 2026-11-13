@@ -3,9 +3,11 @@ import { splitActor } from '../brain/identity.ts';
 import type { BrainPluginConfig } from '../config.ts';
 
 /**
- * 通过 system-prompt/assemble waterfall 注入八块 section，按稳定性分两段：
+ * 通过 system-prompt/assemble waterfall 注入九块 section，按稳定性分两段：
  *   brain:persona (order 80)    人格内核 · 最稳定锚点
  *   brain:digest  (order 81)    会话脉络 · 每 15 轮才变
+ *   brain:style   (order 10250) 表达口径 · 静态渠道约束（须排在宿主 tool:web_fetch 2100 /
+ *                               persona-suffix 10200 之后才压得住其 markdown 引用指令；仍在易变段之前，属稳定前缀）
  *   brain:speaker (order 10300) 当前发言人（群聊）
  *   brain:attitude(order 10310) 态度立场（对人/事/话题的当前看法，慢变量）
  *   brain:memory  (order 10320) top-k 记忆摘录（含 [跨群] 召回与画像行）
@@ -117,6 +119,9 @@ export class PromptInjector {
       }
       if (this.config.injectDigest && brain.digest) {
         sections.push({ name: 'brain:digest', order: 81, text: `【会话脉络】${brain.digest}` });
+      }
+      if (this.config.injectChannelStyle && this.config.channelStyle.trim()) {
+        sections.push({ name: 'brain:style', order: 10250, text: `【表达口径】${this.config.channelStyle}` });
       }
       if (this.config.injectSpeaker && (actor || boundNick)) {
         sections.push({ name: 'brain:speaker', order: 10300, text: `【当前发言人】${actor || boundNick}` });

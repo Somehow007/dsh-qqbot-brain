@@ -930,34 +930,29 @@ export class Brain {
   }
 
   /**
-   * 巩固分批：自我轨 episodic（self:true）按所属角色分组——各角色自我独立沉淀，
-   * 同会话多角色不再只有众数视角能巩固（manual 会话多包并存时其余角色永远轮不到）；
-   * 世界轨 episodic 并入会话人设众数角色那批（世界轨全角色共享，随谁的视角提炼都成立）。
-   * 返回 {viewPid, eps} 批次（不设 minNotes 门槛，由调用方判定）。
+   * 巩固分批：每条 episodic 按所属角色（characterOf(notePersonaId)）分组各跑一次，
+   * 自我轨/世界轨同一口径——批次视角决定提示词人设、情绪盖章与 self 产出的轨道归属，
+   * 世界轨源若并入「会话众数角色」批，会被别角色视角消化、LLM 判 self 的产出落错轨
+   * （F5：ye/firefly 世界事实并入 whale 批，ye lore 落 whale 自我轨）。
+   * 单角色会话只有一组，与旧行为一致；小角色批凑不够 minNotes 时延迟巩固——宁慢不错。
+   * 批次视角取批内人设众数。返回 {viewPid, eps} 批次（不设 minNotes 门槛，由调用方判定）。
    */
   private consolidationBatches(
     sessNotes: MemoryNote[], now: number, covered: Set<string>,
   ): { viewPid: string; eps: MemoryNote[] }[] {
-    const modalPid = this.modalPersonaId(sessNotes.map((n) => notePersonaId(n)));
-    const modalChar = this.characterOf(modalPid);
     const groups = new Map<string, MemoryNote[]>();
     for (const n of sessNotes) {
       if (n.kind !== 'episodic' || n.absorbedAt || covered.has(n.id)
         || n.sourceIds?.length
         // 巩固自身的产出（含降级回 episodic 的条）不再回喂，防循环再加工
         || ageInDays(n, now) < this.cfg.consolidateMinAgeDays) continue;
-      // episodic 的自我轨=self:true（attitude 不会是 episodic）；世界轨归众数角色批
-      const char = n.self === true ? this.characterOf(notePersonaId(n)) : modalChar;
+      const char = this.characterOf(notePersonaId(n));
       const arr = groups.get(char) ?? [];
       arr.push(n);
       groups.set(char, arr);
     }
-    return [...groups.entries()].map(([char, eps]) => ({
-      // 批次视角：众数角色批沿用会话众数口径（单角色会话与旧行为一致）；
-      // 其余角色批取批内人设众数——自我轨批得到本角色人设而非活动人设
-      viewPid: char === modalChar
-        ? modalPid
-        : this.modalPersonaId(eps.map((n) => notePersonaId(n))),
+    return [...groups.values()].map((eps) => ({
+      viewPid: this.modalPersonaId(eps.map((n) => notePersonaId(n))),
       eps,
     }));
   }

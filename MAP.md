@@ -24,12 +24,13 @@
 ```
 dsh-qqbot-brain/            ▶ 代码层：插件本体（TypeScript ESM，零运行时依赖，~5k 行 src）
   src/brain/                  类脑内核，宿主无关可独立测——store/distill/retrieval/decay/emotion/embed/identity/time；Brain.search 主动召回原语 + assemble 深挖门控（迭代C）
-  src/inject/prompt.ts        读路径：system-prompt 八段注入组装（稳定段保前缀缓存）
+  src/inject/prompt.ts        读路径：system-prompt 九段注入组装（稳定段保前缀缓存；brain:style 渠道表达口径压宿主 markdown 引用指令）
   src/capture/events.ts       写路径入口：会话事件捕获 + 发言人归因
   src/server/                 /brain 脑图页：http.ts（API）+ page.html（单文件前端）
   src/setup/                  persona.md 装载 + 内置人设 + 文件日志
   src/index.ts · config.ts    Cordis 插件装配入口 + 全部配置旋钮
   test/                       node --test 四件套（brain/filelog/http/page）+ eval/ 检索评测集
+  scripts/reply-style-audit.py 走查工具：宿主转录按「人设×是否联网」统计回复活人感指标（链接/免责/口吻/均长）
   README.md                   部署 runbook：rsync（dist 不带尾斜杠）· systemd · 公网直连 · 排障
 
 docs/                       README 配图（img/，含 src/ 手绘 SVG 源）· 备份恢复手册 · 生图提示词
@@ -60,7 +61,7 @@ brain-data/                 线上记忆导出的本地备份（gitignored）
 7. **`src/server/http.ts` + `page.html`**——/brain 脑图页 API 契约与前端实现。
 8. **`src/index.ts` + `src/config.ts`**——Cordis 插件怎么把上面一切装配起来；全部可调旋钮。
 
-配套读法：`test/` 单测当规格看（199 个用例覆盖了大部分边界）；`test/eval/` 是「评测先行」方法论的落地（44 条真实记忆 + 22 条标注 query + 5 条深挖召回子集）。
+配套读法：`test/` 单测当规格看（204 个用例覆盖了大部分边界）；`test/eval/` 是「评测先行」方法论的落地（44 条真实记忆 + 22 条标注 query + 5 条深挖召回子集）。
 
 ## 四、这个项目是怎么被开发出来的（学开发思路入口）
 

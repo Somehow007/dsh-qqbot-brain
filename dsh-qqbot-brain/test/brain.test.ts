@@ -2573,6 +2573,71 @@ test('consolidate: 多角色会话按角色分批——各角色自我轨都能�
   assert.equal(store.allNotes().filter((n) => n.kind === 'episodic' && !n.absorbedAt).length, 0);
 });
 
+test('consolidate: 世界轨源也按源角色分批——不并入会话众数角色批（F5）', async () => {
+  const { store } = tmpStore();
+  store.createPersona('鲸鱼娘', '鲸', 'whale-devotion', { characterId: 'whale' });
+  store.createPersona('叶瞬光', '叶', 'ye-shunguang', { characterId: 'ye' });
+  store.createPersona('流萤', '流萤文', 'firefly', { characterId: 'firefly' });
+  store.activatePersona('firefly');
+  // 生产形态：会话存量 whale 占众数（已巩固/已吸收不影响众数口径），新近世界轨 ep 来自 ye 与 firefly
+  for (let i = 0; i < 5; i++) {
+    store.addNote('s1', { content: `旧事${i}`, importance: 3, kind: 'semantic', personaId: 'whale-devotion' }, NOW - 9 * DAY);
+  }
+  store.addNote('s1', { content: 'demo：被允许叫角色小光', importance: 3, self: false, personaId: 'ye-shunguang' }, NOW - 3 * DAY);
+  store.addNote('s1', { content: 'demo：答应明天制定目标', importance: 3, self: false, personaId: 'ye-shunguang' }, NOW - 3 * DAY);
+  store.addNote('s1', { content: 'demo：学院项目已上线', importance: 3, self: false, personaId: 'firefly' }, NOW - 2 * DAY);
+  store.addNote('s1', { content: 'demo：正在上机课', importance: 3, self: false, personaId: 'firefly' }, NOW - 2 * DAY);
+  const personas: string[] = [];
+  const distiller = new Distiller(
+    { enabled: true, baseUrl: 'https://x.test', apiKey: 'k', model: 'm', timeoutMs: 1000, maxNotes: 5 },
+    async (_url, init) => {
+      const prompt = (JSON.parse(init.body) as { messages: { content: string }[] }).messages[0]!.content;
+      if (prompt.includes('长期人物画像的编辑')) return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content: '{"profiles":[]}' } }] }) };
+      personas.push(prompt.includes('叶') ? 'ye' : prompt.includes('流萤文') ? 'firefly' : prompt.includes('鲸') ? 'whale' : '?');
+      // LLM 把关系总结判成自我轨——旧路径会落进众数角色 whale 的自我轨
+      return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content: JSON.stringify({
+        memories: [{ content: `demo 是我在意的人${personas.length}`, importance: 3, self: true }], profiles: [],
+      }) } }] }) };
+    },
+  );
+  const brain = new Brain({ store, distiller, now, config: { consolidateMinNotes: 2 } });
+  assert.deepEqual(brain.sessionsNeedingConsolidation(), ['s1']);
+  assert.equal(await brain.consolidate('s1'), 2);
+  assert.deepEqual(personas.sort(), ['firefly', 'ye']); // 无 whale 视角批
+  const outs = store.allNotes().filter((n) => n.kind === 'semantic' && n.sourceIds?.length);
+  assert.deepEqual(outs.map((n) => n.personaId).sort(), ['firefly', 'ye-shunguang']);
+  for (const o of outs) {
+    assert.equal(o.self, true);
+    // 每条产出的源都与产出同角色
+    for (const sid of o.sourceIds!) assert.equal(store.noteById(sid)!.personaId, o.personaId);
+  }
+});
+
+test('consolidate: 角色分批后各批独立过 minNotes 门槛——不够量的小角色批延迟不跑', async () => {
+  const { store } = tmpStore();
+  store.createPersona('叶瞬光', '叶', 'ye-shunguang', { characterId: 'ye' });
+  store.createPersona('流萤', '流萤文', 'firefly', { characterId: 'firefly' });
+  store.activatePersona('firefly');
+  for (let i = 0; i < 3; i++) store.addNote('s1', { content: `流萤期世界事实${i}`, importance: 3, personaId: 'firefly' }, NOW - 3 * DAY);
+  store.addNote('s1', { content: '叶期世界事实', importance: 3, personaId: 'ye-shunguang' }, NOW - 3 * DAY);
+  let calls = 0;
+  const distiller = new Distiller(
+    { enabled: true, baseUrl: 'https://x.test', apiKey: 'k', model: 'm', timeoutMs: 1000, maxNotes: 5 },
+    async (_url, init) => {
+      const prompt = (JSON.parse(init.body) as { messages: { content: string }[] }).messages[0]!.content;
+      if (prompt.includes('长期人物画像的编辑')) return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content: '{"profiles":[]}' } }] }) };
+      calls++;
+      return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content: JSON.stringify({ memories: [{ content: '沉淀', importance: 3 }], profiles: [] }) } }] }) };
+    },
+  );
+  const brain = new Brain({ store, distiller, now, config: { consolidateMinNotes: 3 } });
+  assert.deepEqual(brain.sessionsNeedingConsolidation(), ['s1']);
+  await brain.consolidate('s1');
+  assert.equal(calls, 1); // 只跑够量的 firefly 批
+  const ye = store.allNotes().find((n) => n.content === '叶期世界事实')!;
+  assert.equal(ye.absorbedAt, undefined); // 延迟≠丢失：仍在检索池
+});
+
 test('consolidate: 混合源批次（世界轨+自我轨）不启用全自我轨继承', async () => {
   const { store } = tmpStore();
   store.createPersona('叶瞬光', '叶', 'ye-shunguang', { characterId: 'ye' });
@@ -2625,6 +2690,44 @@ test('prompt: 蒸馏/巩固/脉络提示含敏感场景与时效锚通用规则'
   assert.match(c, /带时间锚点的条目/);
   const g = buildDigestPrompt([{ userText: 'x', assistantText: 'y', at: NOW }], '', 'p');
   assert.match(g, /拒绝后仍被叙述推进/);
+});
+
+test('prompt: 画像关系须点名角色——蒸馏/巩固/撰稿/审核四路同口径（F5b）', () => {
+  const d = buildDistillPrompt([{ userText: 'x', assistantText: 'y', at: NOW }], 'p', 5);
+  const c = buildConsolidatePrompt([], '', 'p');
+  for (const s of [d, c]) {
+    assert.match(s, /必须点名角色/);
+    assert.match(s, /不要用泛指的「角色」「我」/);
+  }
+  assert.match(buildProfileReviewPrompt([{ actor: 'a', previous: '', candidate: 'x' }]), /原样保留点名/);
+});
+
+import { PromptInjector as RealInjector } from '../src/inject/prompt.ts';
+import { DEFAULT_CONFIG, DEFAULT_CHANNEL_STYLE } from '../src/config.ts';
+
+async function assembleSections(cfg: Partial<typeof DEFAULT_CONFIG>) {
+  const { store } = tmpStore();
+  const brain = new Brain({ store, distiller: mockDistiller({}), now });
+  const inj = new RealInjector(brain, { ...DEFAULT_CONFIG, ...cfg }, () => {});
+  let h: (a: unknown, c: unknown, n: () => Promise<{ sections: { name: string; order: number; text: string }[] }>) => Promise<{ sections: { name: string; order: number; text: string }[] }> = async () => ({ sections: [] });
+  inj.register({ on: (_e: string, fn: typeof h) => { h = fn; } });
+  const host = [{ name: 'tool:web_fetch', order: 2100, text: 'Cite the URL as a markdown link' }];
+  return (await h({}, { sessionId: 's1' }, async () => ({ sections: host }))).sections;
+}
+
+test('inject: 表达口径段排在宿主 web 工具指令与 persona-suffix 之后、易变段之前', async () => {
+  const secs = await assembleSections({});
+  const style = secs.find((x) => x.name === 'brain:style')!;
+  assert.ok(style.order > 2100 && style.order > 10200 && style.order < 10300);
+  assert.match(style.text, /不用 markdown/);
+  assert.equal(style.text, `【表达口径】${DEFAULT_CHANNEL_STYLE}`);
+});
+
+test('inject: 表达口径可关——开关 false 或正文空串都不注入；可按渠道换正文', async () => {
+  assert.equal((await assembleSections({ injectChannelStyle: false })).some((x) => x.name === 'brain:style'), false);
+  assert.equal((await assembleSections({ channelStyle: '  ' })).some((x) => x.name === 'brain:style'), false);
+  const custom = (await assembleSections({ channelStyle: '网页端可用 markdown' })).find((x) => x.name === 'brain:style')!;
+  assert.equal(custom.text, '【表达口径】网页端可用 markdown');
 });
 
 // ── 私域隔离 ──

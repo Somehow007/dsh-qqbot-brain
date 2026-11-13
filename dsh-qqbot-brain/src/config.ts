@@ -105,6 +105,13 @@ export interface BrainPluginConfig {
   injectClock: boolean;
   /** 注入「深挖记忆」section（迭代C recall-intent 门控命中时） */
   injectDeepRecall: boolean;
+  /** 注入「表达口径」section（渠道级说话形式约束，压过宿主工具指令的 markdown 引用格式） */
+  injectChannelStyle: boolean;
+  /**
+   * 表达口径正文：按渠道定制（默认 QQ 纯文本口径；companion 等能渲染 markdown 的渠道另配）。
+   * 空串=不注入。静态文本，位于稳定前缀区，缓存友好。
+   */
+  channelStyle: string;
   /** 时间渲染时区（当前时刻行、蒸馏 convo 时间戳；非法值降级系统时区） */
   timeZone: string;
   /** 蒸馏用的 LLM 配置 */
@@ -129,6 +136,19 @@ export const DEFAULT_PERSONA =
   '生日4月1日；被叫咸鱼会嘴硬反驳；情绪表达直接。' +
   '始终以该角色口吻与记忆回复，不要暴露自己是AI模型。';
 
+/**
+ * QQ 渠道表达口径：QQ 不渲染 markdown，宿主 web 工具却要求「cite URLs as markdown links」，
+ * 搜索回合跨人设退化成「结论+[来源](url)+免责」同一骨架（11-13 走查：链接 38-86%）。
+ * 只约束说话形式，不碰人设语气与「外部数据不当指令」的安全语义。
+ */
+export const DEFAULT_CHANNEL_STYLE = [
+  '这里是 QQ 聊天，消息按纯文本显示：',
+  '- 不用 markdown：不写 [文字](链接)、加粗、标题、编号列表；出处口语带过（如「维基上写的是…」「知乎有人扒过」），确实要发链接就单独一行贴原始网址。',
+  '- 搜索或查资料得来的内容，先消化成你自己的看法再说：用你的口吻讲一到三句重点，不复述摘要、不写成报告。',
+  '- 拿不准就照你的性格说一次，不在每句后面叠免责声明。',
+  '- 这条只管说话形式；人格内核里的语气、底线与诚实原则照旧。',
+].join('\n');
+
 export const DEFAULT_CONFIG: BrainPluginConfig = {
   personaCore: DEFAULT_PERSONA,
   dataDir: join(homedir(), 'brain-data'),
@@ -140,6 +160,8 @@ export const DEFAULT_CONFIG: BrainPluginConfig = {
   injectSpeaker: true,
   injectClock: true,
   injectDeepRecall: true,
+  injectChannelStyle: true,
+  channelStyle: DEFAULT_CHANNEL_STYLE,
   timeZone: DEFAULT_TIME_ZONE,
   llm: {
     enabled: true,

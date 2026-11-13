@@ -5,11 +5,12 @@
 
 ## 原理
 
-- 每轮 LLM 调用前，经 `system-prompt/assemble` 注入七个 section，按稳定性分两段：
-  稳定段 `brain:persona`(人格内核, 80) / `brain:digest`(会话脉络, 81)；
+- 每轮 LLM 调用前，经 `system-prompt/assemble` 注入最多九个 section，按稳定性分两段：
+  稳定段 `brain:persona`(人格内核, 80) / `brain:digest`(会话脉络, 81) /
+  `brain:style`(表达口径, 10250：渠道级静态说话形式，排在宿主 web 工具 markdown 引用指令之后才压得住；`channelStyle` 按渠道配置，空串=关)；
   易变段（放官方 persona-suffix 10200 之后，保住宿主 prompt 前缀缓存命中）
   `brain:speaker`(当前发言人, 10300) / `brain:attitude`(当前立场, 10310) /
-  `brain:memory`(top-k 记忆, 10320) / `brain:emotion`(情绪态, 10330) / `brain:clock`(当前时刻, 10340)
+  `brain:memory`(top-k 记忆, 10320) / `brain:deeprecall`(深挖召回, 10325) / `brain:emotion`(情绪态, 10330) / `brain:clock`(当前时刻, 10340)
 - 群聊发言人归因：捕获 `user/message` 时解析宿主打的 `[昵称 (openid)]` 标签写入
   `Turn.actor`；`[Chat history]` 环境块拆进 `Turn.contextText`（只供蒸馏读背景，
   不进检索 query / digest），蒸馏出的记忆带发言人，注入的记忆摘录行显示 `[发言人]` 前缀
