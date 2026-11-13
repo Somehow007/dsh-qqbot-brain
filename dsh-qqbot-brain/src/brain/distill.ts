@@ -86,6 +86,8 @@ emotion 字段：判定的是「这轮对话给角色带来的情绪」，依据
 ${guide}
 
 对话每行形如「[YYYY-MM-DD HH:mm] 发言人：内容」；单聊发言人显示为「用户」，群聊显示为「昵称 (openid)」。
+标「角色（主动开口）」的是角色自己主动发起的消息、标「系统」的是系统事件——它们不是用户发言：
+不作为用户事实/画像/情绪变化的依据，只在用户后续回应时作为上下文理解。
 memories.actor 写记忆主体的昵称——事实关于谁就写谁：某人转述他人事实时写被转述者
 （如甲转述乙怕打雷，actor 写乙）；事实主体即发言人本人时写发言人。
 profiles 字段：仅在画像需要更新时输出，否则省略整个字段。
@@ -127,6 +129,7 @@ const DIGEST_PROMPT = `你是陪伴型聊天角色的会话脉络整理模块。
 脉络要覆盖：最近在聊的话题主线、谁卷入了什么事、有无未完结的话题/承诺/悬着的冲突；过时的细节压缩掉，新事实优先。
 涉及私密/敏感场景只记高层事实与结果（发生了什么、约定了什么、情绪氛围），不写过程细节与身体描写；
 一方明确拒绝后仍被叙述推进的情节，不要写成双方顺承的桥段。
+标「角色（主动开口）」/「系统」的行不是用户发言：脉络如实记录其发生与影响，不当作用户观点或事实来源。
 既有摘要为空时直接总结对话；整段都是水聊无实质内容时，用一句话带过即可。
 角色设定：%s
 
@@ -207,6 +210,22 @@ const DISTILL_TURN_CAP = 800;
 const capText = (s: string, n: number) => (s.length > n ? `${s.slice(0, n)}…` : s);
 
 /**
+ * convo 行渲染（distill/digest 共用）：via=agent/system 的轮次不是用户发言——
+ * 单行标注来源取代「发言人：/角色：」双行格式，正文取「有内容的那侧」兜底
+ * （壳层把主动消息填 assistantText 或 userText 都兼容）。
+ */
+function convoLines(turns: Turn[], cap: number, ctx: TimeCtx): string {
+  return turns
+    .map((t) => {
+      const stamp = `[${formatStamp(t.at, ctx.timeZone)}]`;
+      if (t.via === 'agent') return `${stamp} 角色（主动开口）：${capText(t.assistantText || t.userText, cap)}`;
+      if (t.via === 'system') return `${stamp} 系统：${capText(t.userText || t.assistantText, cap)}`;
+      return `${stamp} ${t.actor ?? '用户'}：${capText(t.userText, cap)}\n角色：${capText(t.assistantText, cap)}`;
+    })
+    .join('\n');
+}
+
+/**
  * 顺序填充 %s 槽位。必须用单趟 /g 替换而非链式 replace——
  * 链式下若靠前的实参（persona/画像/名称等用户可写内容）含字面 %s，
  * 下一次 replace 会命中注入的 %s 导致槽位错位；单趟只扫模板本身。
@@ -226,9 +245,7 @@ export function buildDistillPrompt(
   // 环境上下文（[Chat history] 末段）取最后一个带 contextText 的轮次：
   // 其块内已含最近环境消息，单块足够；逐轮拼只会重复计费。
   const ctxBlock = [...turns].reverse().find((t) => t.contextText)?.contextText;
-  const convo = turns
-    .map((t) => `[${formatStamp(t.at, ctx.timeZone)}] ${t.actor ?? '用户'}：${capText(t.userText, DISTILL_TURN_CAP)}\n角色：${capText(t.assistantText, DISTILL_TURN_CAP)}`)
-    .join('\n');
+  const convo = convoLines(turns, DISTILL_TURN_CAP, ctx);
   let prompt = fillSlots(distillPrompt(moods).replace('%d', String(maxNotes)),
     [persona || '（未设定）', ctxBlock ? `${ctxBlock}\n\n${convo}` : convo]);
   if (existingProfiles?.length) {
@@ -261,9 +278,7 @@ export function buildDigestPrompt(
 ): string {
   // digest 只要主线脉络：正文按行截断，contextText（环境消息块）整段不读——
   // 它的内容在相邻轮里近乎逐字重复，进窗口等于把同一批消息再付一遍。
-  const convo = turns
-    .map((t) => `[${formatStamp(t.at, ctx.timeZone)}] ${t.actor ?? '用户'}：${capText(t.userText, turnCharCap)}\n角色：${capText(t.assistantText, turnCharCap)}`)
-    .join('\n');
+  const convo = convoLines(turns, turnCharCap, ctx);
   return fillSlots(DIGEST_PROMPT, [persona || '（未设定）', priorDigest || '（暂无）', convo])
     + `\n\n当前时间：${formatClock(ctx.now, ctx.timeZone)}`;
 }

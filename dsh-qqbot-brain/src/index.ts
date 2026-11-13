@@ -162,6 +162,15 @@ export async function apply(ctx: unknown, config?: Partial<BrainPluginConfig>): 
     refill.unref();
   }
 
+  // ── standing intents 定时评估（迭代D）：time 型到点触发 + 过期/上限清扫 ──
+  // event 型在 ingest 路径即时评估；此处兜底「无消息流量时 time intent 也能触发」。
+  // 评估确定性零 LLM 零成本；dsh 无主动发送路径，fired 只落 brain.log 供走查/壳层消费。
+  const intentTick = setInterval(() => {
+    const fired = brain.tickIntents();
+    if (fired.length) log(`intent tick：${fired.length} 条到期触发`);
+  }, 60_000);
+  intentTick.unref();
+
   // ── 脑图服务 ──
   const http = new BrainHttpServer(brain, cfg.http, log,
     (text) => writePersonaFile(dataDir, text));

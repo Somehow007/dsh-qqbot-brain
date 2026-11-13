@@ -1,8 +1,8 @@
 import { ATTITUDE_OBJECT_RE, DEFAULT_BRAIN_CONFIG, EPHEMERAL_TIME_RE, GLOBAL_SESSION_ID, MOOD_VALENCE, PRE_TAG_PERSONA_ID, RECALL_INTENT_RE, WHALE_CHARACTER_ID, WHALE_PERSONA_IDS, notePersonaId, resolveSelfFlag } from './types.ts';
-import type { BrainConfig, BrainContext, BrainSearchOptions, DistillResult, EmotionState, MemoryNote, NoteDraft, NoteEmotion, Turn } from './types.ts';
+import type { BrainConfig, BrainContext, BrainSearchOptions, DistillResult, EmotionState, IntentConfigPatch, IntentDraft, IntentEntry, IntentKind, IntentMatch, IntentStatus, MemoryNote, NoteDraft, NoteEmotion, Turn } from './types.ts';
 import { isUserKey, normalizeProfileKey, resolveActorTag, sessionProfileKey, splitActor, userProfileKey } from './identity.ts';
 import { ageInDays, retention } from './decay.ts';
-import { ageLabel, formatClock } from './time.ts';
+import { ageLabel, dailyOccurrenceMs, formatClock } from './time.ts';
 import { Retriever } from './retrieval.ts';
 import type { ScoredNote } from './retrieval.ts';
 import { EmotionEngine, NEUTRAL_EMOTION } from './emotion.ts';
@@ -319,8 +319,13 @@ export class Brain {
     return { lines };
   }
 
-  /** 捕获一轮完整对话（不立即蒸馏，攒到 endOfTurn）；同步滚动摘要输入与轮数 */
-  ingest(sessionId: string, turn: Turn): void {
+  /**
+   * 捕获一轮完整对话（不立即蒸馏，攒到 endOfTurn）；同步滚动摘要输入与轮数。
+   * 返回本轮触发的 standing intents（迭代D）：event 型对本 turn 即时评估，
+   * time 型顺带 tickIntents——有消息流量时到期 intent 立即触发不等空闲 tick。
+   * dsh 捕获侧忽略返回值；companion 壳层消费 fired 列表生成主动消息。
+   */
+  ingest(sessionId: string, turn: Turn): IntentEntry[] {
     // 批次戳：钉「形成时人设」——切换瞬间在途批次仍归原角色，不读蒸馏时刻的 activeId
     const stamped: Turn = {
       ...turn,
@@ -338,6 +343,8 @@ export class Brain {
       sessionId,
       (this.turnCounter.get(sessionId) ?? this.store.digestOf(sessionId)?.uptoTurn ?? 0) + 1,
     );
+    const now = this.now();
+    return [...this.matchEventIntents(sessionId, stamped, now), ...this.tickIntents(now)];
   }
 
   /**
@@ -354,6 +361,12 @@ export class Brain {
     this.turnBuffer.set(sessionId, []);
     this.distilling.add(sessionId);
     try {
+      // provenance 门禁（迭代D）：整批无用户轮次（纯 agent/system 主动消息）不蒸馏——
+      // 角色自己说的话不能当用户事实归档；滚动摘要同批跳过（finally 照常清 distilling）
+      if (!turns.some((t) => !t.via || t.via === 'user')) {
+        this.log?.(`蒸馏跳过 ${sessionId.slice(0, 8)}…：批次无用户轮次（agent/system）`);
+        return;
+      }
       const now = this.now();
       // 批次人设=批内众数（ingest 时钉的形成时人设），缺省回落活动人设——
       // 修「切换瞬间在途批次归新人设」窗口；existing/归并/戳/情绪/profile 全用它
@@ -443,8 +456,10 @@ export class Brain {
           continue;
         }
         // actor 只写了昵称时回填本轮真实全 tag——否则按 openid 归集（画像重生成、跨群召回）会漏条
+        // source='user'：本路径只产用户对话蒸馏记忆（agent/system 批次已被门禁挡在外面）
         const n = this.store.addNote(sessionId, {
           ...m, actor: resolveActorTag(m.actor, actors), emotion: stamp, strengthBoost: boost, personaId: batchPid,
+          source: 'user',
         }, now);
         if (vec) this.store.setEmbedding(n.id, vec);
         else forEmbed.push(n);
@@ -628,7 +643,11 @@ export class Brain {
     if (turns.some((t) => t.actor)) return turns;
     const nick = this.boundSpeakerNick(sessionId);
     if (!nick) return turns;
-    return turns.map((t) => ({ ...t, actor: t.actor ?? nick }));
+    // agent/system 轮次不补绑定发言人——主动消息/系统事件不是「绑定的那个人」说的
+    return turns.map((t) => ({
+      ...t,
+      actor: t.via && t.via !== 'user' ? t.actor : (t.actor ?? nick),
+    }));
   }
 
   /** 收集「现有画像」供蒸馏增量修订：会话级画像 + 涉及发言人的个人画像 */
@@ -896,12 +915,13 @@ export class Brain {
    * 除 store 外还要清内存态——EmotionEngine states 与轮次缓冲不清，
    * 旧数据会在下次蒸馏/digest 时被回写或驱动误触发。
    */
-  resetMemory(): { notes: number; profiles: number; emotions: number; digests: number } {
+  resetMemory(): { notes: number; profiles: number; emotions: number; digests: number; intents: number } {
     const cleared = {
       notes: this.store.allNotes().length,
       profiles: this.store.people().length,
       emotions: this.store.sessions().filter((s) => s.emotion).length,
       digests: this.store.sessions().filter((s) => this.store.digestOf(s.sessionId)).length,
+      intents: this.store.allIntents().length,
     };
     this.store.resetMemory();
     this.emotion.reset();
@@ -973,6 +993,10 @@ export class Brain {
     const result = await this.distiller.consolidate(eps, profileText, this.personaForPrompts(notePid), { now, timeZone: this.cfg.timeZone });
     const stamp = this.emotionStamp(sessionId, now, notePid);
     const sourceIds = eps.map((e) => e.id);
+    // 来源戳同质继承（迭代D）：源批次同源（全 user/全 agent…）产出同源；
+    // 混合批次归 'user'——蒸馏主路径，agent 内容混入时按用户系保守归集
+    const srcSet = new Set(eps.map((n) => n.source ?? 'user'));
+    const noteSource = srcSet.size === 1 ? [...srcSet][0]! : 'user';
     const boost = this.emotionBoost(stamp);
     // 自我轨继承：本批源全是同角色自我轨 episodic 时，产出默认也是该角色的自我沉淀——
     // LLM 把第一人称改写成「流萤与开拓者…」式第三人称后「我」字启发式会漏标→世界轨→跨角色串味；
@@ -1016,7 +1040,7 @@ export class Brain {
         sessionId,
         // 语义记忆沿用源记忆全 tag（巩固输出同样常只写昵称）；
         // selfHint 覆盖 m.self——全自我轨源批次的缺省继承在此落定
-        { ...m, self: selfHint, actor: resolveActorTag(m.actor, epActors), kind, emotion: stamp, strengthBoost: boost, sourceIds, personaId: notePid },
+        { ...m, self: selfHint, actor: resolveActorTag(m.actor, epActors), kind, emotion: stamp, strengthBoost: boost, sourceIds, personaId: notePid, source: noteSource },
         now,
       );
       if (vec) this.store.setEmbedding(n.id, vec);
@@ -1240,13 +1264,296 @@ export class Brain {
     return best && bc >= this.cfg.dedupeEmbedCos ? { note: best, cos: bc } : undefined;
   }
 
+  // ── standing intents（迭代D prospective memory）──
+  // 触发评估确定性零 LLM：event 型在 ingest 路径对用户 turn 即时匹配，
+  // time 型由 tickIntents（ingest 顺带 + 插件 60s 定时器）到期判定。
+  // fired 列表返回给壳层——「拿到 fired 后生成什么消息」是壳层职责。
+
+  /** 新建 intent：校验归一后落库；personaId 缺省=当前活动人设（标签/壳层路由用） */
+  addIntent(draft: IntentDraft): IntentEntry {
+    const now = this.now();
+    const d = this.normalizeIntentDraft(draft, now);
+    d.personaId = d.personaId ?? this.store.activePersonaId() ?? undefined;
+    return this.store.addIntent(d, now);
+  }
+
+  /**
+   * 配置字段补丁：undefined 不动 / null 清除；fireAt 与 dailyAt 互斥——
+   * 设一清另一（同给时 dailyAt 优先）；合并视图过同套校验，终态不可改。
+   */
+  updateIntent(id: string, patch: IntentConfigPatch): IntentEntry | undefined {
+    const cur = this.store.intentById(id);
+    if (!cur) return undefined;
+    if (!patch || typeof patch !== 'object') throw new Error('意图参数无效');
+    const now = this.now();
+    const storePatch: Parameters<BrainStore['updateIntent']>[1] = {};
+
+    if (patch.text !== undefined) {
+      const t = typeof patch.text === 'string' ? patch.text.trim() : '';
+      if (!t) throw new Error('意图描述不能为空');
+      if (t.length > 200) throw new Error('意图描述过长（≤200 字）');
+      storePatch.text = t;
+    }
+    if (patch.match !== undefined) {
+      storePatch.match = patch.match === null ? null : this.normalizeIntentMatch(patch.match);
+    }
+    // fireAt/dailyAt：undefined 不动 / null 清除 / 值设置（设置即清除另一方）
+    let fireAt = cur.fireAt, dailyAt = cur.dailyAt;
+    if (patch.fireAt !== undefined) {
+      if (patch.fireAt === null) fireAt = undefined;
+      else {
+        if (typeof patch.fireAt !== 'number' || !Number.isFinite(patch.fireAt)) throw new Error('fireAt 须为有效时间戳');
+        fireAt = patch.fireAt; dailyAt = undefined;
+      }
+    }
+    if (patch.dailyAt !== undefined) {
+      if (patch.dailyAt === null) dailyAt = undefined;
+      else {
+        const norm = normalizeDailyAt(patch.dailyAt);
+        if (!norm) throw new Error('dailyAt 须为 HH:mm');
+        dailyAt = norm; fireAt = undefined;
+      }
+    }
+    if (cur.kind === 'time' && (fireAt == null) === (dailyAt == null))
+      throw new Error('定时意图须且只能指定 fireAt 或 dailyAt 之一');
+    if (patch.fireAt !== undefined || patch.dailyAt !== undefined) {
+      if ((fireAt ?? null) !== (cur.fireAt ?? null)) storePatch.fireAt = fireAt ?? null;
+      if ((dailyAt ?? null) !== (cur.dailyAt ?? null)) storePatch.dailyAt = dailyAt ?? null;
+    }
+    // 合并视图校验：event 的 match 不可清空（time 型 match 惰性字段，不拦）
+    const effMatch = patch.match !== undefined
+      ? (patch.match === null ? undefined : storePatch.match ?? undefined)
+      : cur.match;
+    if (cur.kind === 'event' && !(effMatch?.text || effMatch?.actor))
+      throw new Error('事件意图须指定 match.text 或 match.actor');
+
+    if (patch.cooldownMs !== undefined) {
+      if (patch.cooldownMs === null) storePatch.cooldownMs = null;
+      else {
+        if (typeof patch.cooldownMs !== 'number' || !Number.isFinite(patch.cooldownMs) || patch.cooldownMs < 0)
+          throw new Error('cooldownMs 须为非负数');
+        storePatch.cooldownMs = patch.cooldownMs;
+      }
+    }
+    if (patch.maxFires !== undefined) {
+      if (patch.maxFires === null) storePatch.maxFires = null;
+      else {
+        if (!Number.isInteger(patch.maxFires) || patch.maxFires < 1) throw new Error('maxFires 须为 ≥1 整数');
+        storePatch.maxFires = patch.maxFires;
+      }
+    }
+    if (patch.expiresAt !== undefined) {
+      if (patch.expiresAt === null) storePatch.expiresAt = null;
+      else {
+        if (typeof patch.expiresAt !== 'number' || !Number.isFinite(patch.expiresAt) || patch.expiresAt <= now)
+          throw new Error('expiresAt 须为未来时间戳');
+        storePatch.expiresAt = patch.expiresAt;
+      }
+    }
+    for (const k of ['sessionId', 'personaId'] as const) {
+      const v = patch[k];
+      if (v === undefined) continue;
+      if (v === null) { storePatch[k] = null; continue; }
+      if (typeof v !== 'string') throw new Error(`${k} 须为字符串`);
+      storePatch[k] = v.trim() || null;  // 空串=清除
+    }
+    if (!Object.keys(storePatch).length) return this.store.intentById(id);
+    return this.store.updateIntent(id, storePatch);
+  }
+
+  /** 人工取消：仅 pending 可取消（终态 fired/expired/cancelled 返回 false） */
+  cancelIntent(id: string): boolean {
+    const it = this.store.intentById(id);
+    if (!it || it.status !== 'pending') return false;
+    this.store.updateIntent(id, { status: 'cancelled' });
+    return true;
+  }
+
+  /** 硬删（intent-del op；区别于 cancel 的状态保留） */
+  deleteIntent(id: string): boolean {
+    return this.store.deleteIntent(id);
+  }
+
+  /**
+   * 列表过滤：status/kind 精确匹配；sessionId 给定时含「该会话限定 + 全局（无 sessionId）」两档——
+   * 全局 intent 对每个会话都可能触发，按会话查时不该漏掉。
+   */
+  listIntents(filter?: { status?: IntentStatus; kind?: IntentKind; sessionId?: string }): IntentEntry[] {
+    return this.store.allIntents().filter((it) =>
+      (!filter?.status || it.status === filter.status)
+      && (!filter?.kind || it.kind === filter.kind)
+      && (!filter?.sessionId || !it.sessionId || it.sessionId === filter.sessionId));
+  }
+
+  /**
+   * 定时评估（确定性零 LLM）：先对全部 pending 落定过期/maxFires 终态，
+   * 再评估 time 型到期+冷却→fire。ingest 内顺带调用与插件 60s 定时器共用，幂等。
+   * 返回本轮新 fired 列表。
+   */
+  tickIntents(now = this.now()): IntentEntry[] {
+    const fired: IntentEntry[] = [];
+    for (const it of this.store.allIntents()) {
+      if (it.status !== 'pending' || !this.intentGate(it, now)) continue;
+      if (it.kind !== 'time' || !this.timeIntentDue(it, now) || this.intentCooling(it, now)) continue;
+      const f = this.fireIntent(it, now);
+      if (f) fired.push(f);
+    }
+    return fired;
+  }
+
+  /** event 型即时评估：仅用户来源 turn 触发（agent/system 不喂意图），match 双条件 AND */
+  private matchEventIntents(sessionId: string, turn: Turn, now: number): IntentEntry[] {
+    if (turn.via && turn.via !== 'user') return [];
+    if (!turn.userText.trim()) return [];
+    const fired: IntentEntry[] = [];
+    for (const it of this.store.allIntents()) {
+      if (it.status !== 'pending' || it.kind !== 'event') continue;
+      if (it.sessionId && it.sessionId !== sessionId) continue;
+      if (!this.intentGate(it, now) || this.intentCooling(it, now)) continue;
+      if (!this.intentMatchHit(it.match, turn)) continue;
+      const f = this.fireIntent(it, now);
+      if (f) fired.push(f);
+    }
+    return fired;
+  }
+
+  /** match 命中判定：text 测 userText（不含 contextText 环境消息）、actor 测发言人 tag；双给按 AND */
+  private intentMatchHit(m: IntentMatch | undefined, turn: Turn): boolean {
+    if (!m) return false;
+    const checks: boolean[] = [];
+    if (m.text) checks.push(this.matchPattern(m.text)?.test(turn.userText) ?? false);
+    if (m.actor) checks.push(!!turn.actor && (this.matchPattern(m.actor)?.test(turn.actor) ?? false));
+    return checks.length > 0 && checks.every(Boolean);
+  }
+
+  /**
+   * 终态门禁：pending 意图先落定 expiresAt/maxFires 终态（op 落盘），
+   * 返回是否仍可参与触发评估。event 型的过期/maxFires 也在此清扫——不依赖消息到达。
+   */
+  private intentGate(it: IntentEntry, now: number): boolean {
+    if (it.expiresAt != null && now >= it.expiresAt) {
+      this.store.updateIntent(it.id, { status: 'expired' });
+      this.log?.(`intent expired：${it.id.slice(0, 8)}… 「${it.text.slice(0, 30)}」`);
+      return false;
+    }
+    if (it.maxFires != null && it.firedCount >= it.maxFires) {
+      this.store.updateIntent(it.id, { status: 'fired' });
+      return false;
+    }
+    return true;
+  }
+
+  private intentCooling(it: IntentEntry, now: number): boolean {
+    return it.cooldownUntil != null && now < it.cooldownUntil;
+  }
+
+  /** 触发落账：firedCount/lastFiredAt/cooldownUntil/status 随 op 落盘（重放确定性）；终态判定见 fireIntent */
+  private fireIntent(it: IntentEntry, now: number): IntentEntry | undefined {
+    const firedCount = it.firedCount + 1;
+    // 终态：达 maxFires / time 一次性（fireAt）→ fired；dailyAt 复发与 event 常规续 pending
+    const status: IntentStatus =
+      (it.maxFires != null && firedCount >= it.maxFires) || (it.kind === 'time' && it.fireAt != null)
+        ? 'fired' : 'pending';
+    const updated = this.store.fireIntent(it.id, {
+      at: now, firedCount, status,
+      cooldownUntil: it.cooldownMs ? now + it.cooldownMs : undefined,
+    });
+    if (updated) this.log?.(`intent fired：${it.id.slice(0, 8)}… ${it.kind}「${it.text.slice(0, 30)}」（第 ${firedCount} 次）`);
+    return updated;
+  }
+
+  /**
+   * time 型到期判定：
+   * - fireAt：firedCount===0 且 now>=fireAt（建时已过期→下个 tick 立即触发，fire-ASAP 语义）
+   * - dailyAt：当日场次晚于 createdAt（创建当天不补打）且已过且未在该场次触发过
+   */
+  private timeIntentDue(it: IntentEntry, now: number): boolean {
+    if (it.fireAt != null) return it.firedCount === 0 && now >= it.fireAt;
+    if (it.dailyAt) {
+      const occ = dailyOccurrenceMs(it.dailyAt, now, this.cfg.timeZone);
+      return occ != null && occ > it.createdAt && occ <= now
+        && (it.lastFiredAt == null || it.lastFiredAt < occ);
+    }
+    return false;
+  }
+
+  /** 创建入参校验归一（add 共用）；kind 决定必填集：event→match，time→fireAt|dailyAt 恰一 */
+  private normalizeIntentDraft(draft: IntentDraft, now: number): IntentDraft {
+    if (!draft || typeof draft !== 'object') throw new Error('意图参数无效');
+    const kind = draft.kind;
+    if (kind !== 'event' && kind !== 'time') throw new Error('意图类型须为 event 或 time');
+    const text = typeof draft.text === 'string' ? draft.text.trim() : '';
+    if (!text) throw new Error('意图描述不能为空');
+    if (text.length > 200) throw new Error('意图描述过长（≤200 字）');
+    const out: IntentDraft = { kind, text };
+    if (draft.match != null) out.match = this.normalizeIntentMatch(draft.match);
+    const hasFire = draft.fireAt != null, hasDaily = draft.dailyAt != null;
+    if (hasFire && hasDaily) throw new Error('fireAt 与 dailyAt 互斥，须且只能指定其一');
+    if (hasFire) {
+      if (typeof draft.fireAt !== 'number' || !Number.isFinite(draft.fireAt)) throw new Error('fireAt 须为有效时间戳');
+      out.fireAt = draft.fireAt;
+    }
+    if (hasDaily) {
+      const norm = normalizeDailyAt(draft.dailyAt);
+      if (!norm) throw new Error('dailyAt 须为 HH:mm');
+      out.dailyAt = norm;
+    }
+    if (kind === 'event' && !(out.match?.text || out.match?.actor))
+      throw new Error('事件意图须指定 match.text 或 match.actor');
+    if (kind === 'time' && !hasFire && !hasDaily)
+      throw new Error('定时意图须指定 fireAt 或 dailyAt 之一');
+    if (draft.cooldownMs != null) {
+      if (typeof draft.cooldownMs !== 'number' || !Number.isFinite(draft.cooldownMs) || draft.cooldownMs < 0)
+        throw new Error('cooldownMs 须为非负数');
+      out.cooldownMs = draft.cooldownMs;
+    }
+    if (draft.maxFires != null) {
+      if (!Number.isInteger(draft.maxFires) || draft.maxFires < 1) throw new Error('maxFires 须为 ≥1 整数');
+      out.maxFires = draft.maxFires;
+    }
+    if (draft.expiresAt != null) {
+      if (typeof draft.expiresAt !== 'number' || !Number.isFinite(draft.expiresAt) || draft.expiresAt <= now)
+        throw new Error('expiresAt 须为未来时间戳');
+      out.expiresAt = draft.expiresAt;
+    }
+    if (typeof draft.sessionId === 'string' && draft.sessionId.trim()) out.sessionId = draft.sessionId.trim();
+    if (typeof draft.personaId === 'string' && draft.personaId.trim()) out.personaId = draft.personaId.trim();
+    return out;
+  }
+
+  /** match 校验归一：text/actor 至少其一；/…/flags 形式必须可编译（防 ReDoS 面收敛到创建期） */
+  private normalizeIntentMatch(raw: unknown): IntentMatch {
+    const m = raw as { text?: unknown; actor?: unknown } | null;
+    if (!m || typeof m !== 'object') throw new Error('match 须为对象');
+    const text = typeof m.text === 'string' ? m.text.trim() : '';
+    const actor = typeof m.actor === 'string' ? m.actor.trim() : '';
+    if (text.length > 200 || actor.length > 200) throw new Error('match 字段过长（≤200 字）');
+    if (text && !compileMatchPattern(text)) throw new Error(`match.text 匹配式无效：${text.slice(0, 40)}`);
+    if (actor && !compileMatchPattern(actor)) throw new Error(`match.actor 匹配式无效：${actor.slice(0, 40)}`);
+    if (!text && !actor) throw new Error('match 须含 text 或 actor');
+    return { text: text || undefined, actor: actor || undefined };
+  }
+
+  /** 匹配式编译缓存（上限 200，超限清空重建——match 串是用户可控输入，防无界增长） */
+  private matchPatternCache = new Map<string, RegExp | null>();
+
+  private matchPattern(p: string): RegExp | null {
+    const hit = this.matchPatternCache.get(p);
+    if (hit !== undefined) return hit;
+    const re = compileMatchPattern(p);
+    if (this.matchPatternCache.size >= 200) this.matchPatternCache.clear();
+    this.matchPatternCache.set(p, re);
+    return re;
+  }
+
   // ── 脑图页编辑入口 ──
 
   addNote(sessionId: string, draft: NoteDraft): MemoryNote {
     const now = this.now();
     const stamp = this.emotionStamp(sessionId || GLOBAL_SESSION_ID, now);
     const n = this.store.addNote(sessionId || GLOBAL_SESSION_ID,
-      { ...draft, emotion: stamp, strengthBoost: draft.strengthBoost ?? this.emotionBoost(stamp), personaId: draft.personaId ?? this.store.activePersonaId() }, now);
+      // 来源戳：脑图页/API 手写默认 'manual'；显式 draft.source（如导入路径）优先
+      { ...draft, emotion: stamp, strengthBoost: draft.strengthBoost ?? this.emotionBoost(stamp), personaId: draft.personaId ?? this.store.activePersonaId(), source: draft.source ?? 'manual' }, now);
     void this.embedNotes([n]);
     return n;
   }
@@ -1335,6 +1642,8 @@ export class Brain {
       /** 私域手动覆盖；生效域=private ?? 来源会话域（图谱徽标用） */
       private: n.private,
       scope: this.noteScope(n),
+      /** 来源戳（迭代D）：user=对话蒸馏 / agent=壳层主动 / manual=手写 / import=导入 */
+      source: n.source,
     }));
     const { edges, nearDup } = await this.graphEdges(raw, sessionId);
     const stats = {
@@ -1359,6 +1668,8 @@ export class Brain {
       notes,
       stats,
       edges,
+      /** standing intents 全量（迭代D；体量小，脑图页/壳层共用此口径） */
+      intents: this.store.allIntents(),
       config: { forgetThreshold: this.cfg.forgetThreshold, topK: this.cfg.topK },
     };
   }
@@ -1489,6 +1800,29 @@ function personaFacetTexts(text: string): string[] {
 
 /** 放行队列的私密线索词（启发式降噪：命中的域条不进候选，放行决策永远是人） */
 const PRIVATE_HINT_RE = /恋人|亲密|防护|避孕|射精|体外|安全期|保健药|枕边|吹头发|小余|宝宝|小笨蛋|身体反应|冷落|她还是她|男朋友|女朋友|送裙子|害羞|颈窝|白丝|丝袜|生理期|按腰|洗澡|数着日子|撒娇|半推半就|约会|按摩|被子|起床|旗袍|抱着|语音|夜|睡|床|带饭|做饭|喂/;
+
+/**
+ * intent 匹配式编译：'/…/flags' 形式按正则（flags 原样透传），
+ * 其余按大小写不敏感子串（转义后包 i 旗标）。编译失败返回 null——
+ * 创建/更新期已校验可编译，null 只兜底快照/导入的脏数据（视为不匹配）。
+ */
+function compileMatchPattern(p: string): RegExp | null {
+  const s = p.trim();
+  const m = /^\/(.*)\/([a-z]*)$/.exec(s);
+  try {
+    if (m) return new RegExp(m[1]!, m[2]);
+    return new RegExp(s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+  } catch {
+    return null;
+  }
+}
+
+/** 'HH:mm' 归一（补零 '9:05'→'09:05'）；非法返回 undefined */
+function normalizeDailyAt(v: unknown): string | undefined {
+  if (typeof v !== 'string') return undefined;
+  const m = /^([01]?\d|2[0-3]):([0-5]\d)$/.exec(v.trim());
+  return m ? `${m[1]!.padStart(2, '0')}:${m[2]}` : undefined;
+}
 
 /**
  * 文本佐证判定：note 内容归一化（去 actor 前缀与标点）后的 char-bigram

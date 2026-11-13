@@ -54,3 +54,35 @@ export function ageLabel(createdAt: number, now: number): string {
   if (hours < 24) return `${hours}小时前`;
   return `${Math.floor(ms / DAY_MS)}天前`;
 }
+
+/**
+ * 时区本地时间 → epoch：先按 UTC 猜一个值，回代时区部件求差，
+ * 不动点迭代收敛（Asia/Shanghai 无 DST，两轮内精确；闰秒/夏令时切换边缘取近似，
+ * 该函数只服务 intent 触发粒度=分钟，亚秒误差无感）。
+ */
+function zonedTimeToUtc(y: number, mo: number, d: number, hh: number, mm: number, timeZone: string): number {
+  const target = Date.UTC(y, mo - 1, d, hh, mm);
+  let guess = target;
+  for (let i = 0; i < 3; i++) {
+    const p = partsOf(guess, timeZone, false);
+    const asUtc = Date.UTC(+p.y, +p.mo - 1, +p.d, +p.hh, +p.mi);
+    const diff = target - asUtc;
+    if (!diff) break;
+    guess += diff;
+  }
+  return guess;
+}
+
+/**
+ * 'HH:mm' → now 当日（timeZone 口径）该时刻的 epoch ms。
+ * 返回「今天的场次」而非「最近的过去场次」——是否到期由调用方比较
+ * occ<=now 判定；非法入参返回 undefined（intent 评估侧视为永不触发）。
+ */
+export function dailyOccurrenceMs(dailyAt: string, now: number, timeZone: string): number | undefined {
+  const m = /^([01]?\d|2[0-3]):([0-5]\d)$/.exec(dailyAt.trim());
+  if (!m) return undefined;
+  const p = partsOf(now, timeZone, false);
+  const y = +p.y, mo = +p.mo, d = +p.d;
+  if (!y || !mo || !d) return undefined;
+  return zonedTimeToUtc(y, mo, d, +m[1]!, +m[2]!, timeZone);
+}

@@ -79,6 +79,12 @@ export interface MemoryNote {
    * 'public'=强制公开（即便来源会话已标域）；undefined=按来源会话域派生。
    */
   private?: string;
+  /**
+   * 来源戳（迭代D provenance）：记忆由谁产出。
+   * 'user'=用户对话蒸馏（默认语义，缺省视同）；'agent'=壳层主动消息相关产出；
+   * 'manual'=脑图页/API 手写；'import'=备份/人设包导入。不可经 update op 修改。
+   */
+  source?: MemorySource;
 }
 
 /**
@@ -183,6 +189,8 @@ export interface NoteDraft {
   self?: boolean;
   /** 私域手动覆盖（脑图页/API 指定）；缺省按来源会话域派生，见 MemoryNote.private */
   private?: string;
+  /** 来源戳（迭代D）：缺省由写入路径决定——蒸馏='user'、脑图/API='manual' */
+  source?: MemorySource;
 }
 
 /**
@@ -225,12 +233,22 @@ export interface DistillResult {
   forget?: (number | string)[];
 }
 
+/** 记忆来源戳取值（迭代D provenance；与 MemoryNote.source/NoteDraft.source 共用） */
+export const MEMORY_SOURCES = ['user', 'agent', 'manual', 'import'] as const;
+export type MemorySource = (typeof MEMORY_SOURCES)[number];
+
 /** 一轮对话（蒸馏输入） */
 export interface Turn {
   userText: string;
   assistantText: string;
   actor?: string;
   at: number;
+  /**
+   * 轮次来源（迭代D session-kind）：'user'=用户发起（缺省，兼容存量）；
+   * 'agent'=角色主动开口（companion 壳层 proactive turn）；'system'=系统/心跳。
+   * agent/system 轮次在蒸馏中不作用户发言归因；整批无 user 轮次→跳过蒸馏。
+   */
+  via?: 'user' | 'agent' | 'system';
   /**
    * 群聊环境上下文（[Chat history] 末段，界内截断保留标记）。
    * 只进 distill convo 做背景；digest/检索 query/embedding 不读——
@@ -252,6 +270,85 @@ export interface SessionDigest {
   uptoTurn: number;
   updatedAt: number;
 }
+
+// ── standing intents（迭代D prospective memory）──
+
+export type IntentKind = 'event' | 'time';
+/** pending 活跃 / fired 终态（一次性触发或达 maxFires）/ expired 过期 / cancelled 人工取消 */
+export type IntentStatus = 'pending' | 'fired' | 'expired' | 'cancelled';
+
+/** event 型匹配器：text/actor 同给按 AND；各自支持子串（大小写不敏感）或 /正则/flags */
+export interface IntentMatch {
+  /** 匹配入站正文 turn.userText（不含 contextText 环境消息） */
+  text?: string;
+  /** 匹配发言人 actor tag「昵称 (openid)」 */
+  actor?: string;
+}
+
+/** 一条 standing intent：会记得在未来触发的意图（companion 主动开口的内核前置） */
+export interface IntentEntry {
+  id: string;
+  kind: IntentKind;
+  /** 意图描述（人读 + 壳层生成消息的语义输入），≤200 字 */
+  text: string;
+  status: IntentStatus;
+  createdAt: number;
+  /** time 一次性触发时刻 ms epoch；与 dailyAt 互斥（存在即一次性，触发→fired 终态） */
+  fireAt?: number;
+  /** time 每日复发 'HH:mm'（cfg.timeZone 口径；场次晚于 createdAt 才补触发） */
+  dailyAt?: string;
+  /** event 匹配器：text/actor 至少其一非空 */
+  match?: IntentMatch;
+  /** 触发后冷却时长 ms（防刷屏；缺省=无冷却） */
+  cooldownMs?: number;
+  /** 冷却截止（内核在 fire 时写=lastFiredAt+cooldownMs） */
+  cooldownUntil?: number;
+  /** 触发次数上限：firedCount 达到→status='fired' 终态；缺省不限 */
+  maxFires?: number;
+  firedCount: number;
+  lastFiredAt?: number;
+  /** 失效时刻 ms epoch：pending 过此点→expired（每日型=停止复发窗口） */
+  expiresAt?: number;
+  /** 创建时活动人设 id（标签/壳层路由用；不参与触发判定） */
+  personaId?: string;
+  /** event 匹配范围限定：缺省=任意会话的入站 turn 都可触发 */
+  sessionId?: string;
+}
+
+/** intent 创建/更新入参（Brain 层校验归一后落库） */
+export interface IntentDraft {
+  kind: IntentKind;
+  text: string;
+  match?: IntentMatch;
+  fireAt?: number;
+  dailyAt?: string;
+  cooldownMs?: number;
+  maxFires?: number;
+  expiresAt?: number;
+  personaId?: string;
+  sessionId?: string;
+}
+
+/**
+ * intent 可变字段补丁（store op 与 Brain.updateIntent 共用）：
+ * undefined=不动，null=清除可选字段；status 仅内核终态转移用（公开 updateIntent 不暴露）。
+ * kind/createdAt/firedCount/lastFiredAt/cooldownUntil 不可补丁——分别由创建、fire op 维护。
+ */
+export interface IntentUpdatePatch {
+  text?: string;
+  match?: IntentMatch | null;
+  fireAt?: number | null;
+  dailyAt?: string | null;
+  cooldownMs?: number | null;
+  maxFires?: number | null;
+  expiresAt?: number | null;
+  sessionId?: string | null;
+  personaId?: string | null;
+  status?: IntentStatus;
+}
+
+/** 公开 updateIntent 入参：配置字段可空清除，不含 status（终态转移走 cancelIntent/内核） */
+export type IntentConfigPatch = Omit<IntentUpdatePatch, 'status'>;
 
 /** 注入 prompt 的组装产物 */
 export interface BrainContext {

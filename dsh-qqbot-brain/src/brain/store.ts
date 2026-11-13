@@ -1,8 +1,8 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import type { EmotionState, MemoryNote, NoteDraft, NoteEmotion, ProfileEntry, SessionDigest } from './types.ts';
-import { isSelfContent, notePersonaId, resolveSelfFlag } from './types.ts';
+import type { EmotionState, IntentDraft, IntentEntry, IntentStatus, IntentUpdatePatch, MemoryNote, NoteDraft, NoteEmotion, ProfileEntry, SessionDigest } from './types.ts';
+import { isSelfContent, MEMORY_SOURCES, notePersonaId, resolveSelfFlag } from './types.ts';
 import { isSessionKey, isUserKey, normalizeProfileKey, sessionProfileKey, splitActor, userProfileKey } from './identity.ts';
 
 /**
@@ -32,7 +32,14 @@ type Op =
   | { op: 'reset'; keepPersona?: boolean }
   | { op: 'del-range'; from: number; to: number; ids: string[] }
   | { op: 'del-persona'; personaId: string; ids: string[] }
-  | { op: 'sess-domain'; sessionId: string; domain: string };
+  | { op: 'sess-domain'; sessionId: string; domain: string }
+  // ── standing intents（迭代D）──
+  // intent-update.patch：可变配置字段（null=清除）+ status 内部终态转移（公开 updateIntent 不暴露 status）
+  | { op: 'intent-add'; intent: IntentEntry }
+  | { op: 'intent-update'; id: string; patch: IntentUpdatePatch }
+  // intent-fire 携带结果态（firedCount/cooldownUntil/status）：重放确定性，不重算
+  | { op: 'intent-fire'; id: string; at: number; firedCount: number; cooldownUntil: number | null; status: IntentStatus }
+  | { op: 'intent-del'; id: string };
 
 /**
  * 人设条目：persona=版本/衣服（prompt 文本），characterId=所属角色（灵魂，自我轨归属）。
@@ -61,6 +68,8 @@ export interface BrainExport {
   digests?: Record<string, SessionDigest>;
   /** 私域会话标记 sessionId→domain（v1 备份可缺省） */
   sessionDomains?: Record<string, string>;
+  /** standing intents（迭代D；v1 备份可缺省） */
+  intents?: IntentEntry[];
 }
 
 export interface ImportResult {
@@ -69,6 +78,7 @@ export interface ImportResult {
   profiles: number;
   emotions: number;
   persona: boolean;
+  intents: number;
 }
 
 function num(v: unknown, d: number): number {
@@ -120,6 +130,8 @@ function sanitizeNote(raw: unknown, now: number): MemoryNote | undefined {
       : (isSelfContent(n.content) ? true : undefined),
     absorbedAt: num(n.absorbedAt, 0) || undefined,
     private: typeof n.private === 'string' && n.private.trim() ? n.private.trim() : undefined,
+    source: typeof n.source === 'string' && (MEMORY_SOURCES as readonly string[]).includes(n.source)
+      ? n.source as MemoryNote['source'] : undefined,
   };
 }
 
@@ -134,6 +146,44 @@ function sanitizeEmotion(raw: unknown): EmotionState | undefined {
     mood: typeof e.mood === 'string' && e.mood ? e.mood : undefined,
     personaId: typeof e.personaId === 'string' && e.personaId ? e.personaId : undefined,
     updatedAt: num(e.updatedAt, Date.now()),
+  };
+}
+
+const INTENT_STATUSES: readonly IntentStatus[] = ['pending', 'fired', 'expired', 'cancelled'];
+
+function sanitizeIntentMatch(raw: unknown): IntentEntry['match'] | undefined {
+  const m = raw as { text?: unknown; actor?: unknown } | undefined;
+  if (!m || typeof m !== 'object') return undefined;
+  const text = typeof m.text === 'string' && m.text.trim() ? m.text.trim().slice(0, 200) : undefined;
+  const actor = typeof m.actor === 'string' && m.actor.trim() ? m.actor.trim().slice(0, 200) : undefined;
+  return text || actor ? { text, actor } : undefined;
+}
+
+/** 导入/快照回放清洗一条 intent；结构不合法返回 undefined（kind/status 非法回落/丢弃） */
+function sanitizeIntent(raw: unknown): IntentEntry | undefined {
+  const i = raw as Partial<IntentEntry> | undefined;
+  if (!i || typeof i !== 'object') return undefined;
+  if (typeof i.id !== 'string' || !i.id) return undefined;
+  if (typeof i.text !== 'string' || !i.text.trim()) return undefined;
+  const kind = i.kind === 'event' || i.kind === 'time' ? i.kind : undefined;
+  if (!kind) return undefined;
+  return {
+    id: i.id,
+    kind,
+    text: i.text.trim().slice(0, 200),
+    status: INTENT_STATUSES.includes(i.status as IntentStatus) ? i.status as IntentStatus : 'pending',
+    createdAt: num(i.createdAt, 0),
+    fireAt: num(i.fireAt, 0) || undefined,
+    dailyAt: typeof i.dailyAt === 'string' && i.dailyAt.trim() ? i.dailyAt.trim() : undefined,
+    match: sanitizeIntentMatch(i.match),
+    cooldownMs: num(i.cooldownMs, 0) || undefined,
+    cooldownUntil: num(i.cooldownUntil, 0) || undefined,
+    maxFires: Number.isInteger(i.maxFires) && (i.maxFires as number) > 0 ? i.maxFires as number : undefined,
+    firedCount: Math.max(0, Math.round(num(i.firedCount, 0))),
+    lastFiredAt: num(i.lastFiredAt, 0) || undefined,
+    expiresAt: num(i.expiresAt, 0) || undefined,
+    personaId: typeof i.personaId === 'string' && i.personaId ? i.personaId : undefined,
+    sessionId: typeof i.sessionId === 'string' && i.sessionId ? i.sessionId : undefined,
   };
 }
 
@@ -208,6 +258,8 @@ export class BrainStore {
   private personaText = '';
   private personaEntries = new Map<string, PersonaEntry>();
   private activeId = '';
+  /** standing intents（迭代D）：前瞻记忆，体量小不用二级索引 */
+  private intents = new Map<string, IntentEntry>();
   /** 版本号：任何写入后 +1，检索器据此重建索引 */
   version = 0;
   /** 边集相关版本：仅记忆内容/结构/向量变化时递增（reinforce/emotion 等不计）——graphEdges 缓存键 */
@@ -239,6 +291,7 @@ export class BrainStore {
           digests?: Record<string, SessionDigest>;
           personas?: PersonaEntry[]; activePersonaId?: string;
           sessionDomains?: Record<string, string>;
+          intents?: IntentEntry[];
         };
         for (const [k, v] of Object.entries(snap.sessionDomains ?? {})) {
           if (typeof v === 'string' && v) this.sessionDomains.set(k, v);
@@ -271,6 +324,10 @@ export class BrainStore {
         for (const entry of snap.personas ?? []) {
           if (typeof entry.id === 'string' && typeof entry.name === 'string' && typeof entry.text === 'string')
             this.personaEntries.set(entry.id, entry);
+        }
+        for (const raw of snap.intents ?? []) {
+          const it = sanitizeIntent(raw);
+          if (it) this.intents.set(it.id, it);
         }
         if (snap.activePersonaId && this.personaEntries.has(snap.activePersonaId))
           this.activeId = snap.activePersonaId;
@@ -398,6 +455,7 @@ export class BrainStore {
         this.emotions.clear();
         this.profiles.clear();
         this.digests.clear();
+        this.intents.clear();
         if (!op.keepPersona) {
           this.personaText = '';
           this.personaEntries.clear();
@@ -413,6 +471,38 @@ export class BrainStore {
       case 'sess-domain':
         if (op.domain) this.sessionDomains.set(op.sessionId, op.domain);
         else this.sessionDomains.delete(op.sessionId);
+        break;
+      case 'intent-add': {
+        const it = sanitizeIntent(op.intent);
+        if (it) this.intents.set(it.id, it);
+        break;
+      }
+      case 'intent-update': {
+        const it = this.intents.get(op.id);
+        if (it) {
+          const p = op.patch;
+          if (p.text !== undefined) it.text = p.text.trim().slice(0, 200);
+          // 可选字段：undefined 跳过 / null 清除 / 其余赋值（JSON 落盘后 undefined 键本就不存在）
+          for (const k of ['match', 'fireAt', 'dailyAt', 'cooldownMs', 'maxFires', 'expiresAt', 'sessionId', 'personaId'] as const) {
+            const v = p[k];
+            if (v !== undefined) (it as unknown as Record<string, unknown>)[k] = v ?? undefined;
+          }
+          if (p.status !== undefined) it.status = p.status;
+        }
+        break;
+      }
+      case 'intent-fire': {
+        const it = this.intents.get(op.id);
+        if (it) {
+          it.firedCount = op.firedCount;
+          it.lastFiredAt = op.at;
+          it.cooldownUntil = op.cooldownUntil ?? undefined;
+          it.status = op.status;
+        }
+        break;
+      }
+      case 'intent-del':
+        this.intents.delete(op.id);
         break;
     }
   }
@@ -459,6 +549,7 @@ export class BrainStore {
       personas: [...this.personaEntries.values()],
       activePersonaId: this.activeId,
       sessionDomains: Object.fromEntries(this.sessionDomains),
+      intents: [...this.intents.values()],
     };
     const tmp = this.snapshotFile + '.tmp';
     writeFileSync(tmp, JSON.stringify(snap));
@@ -490,6 +581,8 @@ export class BrainStore {
       // 自我轨统一兜底：attitude 恒自我轨不写 self；其余 LLM self 优先、启发式补漏
       self: resolveSelfFlag(draft.kind, draft.self, content),
       private: draft.private?.trim() || undefined,
+      // 来源戳由调用方给（蒸馏='user'/脑图='manual'/导入='import'）；缺省留空视同 user 系
+      source: draft.source,
     };
     if (!note.content) return note;
     this.persist({ op: 'add', note });
@@ -873,6 +966,62 @@ export class BrainStore {
     return { id, name: name.trim(), text: text.trim() };
   }
 
+  // ── standing intents（迭代D prospective memory）──
+
+  /** 新建 intent：id/status/createdAt/firedCount 由存储层钉死，draft 只带可变字段 */
+  addIntent(draft: IntentDraft, now: number): IntentEntry {
+    const entry: IntentEntry = {
+      id: randomUUID(),
+      kind: draft.kind,
+      text: draft.text.trim().slice(0, 200),
+      status: 'pending',
+      createdAt: now,
+      firedCount: 0,
+      match: draft.match,
+      fireAt: draft.fireAt,
+      dailyAt: draft.dailyAt,
+      cooldownMs: draft.cooldownMs,
+      maxFires: draft.maxFires,
+      expiresAt: draft.expiresAt,
+      personaId: draft.personaId || undefined,
+      sessionId: draft.sessionId || undefined,
+    };
+    this.persist({ op: 'intent-add', intent: entry });
+    return { ...entry, match: entry.match ? { ...entry.match } : undefined };
+  }
+
+  /** 配置字段补丁（null=清除）；status 仅供内核终态转移（cancel/expire/maxFires） */
+  updateIntent(id: string, patch: IntentUpdatePatch): IntentEntry | undefined {
+    if (!this.intents.has(id)) return undefined;
+    this.persist({ op: 'intent-update', id, patch });
+    return this.intentById(id);
+  }
+
+  /** 触发落账：firedCount/lastFiredAt/cooldownUntil/status 由调用方算好随 op 落盘（重放确定性） */
+  fireIntent(id: string, fire: { at: number; firedCount: number; status: IntentStatus; cooldownUntil?: number }): IntentEntry | undefined {
+    if (!this.intents.has(id)) return undefined;
+    this.persist({
+      op: 'intent-fire', id, at: fire.at, firedCount: fire.firedCount,
+      cooldownUntil: fire.cooldownUntil ?? null, status: fire.status,
+    });
+    return this.intentById(id);
+  }
+
+  deleteIntent(id: string): boolean {
+    if (!this.intents.has(id)) return false;
+    this.persist({ op: 'intent-del', id });
+    return true;
+  }
+
+  allIntents(): IntentEntry[] {
+    return [...this.intents.values()].map((i) => ({ ...i, match: i.match ? { ...i.match } : undefined }));
+  }
+
+  intentById(id: string): IntentEntry | undefined {
+    const i = this.intents.get(id);
+    return i ? { ...i, match: i.match ? { ...i.match } : undefined } : undefined;
+  }
+
   // ── 导出 / 导入（脑图页「备份迁移」）──
 
   exportData(now: number): BrainExport {
@@ -887,6 +1036,7 @@ export class BrainStore {
       profiles: Object.fromEntries(this.profiles),
       digests: Object.fromEntries(this.digests),
       sessionDomains: Object.fromEntries(this.sessionDomains),
+      intents: [...this.intents.values()],
     };
   }
 
@@ -909,14 +1059,23 @@ export class BrainStore {
       throw new Error('备份文件 personas 字段无效');
     if (data.activePersonaId && data.personas?.length && !data.personas.some((p) => p.id === data.activePersonaId))
       throw new Error('备份文件活动人设无效');
+    if (data.intents != null && !Array.isArray(data.intents)) throw new Error('备份文件 intents 字段无效');
     if (mode === 'replace') this.persist({ op: 'reset' });
 
-    const res: ImportResult = { notes: 0, skipped: 0, profiles: 0, emotions: 0, persona: false };
+    const res: ImportResult = { notes: 0, skipped: 0, profiles: 0, emotions: 0, persona: false, intents: 0 };
     for (const n of data.notes ?? []) {
       const note = sanitizeNote(n, now);
       if (!note || (mode === 'merge' && this.notes.has(note.id))) { res.skipped++; continue; }
+      // 来源戳缺省补 'import'：备份自带 source（user/agent 等）者保留原始出处
+      note.source ??= 'import';
       this.persist({ op: 'add', note });
       res.notes++;
+    }
+    for (const raw of data.intents ?? []) {
+      const it = sanitizeIntent(raw);
+      if (!it || (mode === 'merge' && this.intents.has(it.id))) { res.skipped++; continue; }
+      this.persist({ op: 'intent-add', intent: it });
+      res.intents++;
     }
     if (data.profiles && typeof data.profiles === 'object') {
       for (const [rawKey, v] of Object.entries(data.profiles)) {

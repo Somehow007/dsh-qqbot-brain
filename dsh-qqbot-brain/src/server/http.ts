@@ -2,7 +2,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { GLOBAL_SESSION_ID, type Brain } from '../brain/index.ts';
+import { GLOBAL_SESSION_ID, type Brain, type IntentConfigPatch, type IntentDraft, type IntentKind, type IntentStatus } from '../brain/index.ts';
 import { retention } from '../brain/decay.ts';
 import type { HttpConfig } from '../config.ts';
 
@@ -223,6 +223,58 @@ export class BrainHttpServer {
       });
       return;
     }
+    // ── standing intents（迭代D）──
+    // /api/intents/tick 必须先于 <id> 动态匹配显式判断（'tick' 会撞 [^/]+ 但不是合法 id）
+    if (p === `${prefix}/api/intents/tick` && req.method === 'POST') {
+      return json(res, { ok: true, fired: this.brain.tickIntents() });
+    }
+    if (p === `${prefix}/api/intents` && req.method === 'GET') {
+      const status = url.searchParams.get('status');
+      const kind = url.searchParams.get('kind');
+      return json(res, {
+        intents: this.brain.listIntents({
+          status: status === 'pending' || status === 'fired' || status === 'expired' || status === 'cancelled'
+            ? status as IntentStatus : undefined,
+          kind: kind === 'event' || kind === 'time' ? kind as IntentKind : undefined,
+          sessionId: url.searchParams.get('sessionId') ?? undefined,
+        }),
+      });
+    }
+    if (p === `${prefix}/api/intents` && req.method === 'POST') {
+      try {
+        const o = parseJson<IntentDraft>(await readBody(req));
+        return json(res, { ok: true, intent: this.brain.addIntent(o as IntentDraft) });
+      } catch (e) {
+        res.writeHead(400).end(e instanceof Error ? e.message : 'invalid intent');
+        return;
+      }
+    }
+    const intentMatch = p.match(new RegExp(`^${prefix}/api/intents/([^/]+)(/cancel)?$`));
+    if (intentMatch) {
+      const id = decodeURIComponent(intentMatch[1] ?? '');
+      if (intentMatch[2] === '/cancel' && req.method === 'POST') {
+        return this.brain.cancelIntent(id)
+          ? json(res, { ok: true })
+          : void res.writeHead(404).end('intent not found');
+      }
+      if (req.method === 'PATCH') {
+        try {
+          const o = parseJson<IntentConfigPatch>(await readBody(req));
+          const updated = this.brain.updateIntent(id, (o ?? {}) as IntentConfigPatch);
+          return updated
+            ? json(res, { ok: true, intent: updated })
+            : void res.writeHead(404).end('intent not found');
+        } catch (e) {
+          res.writeHead(400).end(e instanceof Error ? e.message : 'invalid intent');
+          return;
+        }
+      }
+      if (req.method === 'DELETE') {
+        return this.brain.deleteIntent(id)
+          ? json(res, { ok: true })
+          : void res.writeHead(404).end('intent not found');
+      }
+    }
     // /api/notes 与 /api/notes/<id>[/reinforce]
     if (p === `${prefix}/api/notes` && req.method === 'POST') {
       readBody(req).then((body) => {
@@ -340,7 +392,7 @@ export class BrainHttpServer {
       const prefix = this.cfg.prefix.replace(/\/$/, '');
       webServer.register({ path: prefix, handler: (r, s) => this.route(r, s) });
       webServer.register({ path: `${prefix}/`, handler: (r, s) => this.route(r, s) });
-      for (const sub of ['/api/state', '/api/query', '/api/persona', '/api/personas', '/api/personas/activate', '/api/sessions', '/api/sessions/domain', '/api/profiles', '/api/profiles/merge', '/api/profiles/regenerate', '/api/ops', '/api/notes', '/api/notes/purge', '/api/digests', '/api/reset', '/api/export', '/api/import', '/api/dedup']) {
+      for (const sub of ['/api/state', '/api/query', '/api/persona', '/api/personas', '/api/personas/activate', '/api/sessions', '/api/sessions/domain', '/api/profiles', '/api/profiles/merge', '/api/profiles/regenerate', '/api/ops', '/api/notes', '/api/notes/purge', '/api/digests', '/api/reset', '/api/export', '/api/import', '/api/dedup', '/api/intents']) {
         webServer.register({ path: `${prefix}${sub}`, handler: (r, s) => this.route(r, s) });
       }
       this.log(`brain: 已挂载到宿主 webServer ${prefix}`);

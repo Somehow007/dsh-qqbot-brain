@@ -20,8 +20,14 @@
 - 三轨可见性（角色→人设两级）：世界轨记忆全角色共享；自我轨（attitude + `self:true`）
   与情绪态按 `characterId` 隔离——同角色人设版本共享、自他角色互不可见，
   切换人设只过滤读取不删数据；蒸馏批次以批首人设统一归属
-- 经 `session/event` 捕获 user/assistant 轮次，`turn/end` 调 LLM 蒸馏为记忆笔记
+- 经 `session/event` 捕获 user/assistant 轮次，`turn/end` 调 LLM 蒸馏为记忆笔记；
+  轮次带 `via` 出处（user/agent/system）——角色主动开口与系统事件不产生用户事实，
+  纯 agent/system 批次整批跳过蒸馏，混合批次蒸馏 prompt 将其标注为「非用户发言」；
+  记忆笔记带 `source`（user/manual/import）随导入、巩固、快照贯穿
 - 记忆按艾宾浩斯曲线 `R=e^(-t/S)` 衰减，被检索命中时 S+1 强化（用进废退）
+- standing intents（前瞻记忆）：事件/时刻两型「待触发意图」存 JSONL 随快照持久化；
+  event 型在 ingest 内对用户轮次做确定性零 LLM 匹配，time 型由插件 60s 定时器+
+  ingest 顺带触发；命中结果落 `intent-fire` op 保证重放确定，触发列表交壳层生成主动消息
 
 ## 部署 runbook（云服务器第一轮）
 
@@ -93,7 +99,8 @@ WantedBy=multi-user.target
 - `PATCH /brain/api/profiles` `{key,name?,text}` 编辑画像（人工修改即已审，不锁定后续蒸馏）；`DELETE /brain/api/profiles?id=<key>` 删除
 - `POST /brain/api/profiles/regenerate` `{key}` 按该对象记忆重生成（蒸馏起草 + 审核；蒸馏 off / 无记忆 / 审核判空均不改数据）
 - `POST /brain/api/notes/purge` `{from,to}` 按 createdAt 闭区间批量删记忆（op 显式携带 ids，重放不误删后入库的老记忆）
-- `POST /brain/api/reset` 记忆重置：清笔记/画像/情绪/摘要，**保留人设与人设版本**；建议先 `export` 备份
+- `GET/POST /brain/api/intents`、`PATCH /brain/api/intents/<id>`、`POST /brain/api/intents/<id>/cancel`、`DELETE /brain/api/intents/<id>`、`POST /brain/api/intents/tick`——standing intents 全生命周期（tick=手动触发一轮 time/event 评估）
+- `POST /brain/api/reset` 记忆重置：清笔记/画像/情绪/摘要/intents，**保留人设与人设版本**；建议先 `export` 备份
 
 ### 验证清单
 
