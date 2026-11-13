@@ -61,3 +61,4 @@
 - 2026-11-12 | 存量AI项目接管翻新playbook定调：四阶段（摸底→立约→安全网→小步翻新），首会话只读产出三件套，git基线先行，翻新按风险×收益排序；开口模板已给 | → `tasks/11-12-brownfield-takeover/prd.md`
 - 2026-11-12 | AI工作范式手册库建立：~/dev/code/vibe-coding/ai-workflow/（README+playbooks/含_template），首批入库 brownfield-takeover+iteration-cadence 两册；AI-WORKFLOW.md 加分工指针 | → `~/dev/code/vibe-coding/ai-workflow/` + `tasks/11-12-brownfield-takeover/prd.md`
 - 2026-11-12 | 迭代C·主动召回上线：Brain.search 检索原语（assemble 同口径可见池+ScoredNote[]）+ recall-intent 双门深挖注入段（brain:deeprecall，零 LLM 成本）；深挖地板严于 lane-1（lex0.07/emb0.55，eval 驱动）；eval 深挖子集 100%/0% 噪声；已部署生产，待用户自测 | → `tasks/archive/2026-11/11-12-iteration-c-proactive-recall` + journal #105
+- 2026-11-13 | 迭代C上线次日走查：firefly manual批已闭环(5产出源10全吸收)、向量395/395、深挖零触发=零真实提问非漏检；新发现F5=世界轨源并入全时段众数角色whale批→self:true产出错轨(ye lore落whale轨/whale视角消化世界事实)，修法候选待拍板 | → `tasks/11-13-consolidate-view-mismatch`

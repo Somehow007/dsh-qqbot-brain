@@ -1,0 +1,28 @@
+{
+  "id": "consolidate-view-mismatch",
+  "name": "consolidate-view-mismatch",
+  "title": "F5：巩固世界轨批视角错配——众数角色致 self 产出错轨",
+  "description": "11-13 生产走查发现：dbf7162a 会话 4 条世界轨 ep（2 ye-shunguang + 2 firefly）并入全时段众数角色 whale-devotion 批巩固，LLM 判 self:true 的产出落 whale 自我轨（内容为 ye-shunguang lore）→ firefly 不可见 + whale 串味；世界事实被 whale 视角消化成主人/恋人框架态度。根因=consolidationBatches 世界轨并入全时段 modalChar，『随谁视角都成立』假设不成立。候选修法：a) 世界轨也按源角色分批（推荐）b) 近期窗口众数 c) 产出校验（不可行）。",
+  "status": "active",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P1",
+  "creator": "sunhao",
+  "assignee": "sunhao",
+  "createdAt": "2026-11-13",
+  "completedAt": null,
+  "branch": "main",
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [
+    "dsh-qqbot-brain/src/brain/index.ts"
+  ],
+  "notes": "走查其余项全绿：firefly manual 批已闭环、向量 395/395、深挖零触发=零真实提问非漏检。F5 修复待用户拍板方案。",
+  "meta": {}
+}
