@@ -14,6 +14,9 @@
   font-size: 14px;
 }
 * { box-sizing: border-box; }
+/* hidden 必须压过组件 display（.modal{display:grid} 等会盖掉 UA 的 [hidden]{display:none}，
+   否则空 modal 变成全屏遮罩：压暗页面且吞掉所有点击） */
+[hidden] { display: none !important; }
 html, body { height: 100%; margin: 0; }
 body {
   background: radial-gradient(1200px 700px at 70% -10%, #16224a 0%, var(--bg) 55%) fixed, var(--bg);
