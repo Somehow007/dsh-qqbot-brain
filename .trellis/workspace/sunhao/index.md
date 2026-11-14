@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-2.md`
-- **Total Sessions**: 117
+- **Total Sessions**: 118
 - **Last Active**: 2026-11-14
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-2.md` | ~518 | Active |
+| `journal-2.md` | ~540 | Active |
 | `journal-1.md` | ~1988 | Archived |
 <!-- @@@/auto:active-documents -->
 
@@ -30,6 +30,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 118 | 2026-11-14 | 墨刊二轮防叠修复（降级+N/标签真距/双行错峰/边收束） | `59c1fb0` | `main` |
 | 117 | 2026-11-14 | 墨刊地层图 cell 聚合重构 | - | `main` |
 | 116 | 2026-11-14 | 星图 absorbed 存档降级+配额密度+碰撞落位修复 | `9ae132e`, `a3b6c4f` | `main` |
 | 115 | 2026-11-14 | 蒸馏归因缺陷 P0+P1 修复 | `1d3a763` | `main` |

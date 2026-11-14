@@ -516,3 +516,25 @@ P2(S5+S6)：nocturne 星盘（150星/24标/彗星流星/补间/still零rAF/hidde
 ### Status
 
 [OK] **Completed**
+
+
+## Session 118: 墨刊二轮防叠修复（降级+N/标签真距/双行错峰/边收束）
+<!-- trellis-session: v=2 fp=3d9dcfdadcd10af2 -->
+
+**Date**: 2026-11-14
+**Task**: 墨刊二轮防叠修复（降级+N/标签真距/双行错峰/边收束）
+**Branch**: `main`
+
+### Summary
+
+用户截图复查墨刊：饱和区节点仍真实压叠、pin标签压节点圆面、顶缘标签越界、similar虚线边成网、+N标记单行互叠且严检把pin饿到5个。改法：碰撞pass净空<-2的节点不占位降级进+N（首现hidden的cell补位标记）；标签改above/below双锚位+x微移+圆-矩形真实距离检测+svg边界，两趟宽松度救回24满额；情景带标记开+78第二错峰行；边端点收束到圆边+分型配额similar20。实测60节点0重叠/45标记0互叠/24标签0越界，274tests绿。教训：防叠要验「放下多少」，放不下要给降级出路。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `59c1fb0` | fix(brain): 墨刊二轮防叠——降级进+N、标签真距防叠、标记双行错峰 |
+
+### Status
+
+[OK] **Completed**
