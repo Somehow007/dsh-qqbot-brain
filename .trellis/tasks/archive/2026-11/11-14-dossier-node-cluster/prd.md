@@ -93,6 +93,14 @@
 
 **教训沉淀**：防叠检查只验「不重叠」不够，还要验「放下多少」——首轮 AABB 正确但把容量饿死；对「放不下的元素」给降级出路（→+N）比更强的碰撞搜索有效，因为约束满足问题在饱和时本就无解。
 
+### 第三轮·交互打磨（同日，用户实测反馈）
+
+**问题**：① 索引表写死 50 行直出无翻页、堆成一堵墙；② 点节点出现浏览器默认蓝色 focus outline（`.node` 是 `tabindex=0` 的 `<g>`，CSS 只给 `.hit`/`.cellmark:focus` 去了 outline 漏了 `.node`）；③ `_select` 末尾 `scrollIntoView` 强制把页面拖到底部索引行。
+
+**修法**：索引表改 `PAGE_SIZE=30` 页脚翻页（`‹ 上一页 / 第 x/n 页 · 共 M 条 / 下一页 ›`，`this._page` 随 vm 更新保留并 clamp）；`.node:focus,:focus-visible{outline:none}`，用既有 halo 圆环补可见态（`.sel` .9 / `.near` .3，搜索 `.hit` .55 不变）；删 scrollIntoView 只留行 `.sel` 高亮。
+
+**验证**：headless 实测 30 行/页、`第 1 / 10 页 · 共 286 条`、分页按钮 disabled 态正确；typecheck+274 tests+build 全绿。
+
 ## Open questions
 
 - absorbed 口径拍板：完全退出+masthead 计数（推荐）vs cell 标记含存档数（信息最全、复杂度+1）vs 跨皮肤统一走 vm.js `active/archived` 字段（范围扩大到 nocturne/cortex）。

@@ -13,7 +13,7 @@ import { kindLabel, relationWhy, previewText } from '../core/vm.js';
 const SVGNS = 'http://www.w3.org/2000/svg';
 const W = 860, X0 = 110, X1 = 830, DMAX = 32;
 const BANDS = { attitude: 70, semantic: 200, episodic: 330 };
-const NODE_CAP = 60, LABEL_CAP = 24, EDGE_CAP = 80, ROW_CAP = 50;
+const NODE_CAP = 60, LABEL_CAP = 24, EDGE_CAP = 80, PAGE_SIZE = 30;
 const CELL_K = 4;          // 单格最多单独成点的条数
 const CELL_ROSTER_CAP = 40;// 同格侧栏名单上限
 const MARK_Y = 66;         // 「+N」标记基线：带底缝内（带界 ±58，下一带顶 -72）
@@ -89,6 +89,7 @@ export default {
     this._sel = null;
     this._selCell = null;
     this._qhit = new Set();
+    this._page = 0;
     this._pos = {};
     this._drawn = new Set();
     this._cells = new Map();
@@ -128,6 +129,7 @@ export default {
       </div>
       <section class="index"><h3>记忆索引 <a class="all" href="#/admin/memories">查看全部 →</a></h3>
         <table><thead><tr><th>No.</th><th>内容</th><th>轨道</th><th>类型</th><th>保持率</th><th>重要度</th><th>唤起</th><th>年龄</th></tr></thead><tbody id="dRows"></tbody></table>
+        <div class="pager" id="dPager"></div>
       </section>
       <div class="foot"><span>MIND DOSSIER · <span id="dFootName"></span></span><span>换人设 = 换专色 + 换自我轨，版式不变</span></div>
     </div>`;
@@ -613,17 +615,22 @@ export default {
     return this._ctx?.theme?.moodColors?.[w] ?? hashColor(w);
   },
 
-  // ── 索引表：retention 降序前 50 ──
+  // ── 索引表：retention 降序分页（PAGE_SIZE/页，全量仍可去管理端）──
   _rows() {
     const tb = this._root.querySelector('#dRows');
     tb.replaceChildren();
+    const pg = this._root.querySelector('#dPager');
+    pg?.replaceChildren();
     const vm = this._vm;
     if (!vm) return;
     const all = [...vm.notes].sort((a, b) => b.ret - a.ret || (a.id < b.id ? -1 : 1));
-    for (const [i, n] of all.slice(0, ROW_CAP).entries()) {
+    const pages = Math.max(1, Math.ceil(all.length / PAGE_SIZE));
+    if (this._page >= pages) this._page = pages - 1;
+    const slice = all.slice(this._page * PAGE_SIZE, this._page * PAGE_SIZE + PAGE_SIZE);
+    for (const [i, n] of slice.entries()) {
       const tr = el('tr', 'row');
       tr.dataset.id = n.id;
-      tr.append(el('td', 'n', String(i + 1).padStart(2, '0')));
+      tr.append(el('td', 'n', String(this._page * PAGE_SIZE + i + 1).padStart(2, '0')));
       const t = el('td', 't');
       t.append(el('b', '', n.title));
       t.append(el('div', '', previewText(n, vm.notes)));
@@ -643,13 +650,18 @@ export default {
       tr.onclick = () => this._select(n.id);
       tb.append(tr);
     }
-    if (all.length > ROW_CAP) {
-      const tr = el('tr');
-      const td = el('td', '', `…… 另 ${all.length - ROW_CAP} 条，管理端可全量翻页`);
-      td.colSpan = 8;
-      td.style.cssText = 'font:11px var(--mono);color:var(--ink3);text-align:center;padding:14px';
-      tr.append(td);
-      tb.append(tr);
+    if (pg) {
+      const info = el('span', 'info', pages > 1 ? `第 ${this._page + 1} / ${pages} 页 · 共 ${all.length} 条` : `共 ${all.length} 条`);
+      if (pages > 1) {
+        const mkBtn = (label, d, dis) => {
+          const b = el('button', 'pg', label);
+          b.type = 'button';
+          b.disabled = dis;
+          b.onclick = () => { this._page += d; this._rows(); };
+          return b;
+        };
+        pg.append(mkBtn('‹ 上一页', -1, this._page === 0), info, mkBtn('下一页 ›', 1, this._page >= pages - 1));
+      } else pg.append(info);
     }
   },
 
@@ -680,13 +692,10 @@ export default {
       const ck = this._cellOf.get(id);
       if (ck) this._root.querySelector(`[data-cell="${ck}"]`)?.classList.add('near');
     }
-    let selRow = null;
+    // 不做 scrollIntoView：选中不该强制拖动页面；行高亮留给用户自己滚到
     this._root.querySelectorAll('#dRows tr.row').forEach((r) => {
-      const on = r.dataset.id === id;
-      r.classList.toggle('sel', on);
-      if (on) selRow = r;
+      r.classList.toggle('sel', r.dataset.id === id);
     });
-    selRow?.scrollIntoView({ block: 'nearest', behavior: 'instant' });
   },
 
   // ── 同格聚焦：点「+N」标记 → 侧栏全格名单 + 地图只留该格高亮 ──

@@ -33,10 +33,13 @@
 .dsr .band-l { font: 700 12px var(--serif); fill: var(--ink); }
 .dsr .band-s { font-size: 9px; fill: var(--ink3); letter-spacing: .15em; }
 .dsr .node { cursor: pointer; }
+.dsr .node:focus, .dsr .node:focus-visible { outline: none; }
 .dsr .node .lab { font: 12px var(--serif); fill: var(--ink); opacity: 0; transition: .15s; pointer-events: none; }
 .dsr .node:hover .lab, .dsr .node.sel .lab, .dsr .node.near .lab, .dsr .node.pin .lab { opacity: 1; }
 .dsr .node.hit { outline: none; }
 .dsr .node.hit .halo { opacity: .55; }
+.dsr .node.sel .halo { opacity: .9; }
+.dsr .node.near .halo { opacity: .3; }
 .dsr .dim { opacity: .18 !important; }
 .dsr .edge { fill: none; transition: .2s; }
 /* 同格「+N」计数标记：带缝内聚合密度，点击看全格名单 */
@@ -93,6 +96,12 @@
 .dsr tr.row:hover td { background: rgba(0, 0, 0, .025); }
 .dsr tr.row.sel td { background: var(--soft); }
 .dsr tr.row.near td { background: rgba(62, 123, 255, .06); }
+/* 索引表页脚翻页 */
+.dsr .pager { display: flex; align-items: center; justify-content: center; gap: 16px; border-top: 1px solid var(--rule); margin-top: 8px; padding-top: 12px; }
+.dsr .pager .pg { font: 11px var(--mono); letter-spacing: .08em; color: var(--ink); background: none; border: 1px solid var(--ink); padding: 4px 12px; cursor: pointer; }
+.dsr .pager .pg:hover:not(:disabled) { color: var(--a); border-color: var(--a); }
+.dsr .pager .pg:disabled { opacity: .35; cursor: default; }
+.dsr .pager .info { font: 11px var(--mono); color: var(--ink3); }
 .dsr .ret { display: inline-block; width: 60px; height: 6px; border: 1px solid var(--ink); vertical-align: middle; margin-right: 6px; }
 .dsr .ret i { display: block; height: 100%; background: var(--ink); }
 .dsr .foot { margin-top: 28px; font: 11px var(--mono); color: var(--ink3); display: flex; justify-content: space-between; letter-spacing: .08em; }
