@@ -116,6 +116,8 @@ export default {
 
     const theme = ctx?.theme ?? {};
     const charId = ctx?.charId ?? theme.characterId ?? '';
+    // 品牌标记指纹：挂载时把人设身份烤进静态标记；update 里据此判断是否重挂
+    this._brandKey = `${ctx?.persona?.id ?? ''}|${theme.name ?? ''}|${charId}`;
     const title = theme.title || theme.name || '脑图';
     const isWhale = charId === WHALE_CHAR;
     // 皮层强调色：鲸脑沿用旧页 --persona #8fb4ff；其他角色取主题 a2
@@ -887,7 +889,13 @@ export default {
   // ── 皮肤接口 ──
   update(vm, ctx) {
     if (!this._root) return;
-    if (ctx) this._ctx = ctx;
+    if (ctx) {
+      // 人设品牌变化（首帧挂载时 personas 未到 → 曾按 whale 回落烤死标记）→ 重挂
+      const t = ctx.theme ?? {};
+      const bk = `${ctx.persona?.id ?? ''}|${t.name ?? ''}|${ctx.charId ?? t.characterId ?? ''}`;
+      if (bk !== this._brandKey) { const el = this._root; this.mount(el, { ...ctx, vm }); return; }
+      this._ctx = ctx;
+    }
     // 同一 vm 引用（paused/editing 事件没重建数据）→ 不整层重排，只放行面板态
     if (vm === undefined || vm === this._vm) return;
     this._vm = vm;

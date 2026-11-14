@@ -38,5 +38,6 @@ const brain = new Brain({
   log: (m) => console.log(m),
 });
 
-const server = new BrainHttpServer(brain, { enabled: true, host: '127.0.0.1', port: 4099, prefix: '/brain', token: '' }, console.log);
+const port = +(process.env.BRAIN_DEMO_PORT ?? 4099);
+const server = new BrainHttpServer(brain, { enabled: true, host: '127.0.0.1', port, prefix: '/brain', token: '' }, console.log);
 console.log(`预览地址 → ${server.start({ get: () => undefined })}（数据目录 ${dir}，临时）`);
