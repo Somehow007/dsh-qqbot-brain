@@ -429,3 +429,25 @@ P2(S5+S6)：nocturne 星盘（150星/24标/彗星流星/补间/still零rAF/hidde
 ### Status
 
 [OK] **Completed**
+
+
+## Session 114: 验收登记处机制设计与落地
+<!-- trellis-session: v=2 fp=9166206e1c2ce007 -->
+
+**Date**: 2026-11-14
+**Task**: 验收登记处机制设计与落地
+**Branch**: `main`
+
+### Summary
+
+用户提出单次走查样本不足以验收、需机制记住各阶段复查点。分析为验收三级模型：L1代码验证随提交关/L2部署冒烟/L3生产实证需证据阈值。落地：.trellis/acceptance.md 台账（ID/验证方法/阈值/触发类型事件·样本·抽查/状态机待触发→观察中→已通过·打回），首批清算登记8实证项ACC-01~08（F5混合批、活人感两指标、深挖召回、provenance、intents建删、AI条款、eval基线定性）+5持续观察项；AGENTS.md归档流程补实证登记前提（登记≠通过，跨任务存活）；AI-WORKFLOW backlog立条待跑通后沉淀spec。任务存档tasks/11-14-acceptance-registry。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `ff3a2ae` | docs(trellis): 验收登记处——实证验收项台账 acceptance.md + 归档前提改写 |
+
+### Status
+
+[OK] **Completed**
