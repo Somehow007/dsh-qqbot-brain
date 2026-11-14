@@ -387,3 +387,25 @@ P2(S5+S6)：nocturne 星盘（150星/24标/彗星流星/补间/still零rAF/hidde
 ### Status
 
 [OK] **Completed**
+
+
+## Session 112: brain-ui-redesign P2 性能走查：帧循环减负+轮询指纹
+<!-- trellis-session: v=2 fp=8849feb521514ef1 -->
+
+**Date**: 2026-11-14
+**Task**: brain-ui-redesign P2 性能走查：帧循环减负+轮询指纹
+**Branch**: `main`
+
+### Summary
+
+用户反馈星图/墨刊卡顿。根因三处：nocturne._frame 每帧对150星写2个SVG属性（k=0稳态纯空转~300次DOM写/帧）、_drawSky每帧480个arc重画、彗星getPointAtLength×11/帧；另store.refresh每15s无条件rebuildVM致三皮肤整层重绘。修法：辉光写门控（仅k>0或熄灭瞬间写）、静态星烘焙离屏canvas逐帧drawImage+~28%闪烁星、彗星160点预采样查表、store加payload指纹（emotion PAD衰减量化.2f+剔除updatedAt、retention量化整数百分比=UI精度+当日桶）跳过无变化rebuildVM；dossier补品牌键重挂。实测30s指纹稳定，typecheck+261test+build全绿，截图无损。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `232f9e2` | perf(brain): 星图/墨刊卡顿优化——帧循环减负 + 15s 轮询指纹跳重绘 |
+
+### Status
+
+[OK] **Completed**

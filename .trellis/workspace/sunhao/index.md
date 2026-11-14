@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-2.md`
-- **Total Sessions**: 111
+- **Total Sessions**: 112
 - **Last Active**: 2026-11-14
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-2.md` | ~389 | Active |
+| `journal-2.md` | ~411 | Active |
 | `journal-1.md` | ~1988 | Archived |
 <!-- @@@/auto:active-documents -->
 
@@ -30,6 +30,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 112 | 2026-11-14 | brain-ui-redesign P2 性能走查：帧循环减负+轮询指纹 | `232f9e2` | `main` |
 | 111 | 2026-11-14 | brain-ui-redesign P2：墨刊+星图皮肤落地 | `ce1df1b`, `3d808c4`, `a5d78b0` | `main` |
 | 110 | 2026-11-13 | 脑图管理端可交互规格稿 d-admin 定稿归档 | - | `main` |
 | 109 | 2026-11-13 | 迭代D开发完成：standing intents + provenance（未部署） | - | `main` |
