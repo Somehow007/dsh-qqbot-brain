@@ -409,3 +409,23 @@ P2(S5+S6)：nocturne 星盘（150星/24标/彗星流星/补间/still零rAF/hidde
 ### Status
 
 [OK] **Completed**
+
+
+## Session 113: F5+活人感验收归档；迭代D+UI重构整体部署生产
+<!-- trellis-session: v=2 fp=64baf6643154896b -->
+
+**Date**: 2026-11-14
+**Task**: F5+活人感验收归档；迭代D+UI重构整体部署生产
+**Branch**: `main`
+
+### Summary
+
+部署后~21h走查：407 notes向量零缺口零错误；dbf7162a首巩固产出3条全firefly轨道正确、全库跨人设污染0、sess:dbf7162a画像角色泛指清零关系全点名（u:域亦带名）；群聊19回合搜索样本N=1但link38→0/hedge50→0/md0符合目标。两任务写Resolution归档。用户拍板D+UI一起上：HEAD(268测全绿)rsync部署，备份pre-DUI-*；远端验证/api/intents 200、/api/notes分页通、新UI壳服务中、?ui=legacy兜底、启动日志全特性on。brain-ui-redesign进P4收尾。audit脚本--since扩到支持HH:MM。
+
+### Git Commits
+
+(No commits - planning session)
+
+### Status
+
+[OK] **Completed**
