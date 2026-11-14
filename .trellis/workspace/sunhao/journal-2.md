@@ -363,3 +363,27 @@ F5：复查发现画像是第二泄漏通道——sess:dbf7162a 画像混写 wha
 ### Status
 
 [OK] **Completed**
+
+
+## Session 111: brain-ui-redesign P2：墨刊+星图皮肤落地
+<!-- trellis-session: v=2 fp=3b9deab090bc7b47 -->
+
+**Date**: 2026-11-14
+**Task**: brain-ui-redesign P2：墨刊+星图皮肤落地
+**Branch**: `main`
+
+### Summary
+
+P2(S5+S6)：nocturne 星盘（150星/24标/彗星流星/补间/still零rAF/hidden暂停）+ dossier 墨刊（sqrt时间地层/60点/专栏全文/索引前50→#/admin/memories）按概念图落地并入注册表；三修：hex2rgb g通道 slice(0,4)→(2,4) 致补间写错色、PRESETS 补 ye-shunguang 别名命中预设、app.js 首 data 到达后重解皮肤修非 whale 人设永远回落 cortex；typecheck+261test+build 全绿，headless 三人设两皮肤+?ui=legacy 零报错；下一步 P3：S7 后端 B2–B5 + D-admin 七页。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `ce1df1b` | feat(brain): S5 夜航星图皮肤——星盘/星云/时间指针/彗星流星/星历六块 |
+| `3d808c4` | feat(brain): S6 墨刊皮肤——时间轴地层图 + 专栏详情 + 记忆索引表 |
+| `a5d78b0` | fix(brain): 非 whale 人设首屏皮肤回落——首数据到达后重解一次皮肤 |
+
+### Status
+
+[OK] **Completed**
