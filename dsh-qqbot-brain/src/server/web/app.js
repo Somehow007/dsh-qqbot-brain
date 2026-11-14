@@ -9,7 +9,7 @@ import { el, toast, debounce } from './core/ui.js';
 import { skinById } from './skins/index.js';
 import { mapCtx, mapView, implementedSkin } from './views/map.js';
 import { adminView } from './admin/shell.js';
-import { runLeaveGuards } from './admin/common.js';
+import { runLeaveGuards, applyTokens } from './admin/common.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -17,6 +17,14 @@ const $ = (id) => document.getElementById(id);
 register('#/map', mapView);
 register('#/admin', adminView);
 register('#/admin/:page', adminView);
+
+// ── 顶栏：壳层皮肤 token（皮肤 tokens + 人设 accent → body；版式差异化见 app.css [data-skin]）──
+function paintChrome() {
+  const ctx = mapCtx();
+  const skin = implementedSkin(ctx);
+  applyTokens(document.body, { skin, theme: ctx.theme });
+  document.body.dataset.skin = skin.id;
+}
 
 // ── 顶栏：品牌/导航 ──
 function paintBrand() {
@@ -55,6 +63,7 @@ function paintSkins() {
     } else {
       b.onclick = () => {
         setSkinPref(ctx.charId, id);
+        paintChrome(); // 顶栏即时换肤，不等视图重挂
         routerRefresh();
         paintSkins();
       };
@@ -172,6 +181,7 @@ function bindTopbar() {
     store.rebuildVM(); // 三轨过滤/人设词表随查看人设变
     paintBrand();
     paintSkins();
+    paintChrome(); // 角色可能换默认皮肤/accent——壳层同步
     routerRefresh(); // 主题/皮肤可能随角色变化，重挂视图
     toast(`查看人设已切换（仅本页视角）`);
   });
@@ -184,13 +194,14 @@ function boot() {
   routerStart($('view'));
   paintNav();
   paintBrand();
+  paintChrome(); // 数据未到前按回落主题（whale→cortex）先着色，防首屏错配闪烁
   // 路由切换（含浏览器前进/后退）→ 顶栏分区高亮即时跟随
   window.addEventListener('hashchange', paintNav);
 
   let selApplied = false;
   store.on((what) => {
     if (what === 'data') {
-      paintBrand(); paintNav(); paintSkins(); paintPersonaSel(); paintStats(); paintEditing();
+      paintBrand(); paintNav(); paintSkins(); paintPersonaSel(); paintStats(); paintEditing(); paintChrome();
       // 首屏挂载在人设到达前 → 按 whale 回落；首数据到达后按真实角色重解皮肤一次
       if (!selApplied) {
         selApplied = true;

@@ -1,16 +1,27 @@
-/* 壳层：顶栏 + 视图容器 + 通用浮层（toast/modal/drawer/搜索下拉） */
+/* 壳层：顶栏 + 视图容器 + 通用浮层（toast/modal/drawer/搜索下拉）。
+   皮肤 token：app.js 把当前皮肤 tokens + 人设 accent 写到 body（见 paintChrome），
+   --ink/--ink2/--accent/--accent2/--panel/--bg/--line/--danger/--font-head/--font-body
+   随皮肤+人设换色；此处 :root 值是 JS 写入前的鲸脑兜底。
+   --txt/--dim/--bg2 只做别名转发（解析发生在使用元素上，body 级 token 优先生效）。 */
 :root {
   --bg: #0b1020;
-  --bg2: #111a30;
   --panel: rgba(17, 26, 48, .92);
   --line: rgba(140, 170, 255, .16);
-  --txt: #dbe6ff;
-  --dim: #8ea3cf;
   --acc: #5b8cff;
   --acc2: #8ec5ff;
   --warn: #ffb454;
   --danger: #ff6f86;
   --radius: 12px;
+  --ink: #dbe6ff;
+  --ink2: #8ea3cf;
+  --accent: var(--acc);
+  --accent2: var(--acc2);
+  --txt: var(--ink);
+  --dim: var(--ink2);
+  --bg2: var(--panel);
+  --font-head: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+  --font-body: var(--font-head);
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   font-size: 14px;
 }
 * { box-sizing: border-box; }
@@ -19,23 +30,29 @@
 [hidden] { display: none !important; }
 html, body { height: 100%; margin: 0; }
 body {
-  background: radial-gradient(1200px 700px at 70% -10%, #16224a 0%, var(--bg) 55%) fixed, var(--bg);
+  background: radial-gradient(1200px 700px at 70% -10%, color-mix(in srgb, var(--accent) 15%, var(--bg)) 0%, var(--bg) 55%) fixed, var(--bg);
   color: var(--txt);
   font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
   overflow: hidden;
 }
+body[data-skin="dossier"] { color-scheme: light; --warn: #8a5f00; }
+body[data-skin="cortex"], body[data-skin="nocturne"] { color-scheme: dark; }
 button, input, select, textarea { font: inherit; color: inherit; }
 button { cursor: pointer; }
 
-/* ── 顶栏 ── */
+/* ── 顶栏（颜色全部走皮肤 token；版式按 body[data-skin] 分皮肤，见文件尾部）── */
 .topbar {
   height: 52px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 0 14px;
-  background: linear-gradient(180deg, rgba(13,20,40,.96), rgba(11,16,32,.88));
+  gap: 12px;
+  padding: 0 16px;
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--panel) 88%, transparent),
+    color-mix(in srgb, var(--bg) 82%, transparent));
   border-bottom: 1px solid var(--line);
+  color: var(--ink);
+  box-shadow: 0 10px 30px -18px rgba(0, 0, 0, .7);
   position: relative;
   z-index: 40;
   flex-wrap: nowrap;
@@ -45,76 +62,102 @@ button { cursor: pointer; }
 .topbar::-webkit-scrollbar { display: none; }
 
 .tb-brand {
-  display: flex; align-items: center; gap: 9px;
-  background: none; border: 0; padding: 4px 6px; border-radius: 10px;
-  color: var(--txt); text-align: left; flex: 0 0 auto;
+  display: flex; align-items: center; gap: 10px;
+  background: none; border: 0; padding: 4px 8px 4px 4px; border-radius: 10px;
+  color: var(--ink); text-align: left; flex: 0 0 auto;
+  transition: background .15s;
 }
-.tb-brand:hover { background: rgba(120,160,255,.08); }
+.tb-brand:hover { background: color-mix(in srgb, var(--ink) 7%, transparent); }
 .tb-avatar {
   width: 32px; height: 32px; border-radius: 50%;
   display: grid; place-items: center;
-  background: linear-gradient(135deg, var(--acc, #3d7bff), #16224a);
-  color: #fff; font-weight: 700; font-size: 15px;
-  border: 1px solid rgba(255,255,255,.25);
+  background: linear-gradient(135deg, var(--accent), var(--bg));
+  color: #fff; font-weight: 700; font-size: 15px; font-family: var(--font-head);
+  border: 1px solid color-mix(in srgb, var(--accent2) 50%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent);
   flex: 0 0 auto;
 }
-.tb-name { display: flex; flex-direction: column; line-height: 1.15; min-width: 0; }
-.tb-name b { font-size: 13.5px; white-space: nowrap; }
-.tb-name small { color: var(--dim); font-size: 11px; white-space: nowrap; }
+.tb-name { display: flex; flex-direction: column; line-height: 1.2; min-width: 0; }
+.tb-name b { font-size: 13.5px; white-space: nowrap; font-family: var(--font-head); letter-spacing: .03em; }
+.tb-name small { color: var(--ink2); font-size: 10.5px; white-space: nowrap; font-family: var(--mono); letter-spacing: .05em; }
 
-.tb-nav { display: flex; gap: 4px; flex: 0 0 auto; }
+/* 主导航：下划线激活态（比胶囊底色克制，墨刊/星图皮肤也接得上） */
+.tb-nav { display: flex; gap: 2px; flex: 0 0 auto; }
 .tb-link {
-  border: 1px solid transparent; background: none; color: var(--dim);
-  padding: 6px 12px; border-radius: 999px; font-size: 13px;
+  position: relative; border: 0; background: none; color: var(--ink2);
+  padding: 8px 12px; font-size: 13px; letter-spacing: .05em;
+  transition: color .15s;
 }
-.tb-link:hover { color: var(--txt); background: rgba(120,160,255,.08); }
-.tb-link.active { color: var(--acc2); border-color: rgba(142,197,255,.4); background: rgba(91,140,255,.12); }
+.tb-link::after {
+  content: ""; position: absolute; left: 12px; right: 12px; bottom: 2px;
+  height: 2px; border-radius: 1px; background: var(--accent);
+  transform: scaleX(0); transition: transform .18s ease;
+}
+.tb-link:hover { color: var(--ink); }
+.tb-link.active { color: var(--ink); font-weight: 600; }
+.tb-link.active::after { transform: scaleX(1); }
 
-.tb-skins { display: flex; gap: 4px; flex: 0 0 auto; }
-.tb-skin {
-  border: 1px solid var(--line); background: rgba(255,255,255,.03);
-  color: var(--dim); padding: 5px 11px; border-radius: 999px; font-size: 12.5px;
+/* 皮肤切换：分段控件（外框统一、段间细分线） */
+.tb-skins {
+  display: flex; flex: 0 0 auto; padding: 2px; gap: 2px;
+  border: 1px solid var(--line); border-radius: 999px;
 }
-.tb-skin:hover:not(:disabled) { color: var(--txt); border-color: rgba(142,197,255,.45); }
-.tb-skin.active { color: var(--acc2); border-color: rgba(142,197,255,.55); background: rgba(91,140,255,.14); }
+.tb-skins:empty { display: none; }
+.tb-skin {
+  border: 0; background: none; color: var(--ink2);
+  padding: 4px 12px; border-radius: 999px; font-size: 12.5px; letter-spacing: .03em;
+  transition: color .15s, background .15s;
+}
+.tb-skin:hover:not(:disabled) { color: var(--ink); }
+.tb-skin.active { color: var(--accent2); background: color-mix(in srgb, var(--accent) 16%, transparent); }
 .tb-skin:disabled { opacity: .38; cursor: not-allowed; }
 
 .tb-search { position: relative; flex: 0 1 220px; min-width: 140px; }
 .tb-search input {
-  width: 100%; padding: 6px 10px; border-radius: 999px;
-  border: 1px solid var(--line); background: rgba(255,255,255,.05); color: var(--txt);
-  outline: none;
+  width: 100%; padding: 6px 12px; border-radius: 999px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--ink) 5%, transparent);
+  color: var(--ink); outline: none;
+  transition: border-color .15s, box-shadow .15s;
 }
-.tb-search input:focus { border-color: rgba(142,197,255,.5); }
+.tb-search input::placeholder { color: var(--ink2); opacity: .75; }
+.tb-search input:focus {
+  border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 13%, transparent);
+}
 .tb-search select {
-  position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
   max-width: 84px; padding: 2px 4px; font-size: 11px;
-  background: transparent; border: 0; color: var(--dim); outline: none;
+  background: transparent; border: 0; color: var(--ink2); outline: none;
 }
 .hits {
-  position: absolute; top: calc(100% + 6px); left: 0; right: 0;
+  position: absolute; top: calc(100% + 8px); left: 0; right: 0;
   max-height: 320px; overflow: auto;
   background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
-  box-shadow: 0 12px 40px rgba(0,0,0,.5); z-index: 60; padding: 4px;
+  box-shadow: 0 14px 42px rgba(0, 0, 0, .5); z-index: 60; padding: 4px;
 }
 .hit {
   display: block; width: 100%; text-align: left;
-  background: none; border: 0; color: var(--txt);
+  background: none; border: 0; color: var(--ink);
   padding: 8px 10px; border-radius: 8px; font-size: 12.5px; line-height: 1.45;
 }
-.hit:hover { background: rgba(120,160,255,.1); }
-.hit small { display: block; color: var(--dim); font-size: 11px; }
-.hits-empty { padding: 10px; color: var(--dim); font-size: 12px; text-align: center; }
+.hit:hover { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.hit small { display: block; color: var(--ink2); font-size: 11px; }
+.hits-empty { padding: 10px; color: var(--ink2); font-size: 12px; text-align: center; }
 
-.tb-view { display: flex; align-items: center; gap: 6px; color: var(--dim); font-size: 12px; flex: 0 0 auto; }
+.tb-view {
+  display: flex; align-items: center; gap: 7px; flex: 0 0 auto;
+  color: var(--ink2); font: 10.5px var(--mono); letter-spacing: .14em;
+}
 .tb-view select {
   max-width: 150px; padding: 5px 8px; border-radius: 8px;
-  border: 1px solid var(--line); background: var(--bg2); color: var(--txt); outline: none;
+  font-size: 12px; letter-spacing: normal;
+  border: 1px solid var(--line); background: var(--panel); color: var(--ink); outline: none;
 }
 .tb-editing { color: var(--warn); font-size: 12px; flex: 0 0 auto; white-space: nowrap; }
 
 .tb-stats {
-  margin-left: auto; color: var(--dim); font-size: 12px;
+  margin-left: auto; color: var(--ink2); font: 11px var(--mono); letter-spacing: .02em;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto;
 }
 
@@ -124,12 +167,12 @@ button { cursor: pointer; }
 
 /* ── 通用控件（管理页/皮肤共用）── */
 .btn {
-  border: 1px solid var(--line); background: rgba(255,255,255,.05);
-  color: var(--txt); padding: 7px 14px; border-radius: 9px; font-size: 13px;
+  border: 1px solid var(--line); background: color-mix(in srgb, var(--ink) 5%, transparent);
+  color: var(--ink); padding: 7px 14px; border-radius: 9px; font-size: 13px;
 }
-.btn:hover { border-color: rgba(142,197,255,.45); }
-.btn.primary { background: linear-gradient(135deg, #3d7bff, #5b8cff); border-color: transparent; color: #fff; }
-.btn.danger { color: var(--danger); border-color: rgba(255,111,134,.4); }
+.btn:hover { border-color: color-mix(in srgb, var(--accent) 55%, transparent); }
+.btn.primary { background: color-mix(in srgb, var(--accent) 90%, #000); border-color: transparent; color: #fff; }
+.btn.danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, transparent); }
 .btn.ghost { background: none; }
 .btn:disabled { opacity: .45; cursor: not-allowed; }
 .btn.sm { padding: 4px 10px; font-size: 12px; border-radius: 7px; }
@@ -138,14 +181,14 @@ input[type="text"], input[type="search"], input[type="number"], textarea, select
   background: var(--bg2); border: 1px solid var(--line); border-radius: 8px;
   color: var(--txt); padding: 7px 10px; outline: none;
 }
-input:focus, textarea:focus, select:focus { border-color: rgba(142,197,255,.5); }
+input:focus, textarea:focus, select:focus { border-color: color-mix(in srgb, var(--accent) 60%, transparent); }
 textarea { width: 100%; resize: vertical; }
 
 /* ── toast ── */
 .toast {
   position: fixed; left: 50%; bottom: 34px; transform: translateX(-50%);
-  background: rgba(13,20,40,.95); border: 1px solid var(--line);
-  padding: 10px 18px; border-radius: 999px; font-size: 13px;
+  background: color-mix(in srgb, var(--bg) 94%, transparent); border: 1px solid var(--line);
+  padding: 10px 18px; border-radius: 999px; font-size: 13px; color: var(--ink);
   box-shadow: 0 8px 30px rgba(0,0,0,.5); z-index: 100;
   max-width: 80vw; text-align: center;
 }
@@ -177,3 +220,35 @@ textarea { width: 100%; resize: vertical; }
 /* 皮肤占位/空态共用 */
 .empty-state { padding: 60px 20px; text-align: center; color: var(--dim); }
 .empty-state b { display: block; color: var(--txt); font-size: 15px; margin-bottom: 6px; }
+
+/* ══ 顶栏皮肤差异化（body[data-skin] 由 app.js paintChrome 写入）══ */
+
+/* 墨刊：报刊刊头——双线墨规收口、方角、宋体刊名、皮肤段黑白反选 */
+body[data-skin="dossier"] .topbar {
+  background: var(--bg);
+  border-bottom: 3px double var(--ink);
+  box-shadow: none;
+}
+body[data-skin="dossier"] .tb-brand { border-radius: 2px; }
+body[data-skin="dossier"] .tb-brand:hover { background: color-mix(in srgb, var(--ink) 5%, transparent); }
+body[data-skin="dossier"] .tb-avatar { border-radius: 2px; border-color: var(--ink); box-shadow: none; }
+body[data-skin="dossier"] .tb-name b { font-weight: 700; }
+body[data-skin="dossier"] .tb-link { font: 12.5px var(--mono); letter-spacing: .1em; }
+body[data-skin="dossier"] .tb-link.active::after { height: 3px; border-radius: 0; background: var(--ink); }
+body[data-skin="dossier"] .tb-skins { border-radius: 2px; border-color: var(--ink); padding: 0; gap: 0; overflow: hidden; }
+body[data-skin="dossier"] .tb-skin { border-radius: 0; font: 11px var(--mono); letter-spacing: .14em; padding: 6px 13px; }
+body[data-skin="dossier"] .tb-skin + .tb-skin { border-left: 1px solid var(--line); }
+body[data-skin="dossier"] .tb-skin.active { background: var(--ink); color: var(--bg); }
+body[data-skin="dossier"] .tb-search input { border-radius: 2px; background: transparent; border-color: var(--ink2); }
+body[data-skin="dossier"] .tb-search input:focus { border-color: var(--ink); box-shadow: none; }
+body[data-skin="dossier"] .tb-view select { border-radius: 2px; border-color: var(--ink2); background: var(--bg); }
+body[data-skin="dossier"] .hits { border-radius: 2px; box-shadow: 0 14px 38px color-mix(in srgb, var(--ink) 30%, transparent); }
+body[data-skin="dossier"] .hit { border-radius: 2px; }
+
+/* 星图：夜航刊头——衬线刊名宽字距、金发丝线（--line 已是金色）、导航字距拉开 */
+body[data-skin="nocturne"] .tb-name b { letter-spacing: .16em; font-weight: 400; }
+body[data-skin="nocturne"] .tb-nav { gap: 6px; }
+body[data-skin="nocturne"] .tb-link { font-family: var(--font-head); letter-spacing: .22em; }
+body[data-skin="nocturne"] .tb-skin { font-family: var(--font-head); letter-spacing: .1em; }
+
+/* 鲸脑：深海玻璃——基样式即本皮肤原生氛围，仅随人设 accent 换色，无需覆盖 */
