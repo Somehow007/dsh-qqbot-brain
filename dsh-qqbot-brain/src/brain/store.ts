@@ -913,6 +913,23 @@ export class BrainStore {
     return this.opsLog.slice(-limit).reverse();
   }
 
+  /**
+   * B3 流水分页（新→旧）：环形缓冲内过滤，不新增落盘。
+   * types=op 名集合（空集=不过滤）；from/to=ms 时间戳闭区间。
+   */
+  opsPage(q: { types?: ReadonlySet<string>; from?: number; to?: number; page: number; size: number }): { ops: OpRecord[]; total: number } {
+    const filtered: OpRecord[] = [];
+    for (let i = this.opsLog.length - 1; i >= 0; i--) {
+      const r = this.opsLog[i]!;
+      if (q.from != null && r.t < q.from) continue;
+      if (q.to != null && r.t > q.to) continue;
+      if (q.types?.size && !q.types.has(r.op.op)) continue;
+      filtered.push(r);
+    }
+    const start = (q.page - 1) * q.size;
+    return { ops: filtered.slice(start, start + q.size), total: filtered.length };
+  }
+
   // ── 情绪 / 画像 / 人格 ──
 
   setEmotion(sessionId: string, state: EmotionState): void {

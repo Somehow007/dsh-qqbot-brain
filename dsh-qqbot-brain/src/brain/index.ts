@@ -7,7 +7,7 @@ import { Retriever } from './retrieval.ts';
 import type { ScoredNote } from './retrieval.ts';
 import { EmotionEngine, NEUTRAL_EMOTION } from './emotion.ts';
 import { BrainStore, PRIVATE_MARK, PROFILE_TEXT_CAP, stripPrivateMarks, stripPrivateSegments, truncateProfileText } from './store.ts';
-import type { PersonaExtra, PersonaPatch } from './store.ts';
+import type { OpRecord, PersonaExtra, PersonaPatch } from './store.ts';
 import { Distiller } from './distill.ts';
 import type { ProfileReviewItem } from './distill.ts';
 import type { Embedder } from './embed.ts';
@@ -34,6 +34,57 @@ export interface BrainOptions {
   now?: () => number;
   /** 调试日志（插件层按 debug 开关传入） */
   log?: (msg: string) => void;
+}
+
+/** B2 管理端记忆分页查询参数（值域在 queryNotes 内归一） */
+export interface NoteQueryParams {
+  page?: number; size?: number; q?: string;
+  kind?: string; track?: string; char?: string; persona?: string;
+  scope?: string; status?: string; session?: string;
+  sort?: string; dir?: string;
+}
+
+/** B3 流水分页参数：types=op 名集合，from/to=ms 时间戳（闭区间） */
+export interface OpsQueryParams {
+  types?: string[]; from?: number; to?: number;
+  page?: number; size?: number;
+}
+
+/** B4 批量补丁白名单：content/self/sourceIds 不在批量口径（逐条 PATCH 走原接口） */
+export interface NoteBatchPatch {
+  importance?: number;
+  kind?: MemoryNote['kind'];
+  private?: string;
+}
+
+/** graph()/queryNotes() 共用的记忆条目投影：字段口径唯一出处，改一处两处同步 */
+function graphNoteItem(n: MemoryNote, now: number, scope: string | undefined, forgetThreshold: number) {
+  return {
+    id: n.id,
+    content: n.content,
+    importance: n.importance,
+    kind: n.kind,
+    actor: n.actor,
+    sessionId: n.sessionId,
+    createdAt: n.createdAt,
+    strength: n.strength,
+    lastAccessAt: n.lastAccessAt,
+    ageDays: Math.floor(ageInDays(n, now)),
+    retention: +retention(n, now).toFixed(3),
+    hits: n.hits,
+    fading: retention(n, now) < forgetThreshold,
+    emotion: n.emotion,
+    personaId: n.personaId,
+    /** 自我轨标记（脑图页徽标/过滤用）；attitude 隐含自我轨无需另标 */
+    self: typeof n.self === 'boolean' ? n.self : undefined,
+    /** 已被语义巩固吸收退池的存档条（可视化区分/验收用） */
+    absorbed: !!n.absorbedAt,
+    /** 私域手动覆盖；生效域=private ?? 来源会话域（图谱徽标用） */
+    private: n.private,
+    scope,
+    /** 来源戳（迭代D）：user=对话蒸馏 / agent=壳层主动 / manual=手写 / import=导入 */
+    source: n.source,
+  };
 }
 
 /**
@@ -1128,12 +1179,86 @@ export class Brain {
    * 存量近重复清理：向量余弦 ≥dedupeEmbedCos 的记忆并查集聚类，
    * 每簇保留信息量最大的一条（长文案 > 重要度 > 命中 > 更早创建），
    * 其余经 merge op 合并字段后删除。无向量记忆不参与（无法判定）。
+   * 执行序与历史一致：阶段一佐证放行 → 聚类合并 → 阶段三画像语料放行。
    */
   sweepNearDups(): { clusters: number; merged: number; pairs: { keep: string; drop: string }[]; released: string[] } {
+    const plan = this.dedupePlan();
+    const released: string[] = [];
+    // 阶段一放行（合并前）：与原顺序一致——drop 的 private:'public' 会随 merge 传给 keep
+    for (const id of plan.releasedEarly) {
+      const n = this.store.noteById(id);
+      if (n) this.releaseNote(n, released);
+    }
+    const pairs: { keep: string; drop: string }[] = [];
+    for (const c of plan.clusters) {
+      const keep = this.store.noteById(c.keep);
+      let merged = 0;
+      for (const dropId of c.drops) {
+        if (this.store.mergeNotes(c.keep, dropId, this.cfg.strengthCap)) {
+          pairs.push({ keep: c.keep, drop: dropId });
+          merged++;
+        }
+      }
+      if (merged) this.log?.(`近重复合并：「${(keep?.content ?? '').slice(0, 24)}」吸收 ${merged} 条复读`);
+    }
+    // 阶段三放行（合并后）：pubCorpus 佐证段，drop 掉的合并成员不再放行（执行时已删）
+    for (const id of plan.releasedLate) {
+      const n = this.store.noteById(id);
+      if (n) this.releaseNote(n, released);
+    }
+    return { clusters: plan.clusters.length, merged: pairs.length, pairs, released };
+  }
+
+  /**
+   * B5 去重预估（dry-run）：与 sweepNearDups 共用 dedupePlan，零写入。
+   * pairs/wouldMerge 是合并计划；released 是两阶段佐证放行的条数预估。
+   */
+  dedupeDryRun(): { pairs: { keep: string; drop: string }[]; wouldMerge: number; clusters: number; released: number } {
+    const plan = this.dedupePlan();
+    const pairs = plan.clusters.flatMap((c) => c.drops.map((d) => ({ keep: c.keep, drop: d })));
+    return {
+      pairs,
+      wouldMerge: pairs.length,
+      clusters: plan.clusters.length,
+      released: plan.releasedEarly.length + plan.releasedLate.length,
+    };
+  }
+
+  /**
+   * 去重计划（sweepNearDups 执行体与 dedupeDryRun 共用）：
+   * 并查集聚类 + 佐证放行**模拟**——releasedSet 代替真实 updateNote，
+   * scopeSim/releaseableSim 让后续判定看到「假想放行后」的生效域，
+   * 与原实现交错放行的判定结果逐对一致。
+   * releasedEarly=合并前放行（阶段一），releasedLate=合并后放行（阶段三，已剔除合并 drop）。
+   */
+  private dedupePlan(): {
+    clusters: { keep: string; drops: string[] }[];
+    releasedEarly: string[];
+    releasedLate: string[];
+  } {
     // 已退池的 absorbed 条不参与：否则可能与活摘要成簇且 keep 选中存档条，
     // 把还在检索池的摘要并进不可见存档（静默丢失）
     const notes = this.store.allNotes().filter((n) => n.embedding?.length && !n.absorbedAt);
-    const released: string[] = [];
+    const releasedSet = new Set<string>();
+    const releasedEarly: string[] = [];
+    const releasedLate: string[] = [];
+    const scopeSim = (n: MemoryNote): string | undefined =>
+      releasedSet.has(n.id) ? 'public' : this.noteScope(n);
+    const releaseableSim = (n: MemoryNote): string | undefined =>
+      releasedSet.has(n.id) ? undefined : this.releaseableDomainScope(n);
+    const releaseSim = (n: MemoryNote, bag: string[]): void => {
+      if (releasedSet.has(n.id)) return;
+      releasedSet.add(n.id);
+      bag.push(n.id);
+    };
+    const releaseCorroboratedSim = (candidate: MemoryNote, corroborant: MemoryNote, bag: string[]): boolean => {
+      if (!releaseableSim(candidate)) return false;
+      const cs = scopeSim(corroborant);
+      if (cs && cs !== 'public') return false;
+      releaseSim(candidate, bag);
+      return true;
+    };
+
     const parent = new Map<string, string>();
     const find = (x: string): string => {
       let r = x;
@@ -1153,45 +1278,43 @@ export class Brain {
           if (this.trackKeyOf(a) !== this.trackKeyOf(b)) continue;
           // 私域边界：生效域不同的近重复不互并——但「公开↔域」对走佐证放行：
           // 事实既已见于公开池，域内副本放出零新信息，放完即同域、正常并簇。
-          if (this.noteScope(a) !== this.noteScope(b)
-            && !this.releaseCorroborated(a, b, released)
-            && !this.releaseCorroborated(b, a, released)) continue;
+          if (scopeSim(a) !== scopeSim(b)
+            && !releaseCorroboratedSim(a, b, releasedEarly)
+            && !releaseCorroboratedSim(b, a, releasedEarly)) continue;
           parent.set(find(a.id), find(b.id));
         }
       }
     }
-    const clusters = new Map<string, MemoryNote[]>();
+    const groups = new Map<string, MemoryNote[]>();
     for (const n of notes) {
       const r = find(n.id);
-      const c = clusters.get(r) ?? [];
-      c.push(n); clusters.set(r, c);
+      const c = groups.get(r) ?? [];
+      c.push(n); groups.set(r, c);
     }
-    const pairs: { keep: string; drop: string }[] = [];
-    let clusterCount = 0;
-    for (const members of clusters.values()) {
+    const clusters: { keep: string; drops: string[] }[] = [];
+    const dropIds = new Set<string>();
+    for (const members of groups.values()) {
       if (members.length < 2) continue;
-      clusterCount++;
       members.sort((a, b) => b.content.length - a.content.length
         || b.importance - a.importance || b.hits - a.hits || a.createdAt - b.createdAt);
       const keep = members[0]!;
-      for (const m of members.slice(1)) {
-        this.store.mergeNotes(keep.id, m.id, this.cfg.strengthCap);
-        pairs.push({ keep: keep.id, drop: m.id });
-      }
-      this.log?.(`近重复合并：「${keep.content.slice(0, 24)}」吸收 ${members.length - 1} 条复读`);
+      const drops = members.slice(1).map((m) => m.id);
+      drops.forEach((d) => dropIds.add(d));
+      clusters.push({ keep: keep.id, drops });
     }
-    // 佐证放行·画像语料：公开 u: 画像（剥私后）本就公开，域条内容高覆盖命中=事实已公开
+    // 佐证放行·画像语料：公开 u: 画像（剥私后）本就公开，域条内容高覆盖命中=事实已公开。
+    // 模拟口径与执行后一致：合并 drop 在执行时已删，不再进入放行候选。
     const pubCorpus = this.store.people()
       .filter((p) => p.kind === 'person')
       .map((p) => stripPrivateSegments(p.text))
       .join('');
     if (pubCorpus) {
       for (const n of this.store.allNotes()) {
-        if (n.absorbedAt || !this.releaseableDomainScope(n)) continue;
-        if (corroboratedByText(n.content, pubCorpus)) this.releaseNote(n, released);
+        if (n.absorbedAt || dropIds.has(n.id) || !releaseableSim(n)) continue;
+        if (corroboratedByText(n.content, pubCorpus)) releaseSim(n, releasedLate);
       }
     }
-    return { clusters: clusterCount, merged: pairs.length, pairs, released };
+    return { clusters, releasedEarly, releasedLate };
   }
 
   /**
@@ -1572,6 +1695,20 @@ export class Brain {
     return this.store.deleteNote(id);
   }
 
+  /**
+   * B4 批量操作：逐条走既有 updateNote/deleteNote 写路径——
+   * 每条仍落各自的 update/del op，JSONL 重放语义不变，无新 op 类型。
+   * patch 白名单 {importance,kind,private}（http 层已校验形状）。
+   */
+  batchNotes(ids: string[], patch?: NoteBatchPatch, del?: boolean): number {
+    let affected = 0;
+    for (const id of ids) {
+      const ok = del ? this.store.deleteNote(id) : patch ? this.updateNote(id, patch) : false;
+      if (ok) affected++;
+    }
+    return affected;
+  }
+
   reinforceNote(id: string): boolean {
     return this.store.reinforceById(id, this.cfg.reinforceStep, this.cfg.strengthCap, this.now());
   }
@@ -1615,37 +1752,90 @@ export class Brain {
     return this.store.recentOps(limit);
   }
 
+  /**
+   * B3 流水分页：环形缓冲（≤500 条）内按 op 名/时间窗过滤后切片。
+   * 不新增持久化——重启后分页口径回到缓冲现状，与 recentOps 同源。
+   */
+  opsPage(q: OpsQueryParams): { ops: OpRecord[]; total: number; page: number; size: number } {
+    const page = Math.max(1, Math.floor(q.page ?? 1) || 1);
+    const size = Math.min(500, Math.max(1, Math.floor(q.size ?? 20) || 20));
+    const types = q.types?.length ? new Set(q.types) : undefined;
+    const r = this.store.opsPage({ types, from: q.from, to: q.to, page, size });
+    return { ...r, page, size };
+  }
+
+  /**
+   * B2 管理端记忆分页查询：条目字段与 graph() notes 完全同口径
+   * （graphNoteItem 唯一出处）；筛选/排序/分页全在服务端，客户端只拿当页。
+   * track=world|self 走三轨判定；scope=priv|pub|release（release=域内待放行队列同口径）；
+   * char=characterId、persona=personaId 精确匹配；status=fading|fresh 按 forgetThreshold。
+   */
+  queryNotes(q: NoteQueryParams): { items: ReturnType<typeof graphNoteItem>[]; total: number; page: number; size: number } {
+    const now = this.now();
+    const size = [20, 50, 100].includes(q.size ?? 0) ? q.size! : 20;
+    const page = Math.max(1, Math.floor(q.page ?? 1) || 1);
+    const kind = q.kind === 'episodic' || q.kind === 'semantic' || q.kind === 'attitude' ? q.kind : undefined;
+    const track = q.track === 'world' || q.track === 'self' ? q.track : undefined;
+    const scope = q.scope === 'priv' || q.scope === 'pub' || q.scope === 'release' ? q.scope : undefined;
+    const status = q.status === 'fading' || q.status === 'fresh' ? q.status : undefined;
+    const sort = q.sort === 'age' || q.sort === 'importance' || q.sort === 'hits' ? q.sort : 'retention';
+    const dir = q.dir === 'asc' ? 1 : -1;
+    const text = (q.q ?? '').trim().toLowerCase();
+    const char = (q.char ?? '').trim();
+    const persona = (q.persona ?? '').trim();
+    const session = (q.session ?? '').trim();
+    const forget = this.cfg.forgetThreshold;
+
+    const hit = this.store.allNotes().filter((n) => {
+      if (session && n.sessionId !== session) return false;
+      if (text && !n.content.toLowerCase().includes(text)) return false;
+      if (kind && n.kind !== kind) return false;
+      const selfTrack = n.kind === 'attitude' || n.self === true;
+      if (track === 'self' && !selfTrack) return false;
+      if (track === 'world' && selfTrack) return false;
+      if (char && this.characterOf(notePersonaId(n)) !== char) return false;
+      if (persona && notePersonaId(n) !== persona) return false;
+      if (scope === 'release') {
+        // 域内待放行同口径：可放行域条 ∧ 非态度 ∧ 无私密线索词 ∧ 未吸收
+        if (n.absorbedAt || n.kind === 'attitude' || !this.releaseableDomainScope(n) || PRIVATE_HINT_RE.test(n.content)) return false;
+      } else if (scope) {
+        const sc = this.noteScope(n);
+        const priv = !!sc && sc !== 'public';
+        if (scope === 'priv' && !priv) return false;
+        if (scope === 'pub' && priv) return false;
+      }
+      if (status) {
+        const fading = retention(n, now) < forget;
+        if (status === 'fading' && !fading) return false;
+        if (status === 'fresh' && fading) return false;
+      }
+      return true;
+    });
+
+    const key = (n: MemoryNote): number => {
+      switch (sort) {
+        case 'age': return ageInDays(n, now);
+        case 'importance': return n.importance;
+        case 'hits': return n.hits;
+        default: return retention(n, now);
+      }
+    };
+    hit.sort((a, b) => (key(a) - key(b)) * dir
+      || retention(b, now) - retention(a, now)
+      || b.createdAt - a.createdAt
+      || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+    const total = hit.length;
+    const items = hit.slice((page - 1) * size, page * size)
+      .map((n) => graphNoteItem(n, now, this.noteScope(n), forget));
+    return { items, total, page, size };
+  }
+
   /** 可视化数据：节点 + 关联边 + 情绪 + 统计 */
   async graph(sessionId?: string) {
     const now = this.now();
     const raw = this.store.allNotes()
       .filter((n) => !sessionId || n.sessionId === sessionId);
-    const notes = raw.map((n) => ({
-      id: n.id,
-      content: n.content,
-      importance: n.importance,
-      kind: n.kind,
-      actor: n.actor,
-      sessionId: n.sessionId,
-      createdAt: n.createdAt,
-      strength: n.strength,
-      lastAccessAt: n.lastAccessAt,
-      ageDays: Math.floor(ageInDays(n, now)),
-      retention: +retention(n, now).toFixed(3),
-      hits: n.hits,
-      fading: retention(n, now) < this.cfg.forgetThreshold,
-      emotion: n.emotion,
-      personaId: n.personaId,
-      /** 自我轨标记（脑图页徽标/过滤用）；attitude 隐含自我轨无需另标 */
-      self: typeof n.self === 'boolean' ? n.self : undefined,
-      /** 已被语义巩固吸收退池的存档条（可视化区分/验收用） */
-      absorbed: !!n.absorbedAt,
-      /** 私域手动覆盖；生效域=private ?? 来源会话域（图谱徽标用） */
-      private: n.private,
-      scope: this.noteScope(n),
-      /** 来源戳（迭代D）：user=对话蒸馏 / agent=壳层主动 / manual=手写 / import=导入 */
-      source: n.source,
-    }));
+    const notes = raw.map((n) => graphNoteItem(n, now, this.noteScope(n), this.cfg.forgetThreshold));
     const { edges, nearDup } = await this.graphEdges(raw, sessionId);
     const stats = {
       total: notes.length,

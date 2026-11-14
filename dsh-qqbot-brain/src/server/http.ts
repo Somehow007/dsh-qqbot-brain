@@ -248,11 +248,26 @@ export class BrainHttpServer {
       return json(res, { ok: true, cleared });
     }
     if (p === `${prefix}/api/ops`) {
+      // B3 分页模式：带 page/size/type/from/to 任一参数即走分页（环形缓冲过滤）；
+      // 只带 limit 或裸调保持旧口径 {ops}，向后兼容
+      const paged = url.searchParams.has('page') || url.searchParams.has('size')
+        || url.searchParams.has('type') || url.searchParams.has('from') || url.searchParams.has('to');
+      if (paged) {
+        const num = (k: string): number | undefined => {
+          const v = url.searchParams.get(k);
+          if (v == null) return undefined;
+          const n = Number(v);
+          return Number.isFinite(n) ? n : undefined;
+        };
+        const types = url.searchParams.get('type')?.split(',').map((s) => s.trim()).filter(Boolean);
+        return json(res, this.brain.opsPage({ page: num('page'), size: num('size'), types, from: num('from'), to: num('to') }));
+      }
       const limit = Math.min(500, Math.max(1, Number(url.searchParams.get('limit')) || 100));
       return json(res, { ops: this.brain.recentOps(limit) });
     }
     if (p === `${prefix}/api/dedup` && req.method === 'POST') {
-      return json(res, this.brain.sweepNearDups());
+      // B5 dry=1 只回预估不写 op；非 dry 行为不变
+      return json(res, url.searchParams.get('dry') === '1' ? this.brain.dedupeDryRun() : this.brain.sweepNearDups());
     }
     if (p === `${prefix}/api/release-candidates`) {
       const limit = Math.min(100, Math.max(1, Number(url.searchParams.get('limit')) || 30));
@@ -318,7 +333,28 @@ export class BrainHttpServer {
           : void res.writeHead(404).end('intent not found');
       }
     }
-    // /api/notes 与 /api/notes/<id>[/reinforce]
+    // /api/notes GET=分页查询（B2 管理端记忆库）；POST=新增；/api/notes/batch=批量（B4）
+    if (p === `${prefix}/api/notes` && req.method === 'GET') {
+      const num = (k: string): number | undefined => {
+        const v = url.searchParams.get(k);
+        if (v == null) return undefined;
+        const n = Number(v);
+        return Number.isFinite(n) ? n : undefined;
+      };
+      return json(res, this.brain.queryNotes({
+        page: num('page'), size: num('size'),
+        q: url.searchParams.get('q') ?? undefined,
+        kind: url.searchParams.get('kind') ?? undefined,
+        track: url.searchParams.get('track') ?? undefined,
+        char: url.searchParams.get('char') ?? undefined,
+        persona: url.searchParams.get('persona') ?? undefined,
+        scope: url.searchParams.get('scope') ?? undefined,
+        status: url.searchParams.get('status') ?? undefined,
+        session: url.searchParams.get('session') ?? undefined,
+        sort: url.searchParams.get('sort') ?? undefined,
+        dir: url.searchParams.get('dir') ?? undefined,
+      }));
+    }
     if (p === `${prefix}/api/notes` && req.method === 'POST') {
       readBody(req).then((body) => {
         const o = parseJson<{ content?: string; importance?: number; kind?: 'episodic' | 'semantic' | 'attitude'; sessionId?: string; actor?: string; private?: string; self?: boolean }>(body) ?? {};
@@ -330,6 +366,50 @@ export class BrainHttpServer {
         });
         return json(res, { ok: true, note });
       });
+      return;
+    }
+    // B4 批量操作：必须先于 noteMatch（'batch' 会撞 [^/]+ 动态段）
+    if (p === `${prefix}/api/notes/batch` && req.method === 'POST') {
+      readBody(req).then((body) => {
+        const o = parseJson<{ ids?: unknown; patch?: unknown; delete?: unknown }>(body);
+        const raw = Array.isArray(o?.ids)
+          ? o.ids.filter((x): x is string => typeof x === 'string' && !!x.trim())
+          : null;
+        if (!raw || raw.length > 200) { res.writeHead(400).end('ids required (string[], ≤200)'); return; }
+        const ids = [...new Set(raw)];
+        const del = o?.delete === true;
+        let patch: { importance?: number; kind?: 'episodic' | 'semantic' | 'attitude'; private?: string } | undefined;
+        if (o?.patch !== undefined) {
+          const p0 = o.patch;
+          if (p0 === null || typeof p0 !== 'object' || Array.isArray(p0)) {
+            res.writeHead(400).end('patch must be object'); return;
+          }
+          const src = p0 as Record<string, unknown>;
+          patch = {};
+          if ('importance' in src) {
+            if (typeof src.importance !== 'number' || !Number.isFinite(src.importance)) {
+              res.writeHead(400).end('importance must be number'); return;
+            }
+            patch.importance = src.importance;
+          }
+          if ('kind' in src) {
+            if (src.kind !== 'episodic' && src.kind !== 'semantic' && src.kind !== 'attitude') {
+              res.writeHead(400).end('kind invalid'); return;
+            }
+            patch.kind = src.kind;
+          }
+          if ('private' in src) {
+            if (typeof src.private !== 'string') { res.writeHead(400).end('private must be string'); return; }
+            patch.private = src.private;
+          }
+          if (!('importance' in patch) && !('kind' in patch) && !('private' in patch)) {
+            res.writeHead(400).end('patch must set importance/kind/private'); return;
+          }
+        }
+        if (del && patch) { res.writeHead(400).end('patch/delete 互斥'); return; }
+        if (!del && !patch) { res.writeHead(400).end('patch or delete required'); return; }
+        return json(res, { ok: true, affected: this.brain.batchNotes(ids, patch, del) });
+      }).catch((e) => { res.writeHead(400).end(String(e)); });
       return;
     }
     const noteMatch = p.match(new RegExp(`^${prefix}/api/notes/([^/]+)(/reinforce)?$`));
@@ -464,7 +544,7 @@ export class BrainHttpServer {
       const prefix = this.cfg.prefix.replace(/\/$/, '');
       webServer.register({ path: prefix, handler: (r, s) => this.route(r, s) });
       webServer.register({ path: `${prefix}/`, handler: (r, s) => this.route(r, s) });
-      for (const sub of ['/api/state', '/api/query', '/api/persona', '/api/personas', '/api/personas/activate', '/api/sessions', '/api/sessions/domain', '/api/profiles', '/api/profiles/merge', '/api/profiles/regenerate', '/api/ops', '/api/notes', '/api/notes/purge', '/api/digests', '/api/reset', '/api/export', '/api/import', '/api/dedup', '/api/intents']) {
+      for (const sub of ['/api/state', '/api/query', '/api/persona', '/api/personas', '/api/personas/activate', '/api/sessions', '/api/sessions/domain', '/api/profiles', '/api/profiles/merge', '/api/profiles/regenerate', '/api/ops', '/api/notes', '/api/notes/purge', '/api/notes/batch', '/api/digests', '/api/reset', '/api/export', '/api/import', '/api/dedup', '/api/intents']) {
         webServer.register({ path: `${prefix}${sub}`, handler: (r, s) => this.route(r, s) });
       }
       // web/ 静态白名单逐文件注册（与 API 路径同一精确匹配口径）

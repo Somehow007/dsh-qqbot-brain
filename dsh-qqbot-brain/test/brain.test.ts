@@ -3180,3 +3180,173 @@ test('RECALL_INTENT_RE: 召回意图词命中/不命中边界', () => {
   assert.ok(!RECALL_INTENT_RE.test('今天天气真好'));
   assert.ok(!RECALL_INTENT_RE.test('年糕'));
 });
+
+// ── B2–B5 管理端契约（脑图管理页后端）──
+
+test('queryNotes: 条目字段同 graph() 口径，九类筛选/排序/值域归一', async () => {
+  const { store } = tmpStore();
+  store.createPersona('叶瞬光', '叶', 'ye-shunguang');
+  store.activatePersona('ye-shunguang');
+  store.addNote('s1', { content: '世界轨事实：周末爬山看海', importance: 4 }, NOW - 5 * DAY);
+  store.addNote('s1', { content: '我叶瞬光去年也想去爬山', importance: 3, self: true, personaId: 'ye-shunguang' }, NOW - DAY);
+  store.addNote('s1', { content: '语义记忆：爬山计划要带水', kind: 'semantic', importance: 5 }, NOW);
+  store.addNote('s2', { content: '完全不同的话题记录', importance: 1 }, NOW - 60 * DAY);
+  store.setSessionDomain('priv', 'demo');
+  store.addNote('priv', { content: 'demo：每周读经济学人和小说', importance: 2 }, NOW);
+  const brain = new Brain({ store, distiller: mockDistiller({}), now });
+
+  const all = brain.queryNotes({});
+  assert.equal(all.total, 5);
+  assert.equal(all.size, 20);
+  assert.equal(all.page, 1);
+  // 与 graph() notes 同一投影（字段集合一致）
+  const g = await brain.graph();
+  const gNote = g.notes.find((n) => n.id === all.items[0]!.id)!;
+  assert.deepEqual(Object.keys(all.items[0]!).sort(), Object.keys(gNote).sort());
+
+  assert.equal(brain.queryNotes({ q: '爬山' }).total, 3);
+  assert.equal(brain.queryNotes({ kind: 'semantic' }).total, 1);
+  assert.equal(brain.queryNotes({ kind: 'bogus' }).total, 5, '非法 kind 回退不过滤');
+  assert.equal(brain.queryNotes({ track: 'self' }).total, 1);
+  assert.equal(brain.queryNotes({ track: 'self' }).items[0]!.self, true);
+  assert.equal(brain.queryNotes({ track: 'world' }).total, 4);
+  assert.equal(brain.queryNotes({ persona: 'ye-shunguang' }).total, 1);
+  assert.equal(brain.queryNotes({ char: 'ye-shunguang' }).total, 1);
+  assert.equal(brain.queryNotes({ char: 'whale' }).total, 4);
+  assert.equal(brain.queryNotes({ session: 'priv' }).total, 1);
+  assert.equal(brain.queryNotes({ scope: 'priv' }).total, 1);
+  assert.equal(brain.queryNotes({ scope: 'pub' }).total, 4);
+  assert.equal(brain.queryNotes({ scope: 'release' }).total, 1);
+  assert.equal(brain.queryNotes({ scope: 'release' }).items[0]!.scope, 'demo');
+  // status：60 天前 importance1 → retention≈e^-60 远低于 forgetThreshold 0.2 → fading
+  assert.equal(brain.queryNotes({ status: 'fading' }).total, 1);
+  assert.equal(brain.queryNotes({ status: 'fresh' }).total, 4);
+  // 非法值域归一：size 只认 20/50/100，sort/dir 非法回退默认
+  assert.equal(brain.queryNotes({ size: 7 }).size, 20);
+  assert.equal(brain.queryNotes({ size: 50 }).size, 50);
+  assert.equal(brain.queryNotes({ sort: 'bogus' }).items[0]!.retention <= 1, true);
+  // 排序：importance desc 首位=5，asc 首位=1
+  assert.equal(brain.queryNotes({ sort: 'importance', dir: 'desc' }).items[0]!.importance, 5);
+  assert.equal(brain.queryNotes({ sort: 'importance', dir: 'asc' }).items[0]!.importance, 1);
+  // age desc=最旧在前（60 天前那条）
+  assert.equal(brain.queryNotes({ sort: 'age', dir: 'desc' }).items[0]!.ageDays, 60);
+});
+
+test('queryNotes: 分页切片正确（45 条 → 20/20/5，越界页空但 total 不变）', () => {
+  const { store } = tmpStore();
+  for (let i = 0; i < 45; i++) store.addNote('s1', { content: `第${i}条记忆`, importance: (i % 5) + 1 }, NOW - i);
+  const brain = new Brain({ store, distiller: mockDistiller({}), now });
+  const p1 = brain.queryNotes({ page: 1, size: 20 });
+  const p2 = brain.queryNotes({ page: 2, size: 20 });
+  const p3 = brain.queryNotes({ page: 3, size: 20 });
+  assert.equal(p1.total, 45);
+  assert.equal(p1.items.length, 20);
+  assert.equal(p2.items.length, 20);
+  assert.equal(p3.items.length, 5);
+  assert.equal(new Set([...p1.items, ...p2.items, ...p3.items].map((n) => n.id)).size, 45, '三页无重复无遗漏');
+  const p9 = brain.queryNotes({ page: 9, size: 20 });
+  assert.equal(p9.items.length, 0);
+  assert.equal(p9.total, 45);
+});
+
+test('batchNotes: 批量补丁走既有写路径逐条落 op，delete 计数只算命中', () => {
+  const { dir, store } = tmpStore();
+  const a = store.addNote('s1', { content: '批量甲', importance: 2 }, NOW);
+  const b = store.addNote('s1', { content: '批量乙', importance: 3 }, NOW);
+  const c = store.addNote('s1', { content: '批量丙', kind: 'semantic', importance: 4 }, NOW);
+  const brain = new Brain({ store, distiller: mockDistiller({}), now });
+  // 混合 patch：importance+kind 同批生效
+  assert.equal(brain.batchNotes([a.id, b.id], { importance: 5, kind: 'semantic' }), 2);
+  assert.equal(store.noteById(a.id)!.importance, 5);
+  assert.equal(store.noteById(a.id)!.kind, 'semantic');
+  assert.equal(brain.batchNotes([a.id], { private: 'demo' }), 1);
+  assert.equal(store.noteById(a.id)!.private, 'demo');
+  // 不存在 id 不计入 affected
+  assert.equal(brain.batchNotes(['ghost'], { importance: 1 }), 0);
+  // delete 逐条
+  assert.equal(brain.batchNotes([b.id, c.id], undefined, true), 2);
+  assert.equal(store.noteById(b.id), undefined);
+  assert.equal(store.allNotes().length, 1);
+  // 每条独立 op 可重放：重载后状态一致（不 flush——compact 会按真实时间把
+  // 固定 NOW 创建的零命中旧条物理遗忘，干扰断言；op 本就逐条落盘）
+  const store2 = new BrainStore(dir);
+  assert.equal(store2.allNotes().length, 1);
+  assert.equal(store2.noteById(a.id)!.importance, 5);
+  assert.equal(store2.noteById(a.id)!.private, 'demo');
+});
+
+test('opsPage: 环形缓冲内按 op 名/时间窗过滤分页，新→旧', () => {
+  const { store } = tmpStore();
+  const brain = new Brain({ store, distiller: mockDistiller({}), now });
+  const n1 = store.addNote('s1', { content: '流水甲' }, NOW);
+  const n2 = store.addNote('s1', { content: '流水乙' }, NOW);
+  store.deleteNote(n2.id);
+  brain.reinforceNote(n1.id);
+  const all = brain.opsPage({});
+  assert.equal(all.total, 4, 'add+add+del+reinforce');
+  assert.equal(all.ops[0]!.op.op, 'reinforce', '新→旧');
+  assert.equal(all.page, 1);
+  assert.equal(all.size, 20);
+  // type 过滤
+  const adds = brain.opsPage({ types: ['add'] });
+  assert.equal(adds.total, 2);
+  assert.ok(adds.ops.every((o) => o.op.op === 'add'));
+  const dels = brain.opsPage({ types: ['del', 'reinforce'] });
+  assert.equal(dels.total, 2);
+  // from/to 闭区间（op.t 是真实墙钟）
+  const future = brain.opsPage({ from: Date.now() + 60_000 });
+  assert.equal(future.total, 0);
+  const past = brain.opsPage({ to: Date.now() - 60_000 });
+  assert.equal(past.total, 0);
+  const allTime = brain.opsPage({ from: Date.now() - 60_000, to: Date.now() + 60_000 });
+  assert.equal(allTime.total, 4);
+  // size 钳制与分页
+  assert.equal(brain.opsPage({ size: 500 }).size, 500);
+  assert.equal(brain.opsPage({ size: 2 }).size, 2);
+  const p2 = brain.opsPage({ page: 2, size: 3 });
+  assert.equal(p2.total, 4);
+  assert.equal(p2.ops.length, 1);
+});
+
+test('dedupeDryRun: 与 sweepNearDups 同计划但零写入（条数/op/private 不变）', () => {
+  const { store } = tmpStore();
+  const a = store.addNote('s1', { content: '短', importance: 2 }, NOW - 2 * DAY);
+  const b = store.addNote('s1', { content: '长文案：用户反复强调自己对花生严重过敏这件事', importance: 4 }, NOW - DAY);
+  const c = store.addNote('s1', { content: '中等长度的同类记录', importance: 3 }, NOW);
+  store.setEmbedding(a.id, [1, 0, 0]);
+  store.setEmbedding(b.id, [0.99, 0.05, 0]);
+  store.setEmbedding(c.id, [0.98, 0.1, 0]);
+  const brain = new Brain({ store, distiller: mockDistiller({}), now });
+  const opsBefore = store.recentOps(500).length;
+  const notesBefore = store.allNotes().length;
+  const dry = brain.dedupeDryRun();
+  assert.equal(dry.wouldMerge, 2);
+  assert.equal(dry.clusters, 1);
+  assert.equal(dry.pairs.length, 2);
+  assert.equal(store.allNotes().length, notesBefore, 'dry 不动条数');
+  assert.equal(store.recentOps(500).length, opsBefore, 'dry 不落 op');
+  // dry 之后真跑结果一致
+  const real = brain.sweepNearDups();
+  assert.equal(real.merged, dry.wouldMerge);
+  assert.equal(real.clusters, dry.clusters);
+  assert.deepEqual(real.pairs, dry.pairs);
+});
+
+test('dedupeDryRun: 佐证放行同样只预估不落库', () => {
+  const { store } = tmpStore();
+  store.setSessionDomain('priv', 'demo');
+  const pub = store.addNote('s1', { content: '用户每周读经济学人和小说', importance: 4 }, NOW);
+  const dom = store.addNote('priv', { content: '用户每周读经济学人和小说加上私域补充', importance: 3 }, NOW);
+  store.setEmbedding(pub.id, [1, 0, 0]);
+  store.setEmbedding(dom.id, [0.99, 0.05, 0]);
+  const brain = new Brain({ store, distiller: mockDistiller({}), now });
+  const opsBefore = store.recentOps(500).length;
+  const dry = brain.dedupeDryRun();
+  assert.equal(dry.released, 1, '域条被公开条佐证 → 预估放行 1 条');
+  assert.equal(dry.wouldMerge, 1);
+  assert.equal(store.recentOps(500).length, opsBefore, 'dry 不落 op');
+  assert.equal(store.noteById(dom.id)!.private, undefined, 'dry 不改 private');
+  const real = brain.sweepNearDups();
+  assert.equal(real.released.length, dry.released);
+  assert.equal(real.merged, dry.wouldMerge);
+});

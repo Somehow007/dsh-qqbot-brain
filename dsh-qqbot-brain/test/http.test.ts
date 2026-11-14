@@ -387,3 +387,101 @@ test('web 静态白名单：免口令可访问、仅白名单文件、?ui=legacy
     rmSync(dir, { recursive: true });
   }
 });
+
+test('B2–B5 管理端 API：notes 分页查询/批量/ops 分页/dedup dry 预估', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'brain-admin-api-'));
+  const store = new BrainStore(dir);
+  store.setSessionDomain('priv', 'demo');
+  const n1 = store.addNote('s1', { content: '管理页测试记忆甲', importance: 4 }, Date.now());
+  const n2 = store.addNote('s1', { content: '管理页测试记忆乙', kind: 'semantic', importance: 2 }, Date.now());
+  store.addNote('priv', { content: 'demo：每周读经济学人', importance: 3 }, Date.now());
+  const brain = new Brain({
+    store,
+    distiller: new Distiller({ enabled: false, baseUrl: '', apiKey: '', model: '', timeoutMs: 1000, maxNotes: 1 }),
+  });
+  const http = new BrainHttpServer(brain, {
+    enabled: true, port: 0, host: '127.0.0.1', prefix: '/brain', token: 'test-token',
+  }, () => {});
+  const server = createServer((req, res) => {
+    (http as unknown as { route: (req: typeof req, res: typeof res) => Promise<void> }).route(req, res).catch((err) => {
+      res.writeHead(500).end(String(err));
+    });
+  });
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  try {
+    const addr = server.address();
+    assert.ok(addr && typeof addr !== 'string');
+    const url = `http://127.0.0.1:${addr.port}/brain/api`;
+    const call = (path: string, method = 'GET', body?: object) =>
+      fetch(url + path, {
+        method, headers: { 'x-brain-token': 'test-token', 'Content-Type': 'application/json' },
+        body: body && JSON.stringify(body),
+      });
+
+    // 口令保护覆盖新路由
+    assert.equal((await fetch(url + '/notes')).status, 401);
+    assert.equal((await fetch(url + '/notes/batch', { method: 'POST' })).status, 401);
+
+    // B2 GET /api/notes：分页+筛选
+    const page1 = await (await call('/notes?page=1&size=20')).json() as { items: { id: string }[]; total: number; page: number; size: number };
+    assert.equal(page1.total, 3);
+    assert.equal(page1.items.length, 3);
+    assert.equal(page1.size, 20);
+    const sem = await (await call('/notes?kind=semantic')).json() as { items: { id: string }[]; total: number };
+    assert.equal(sem.total, 1);
+    assert.equal(sem.items[0]!.id, n2.id);
+    const priv = await (await call('/notes?scope=priv')).json() as { total: number };
+    assert.equal(priv.total, 1);
+    const bad = await (await call('/notes?size=7')).json() as { size: number };
+    assert.equal(bad.size, 20, '非法 size 归一');
+
+    // B4 POST /api/notes/batch：合法批量补丁
+    const batch = await call('/notes/batch', 'POST', { ids: [n1.id, n2.id, 'ghost'], patch: { importance: 5 } });
+    assert.equal(batch.status, 200);
+    assert.deepEqual(await batch.json(), { ok: true, affected: 2 });
+    assert.equal(store.noteById(n1.id)!.importance, 5);
+    // 非法形状全 400
+    assert.equal((await call('/notes/batch', 'POST', { ids: Array(201).fill('x'), patch: { importance: 1 } })).status, 400);
+    assert.equal((await call('/notes/batch', 'POST', { ids: [n1.id], patch: { importance: 1 }, delete: true })).status, 400);
+    assert.equal((await call('/notes/batch', 'POST', { ids: [n1.id], patch: {} })).status, 400);
+    assert.equal((await call('/notes/batch', 'POST', { ids: [n1.id], patch: { kind: 'bogus' } })).status, 400);
+    assert.equal((await call('/notes/batch', 'POST', { ids: 'not-array', patch: { importance: 1 } })).status, 400);
+    assert.equal((await call('/notes/batch', 'POST', { patch: { importance: 1 } })).status, 400);
+    // 批量删除
+    const del = await call('/notes/batch', 'POST', { ids: [n2.id], delete: true });
+    assert.equal((await del.json() as { affected: number }).affected, 1);
+    assert.equal(store.noteById(n2.id), undefined);
+
+    // B3 /api/ops 分页模式 + 旧 limit 兼容
+    const ops = await (await call('/ops?page=1&size=20')).json() as { ops: { t: number; op: { op: string } }[]; total: number; page: number; size: number };
+    assert.ok(ops.total >= 5, 'add×3 + update×批量 + del');
+    assert.equal(ops.page, 1);
+    assert.equal(ops.size, 20);
+    const adds = await (await call('/ops?type=add')).json() as { ops: { op: { op: string } }[]; total: number };
+    assert.ok(adds.ops.every((o) => o.op.op === 'add'));
+    assert.equal(adds.total, 3);
+    const legacy = await (await call('/ops?limit=2')).json() as { ops: unknown[] };
+    assert.equal(legacy.ops.length, 2, '旧 limit 口径不变');
+    const legacyAll = await (await call('/ops')).json() as { ops: unknown[] };
+    assert.ok(Array.isArray(legacyAll.ops), '裸 /ops 仍返回 {ops}');
+
+    // B5 /api/dedup?dry=1：预估零写入；非 dry 行为不变
+    const m1 = store.addNote('s1', { content: '去重甲', importance: 3 }, Date.now());
+    const m2 = store.addNote('s1', { content: '去重乙长文案内容', importance: 4 }, Date.now());
+    store.setEmbedding(m1.id, [1, 0, 0]);
+    store.setEmbedding(m2.id, [0.99, 0.05, 0]);
+    const opsBefore = store.recentOps(500).length;
+    const notesBefore = store.allNotes().length;
+    const dry = await (await call('/dedup?dry=1', 'POST')).json() as { wouldMerge: number; pairs: unknown[]; released: number };
+    assert.equal(dry.wouldMerge, 1);
+    assert.equal(dry.pairs.length, 1);
+    assert.equal(store.recentOps(500).length, opsBefore, 'dry 不落 op');
+    assert.equal(store.allNotes().length, notesBefore, 'dry 不动条数');
+    const real = await (await call('/dedup', 'POST')).json() as { merged: number };
+    assert.equal(real.merged, 1, '非 dry 仍执行合并');
+    assert.equal(store.allNotes().length, notesBefore - 1);
+  } finally {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    rmSync(dir, { recursive: true });
+  }
+});
