@@ -1,0 +1,151 @@
+/* nocturne 皮肤（夜航星图）：概念图 b-nocturne 还原，全部规则 .noc 作用域。
+   --a/--a2/--moodc 由皮肤按查看人设写到 .noc 根（切人设 JS 补间）。
+   keyframes 全部 noc- 前缀——cortex.css 已占 tw/rise 等短名，撞名后者覆盖会双输。 */
+.noc{position:absolute;inset:0;overflow-y:auto;color-scheme:dark;
+  --night:#070b18;--night2:#0c1328;--cream:#ebe2cb;--c2:rgba(235,226,203,.62);
+  --c3:rgba(235,226,203,.3);--c4:rgba(235,226,203,.12);
+  --gold:#d8b878;--gold2:rgba(216,184,120,.55);--gold3:rgba(216,184,120,.22);
+  --a:#3d7bff;--a2:#8ec5ff;--moodc:#999;
+  --serif:"Songti SC","Noto Serif SC","Source Han Serif SC",serif;
+  --sans:-apple-system,"PingFang SC",sans-serif;
+  --mono:"SF Mono",ui-monospace,Menlo,monospace;
+  background:var(--night);color:var(--cream);font:14px/1.6 var(--sans)}
+.noc *{box-sizing:border-box}
+.noc button{font:inherit;color:inherit;cursor:pointer}
+.noc .wrap{position:relative;z-index:1;max-width:1320px;margin:0 auto;padding:26px 40px 56px}
+/* ── 背景层：星云 / 银河带 / 星点 canvas（fixed 在顶栏之下，不随内容滚动）── */
+.noc .bg{position:fixed;inset:52px 0 0 0;z-index:0;pointer-events:none;overflow:hidden}
+.noc .bgp{position:absolute;inset:-24px}
+.noc .neb{position:absolute;border-radius:50%;filter:blur(60px)}
+.noc .n1{width:56vmax;height:56vmax;left:-9vmax;top:-15vmax;background:radial-gradient(circle,var(--a) 0%,transparent 68%);opacity:.26;animation:noc-nebA 52s ease-in-out infinite alternate}
+.noc .n2{width:48vmax;height:48vmax;right:-11vmax;top:36%;background:radial-gradient(circle,var(--a2) 0%,transparent 70%);opacity:.22;animation:noc-nebB 44s ease-in-out infinite alternate}
+.noc .n3{width:52vmax;height:52vmax;left:22%;bottom:-24vmax;background:radial-gradient(circle,var(--moodc) 0%,transparent 70%);opacity:.2;animation:noc-nebC 60s ease-in-out infinite alternate}
+@keyframes noc-nebA{from{transform:translate(0,0) scale(1)}to{transform:translate(7vmax,4vmax) scale(1.14)}}
+@keyframes noc-nebB{from{transform:translate(0,0) scale(1.1)}to{transform:translate(-6vmax,-5vmax) scale(1)}}
+@keyframes noc-nebC{from{transform:translate(0,0) scale(1)}to{transform:translate(-5vmax,6vmax) scale(1.12)}}
+.noc .band{position:absolute;left:-25%;top:14%;width:150%;height:38%;transform:rotate(-24deg);
+  background:linear-gradient(180deg,transparent 0%,rgba(216,184,120,.05) 40%,rgba(235,226,203,.065) 50%,rgba(216,184,120,.05) 60%,transparent 100%);filter:blur(16px)}
+.noc #nstar{position:absolute;inset:0;width:100%;height:100%}
+/* ── 刊头 ── */
+.noc .mast{display:grid;grid-template-columns:1fr auto 1fr;align-items:end;border-bottom:1px solid var(--gold3);padding-bottom:16px}
+.noc .mast .l,.noc .mast .r{font:11px/1.6 var(--mono);letter-spacing:.14em;color:var(--c2);text-transform:uppercase}
+.noc .mast .r{text-align:right}
+.noc .mast h1{margin:0;font:400 54px/1 var(--serif);letter-spacing:.18em;text-align:center}
+.noc .mast h1 small{display:block;font:11px var(--mono);letter-spacing:.6em;color:var(--a2);margin-top:12px}
+.noc .sub{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--gold3);padding:9px 0;font:11px var(--mono);color:var(--c2);letter-spacing:.08em}
+.noc .grid{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(320px,1fr);margin-top:26px}
+.noc .chart{padding-right:34px;border-right:1px solid var(--gold3)}
+.noc .side{padding:24px 0 0 34px;background:linear-gradient(180deg,rgba(255,255,255,.03),transparent 32%)}
+.noc svg text{font-family:var(--serif)}
+.noc .ring-t{font:9.5px var(--mono);fill:var(--gold2);letter-spacing:.35em}
+.noc .star{cursor:pointer}
+.noc .star .lab{font-size:12px;fill:var(--c2);transition:.2s;pointer-events:none}
+.noc .star .lab.h{opacity:0}
+.noc .star:hover .lab,.noc .star.sel .lab,.noc .star.near .lab,.noc .star.hi .lab{opacity:1;fill:var(--cream)}
+.noc .dim{opacity:.15!important}
+.noc .edge{transition:opacity .25s}
+.noc .legend{display:flex;justify-content:center;gap:26px;flex-wrap:wrap;font:11px var(--mono);color:var(--c2);letter-spacing:.06em;margin-top:6px}
+.noc .legend span{display:flex;align-items:center;gap:7px}
+/* ── 侧栏 ── */
+.noc .kicker{font:10px var(--mono);letter-spacing:.34em;color:var(--gold);text-transform:uppercase}
+.noc h2{font:400 30px/1.3 var(--serif);margin:10px 0 4px;letter-spacing:.06em}
+.noc .quote{font:italic 17px/1.85 var(--serif);color:var(--cream);margin:16px 0 22px;padding:0 0 18px;border-bottom:1px solid var(--gold3)}
+.noc .quote::before{content:"“";display:block;font:48px/0.6 var(--serif);color:var(--a2);margin:14px 0 6px}
+.noc .sec{font:10px var(--mono);letter-spacing:.3em;color:var(--c2);margin:24px 0 10px;display:flex;align-items:center;gap:12px}
+.noc .sec::after{content:"";flex:1;height:1px;background:var(--gold3)}
+.noc .tr{display:grid;grid-template-columns:96px 1fr 34px;align-items:center;gap:12px;padding:5px 0;font:14px var(--serif)}
+.noc .tr .ln{height:1px;background:var(--gold3);position:relative}
+.noc .tr .ln i{position:absolute;left:0;top:-1px;height:3px;background:linear-gradient(90deg,var(--a),var(--a2))}
+.noc .tr .ln i::after{content:"";position:absolute;right:-3px;top:-2px;width:7px;height:7px;border-radius:50%;background:var(--a2)}
+.noc .tr em{font:normal 11px var(--mono);color:var(--c2);text-align:right}
+.noc .mood{display:flex;align-items:baseline;gap:14px}
+.noc .mood b{font:400 28px var(--serif);letter-spacing:.1em}
+.noc .mood span{font:11px var(--mono);color:var(--c2)}
+.noc .mw{display:flex;gap:16px;margin-top:8px;font:13px var(--serif);color:var(--c3);flex-wrap:wrap}
+.noc .mw .on{color:var(--cream)}
+.noc .body{font:17px/1.9 var(--serif);margin:12px 0 18px;white-space:pre-wrap;overflow-wrap:anywhere}
+.noc .meta{display:grid;grid-template-columns:76px 1fr;gap:7px 14px;font-size:13px}
+.noc .meta dt{font:10px var(--mono);letter-spacing:.16em;color:var(--c3);padding-top:3px}
+.noc .meta dd{margin:0;color:var(--cream)}
+.noc .rel{list-style:none;margin:0;padding:0}
+.noc .rel li{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--gold3);cursor:pointer;font:15px var(--serif)}
+.noc .rel li:hover{color:var(--a2)}
+.noc .rel li span{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.noc .rel small{font:10px var(--mono);color:var(--c3);letter-spacing:.12em;flex:none}
+.noc .rel li.more{color:var(--c2)}
+.noc .back{background:none;border:0;color:var(--c2);font:10px var(--mono);letter-spacing:.24em;padding:0}
+.noc .back:hover{color:var(--cream)}
+.noc .foot{margin-top:34px;display:flex;justify-content:space-between;font:10px var(--mono);color:var(--c3);letter-spacing:.12em;border-top:1px solid var(--gold3);padding-top:12px}
+/* ── 星历 ── */
+.noc .alm{margin-top:54px}
+.noc .alm-g{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));column-gap:38px}
+.noc .alm-c{border-top:1px solid var(--gold3);padding:18px 2px 26px;min-width:0}
+.noc .alm-c>h4{font:400 10px var(--mono);letter-spacing:.3em;color:var(--gold);margin:0 0 14px}
+.noc .alm-c>h4 small{color:var(--c3);letter-spacing:.14em;margin-left:10px}
+.noc .astro{font:13px/1.9 var(--serif);color:var(--c2);margin:0}
+.noc .astro .sl{cursor:pointer}
+.noc .astro .sl:hover{color:var(--a2)}
+.noc .rec,.noc .fade,.noc .const{list-style:none;margin:0;padding:0}
+.noc .rec li,.noc .fade li,.noc .const li{padding:9px 0;border-bottom:1px solid var(--gold3);cursor:pointer}
+.noc .rec li:hover,.noc .fade li:hover,.noc .const li:hover{color:var(--a2)}
+.noc .rec li{display:flex;gap:12px;align-items:baseline}
+.noc .rec time{font:11px var(--mono);color:var(--gold2);min-width:44px;flex:none}
+.noc .rec .rt{min-width:0}
+.noc .rec .rt b{display:block;font:400 14px/1.5 var(--serif);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.noc .rec .rt span{font:10px var(--mono);color:var(--c3);letter-spacing:.08em}
+.noc .fade .ft{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.noc .fade .ft b{font:400 14px var(--serif);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.noc .fade .ft .kd{font:9px var(--mono);color:var(--c3);letter-spacing:.1em;white-space:nowrap}
+.noc .fade .bar{height:2px;background:var(--gold3);margin:7px 0 5px;position:relative}
+.noc .fade .bar i{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,var(--a),var(--a2))}
+.noc .fade em{font:normal 10px var(--mono);color:var(--c2);letter-spacing:.06em;font-style:normal}
+.noc .const li b{display:block;font:400 14px/1.5 var(--serif)}
+.noc .const li span{font:10px var(--mono);color:var(--c3);letter-spacing:.1em}
+.noc .who{display:grid;gap:10px}
+.noc .wc{display:block;width:100%;text-align:left;background:rgba(255,255,255,.02);border:1px solid var(--gold3);padding:12px 14px;color:var(--cream);font:inherit;transition:.2s}
+.noc .wc:hover{border-color:var(--gold2);background:rgba(255,255,255,.045)}
+.noc .wc.on{border-color:var(--a2)}
+.noc .wc .wch{font:400 20px var(--serif);letter-spacing:.1em;display:flex;justify-content:space-between;align-items:baseline}
+.noc .wc .wch small{font:9px var(--mono);color:var(--c3);letter-spacing:.2em}
+.noc .wc .wcn{font:10px var(--mono);color:var(--gold2);letter-spacing:.1em;margin:2px 0 8px}
+.noc .wc ul{list-style:none;margin:0;padding:0}
+.noc .wc li{font:13px/1.7 var(--serif);color:var(--c2);padding:1px 0}
+.noc .star.hi .core{filter:drop-shadow(0 0 6px var(--a2))}
+.noc .dist{display:flex;align-items:flex-end;gap:14px;height:118px;padding-top:10px}
+.noc .db{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:4px;min-width:0}
+.noc .db i{display:block;width:72%;max-width:36px;background:linear-gradient(180deg,var(--a2),var(--a));border-radius:2px 2px 0 0;min-height:3px}
+.noc .db b{font:400 11px var(--mono);color:var(--cream)}
+.noc .db span{font:9px var(--mono);color:var(--c3)}
+.noc .mx{margin-top:14px;border-collapse:collapse;font-size:11px;width:100%}
+.noc .mx th,.noc .mx td{border:1px solid var(--gold3);padding:4px 12px;text-align:center;font-weight:400}
+.noc .mx th{font:9px var(--mono);letter-spacing:.14em;color:var(--c3)}
+.noc .mx td{font:400 13px var(--serif)}
+.noc .emo-spark{display:block;width:100%}
+.noc .emo-spark text{font-family:var(--mono)}
+.noc .emo-spark .ml{font-family:var(--serif)}
+.noc .mot{background:none;border:1px solid var(--c3);color:var(--c2);font:10px var(--mono);letter-spacing:.2em;padding:3px 10px;margin-left:14px}
+.noc .mot[aria-pressed=true]{color:var(--cream);border-color:var(--a2)}
+.noc .mot:disabled{opacity:.4;cursor:default}
+.noc .empty{color:var(--c3);font:13px var(--serif);padding:8px 0}
+/* ── 动效（noc- 前缀避免与 cortex.css 撞名）── */
+@keyframes noc-tw{0%,100%{opacity:var(--o)}50%{opacity:calc(var(--o)*.25)}}
+.noc .mstar{animation:noc-tw var(--d) ease-in-out infinite}
+@keyframes noc-spin{to{transform:rotate(360deg)}}
+.noc .dial{transform-origin:380px 380px;animation:noc-spin 240s linear infinite}
+.noc .rays{transform-origin:380px 380px;animation:noc-spin 120s linear infinite}
+@keyframes noc-breathe{50%{opacity:.35;transform:scale(1.35)}}
+.noc .breathe{transform-box:fill-box;transform-origin:center;animation:noc-breathe 3.6s ease-in-out infinite}
+@keyframes noc-ripple{from{r:6;opacity:.8}to{r:30;opacity:0}}
+.noc .ripple{animation:noc-ripple 2.4s ease-out infinite}
+@keyframes noc-rise{from{opacity:0;transform:scale(.2)}}
+.noc .star .core{transform-box:fill-box;transform-origin:center;animation:noc-rise .9s cubic-bezier(.2,.9,.3,1.3) backwards}
+.noc .draw{stroke-dasharray:var(--len);stroke-dashoffset:var(--len);animation:noc-draw 1.4s ease-out forwards}
+@keyframes noc-draw{to{stroke-dashoffset:0}}
+.noc #sky{transition:opacity .45s}
+/* 数据刷新重绘（update）：不重播入场/描边动画 */
+.noc.instant .star .core,.noc.instant .draw,.noc.instant .mstar{animation:none}
+.noc.instant .draw{stroke-dashoffset:0}
+/* 强制静帧（?still=1 / 减动效 / 动效关）：全部动画停、终态呈现 */
+.noc.still .mstar,.noc.still .dial,.noc.still .rays,.noc.still .breathe,.noc.still .ripple,.noc.still .star .core,.noc.still .neb{animation:none}
+.noc.still .draw{animation:none;stroke-dashoffset:0}
+@media(max-width:900px){.noc .wrap{padding:16px}.noc .mast{grid-template-columns:1fr;text-align:center}.noc .mast .l,.noc .mast .r{text-align:center}.noc .mast h1{font-size:40px}.noc .sub{flex-direction:column;gap:8px}.noc .grid{grid-template-columns:minmax(0,1fr)}.noc .chart{padding:0;border:0}.noc .side{padding:22px 0 0;border-top:1px solid var(--gold3);margin-top:16px}.noc .alm-g{grid-template-columns:1fr}}

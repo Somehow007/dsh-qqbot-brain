@@ -10,10 +10,12 @@
 // vm 结构见 core/vm.js buildMapVM()；theme 见 core/theme.js resolveTheme()。
 
 import cortex from './cortex.js';
+import nocturne from './nocturne.js';
 
 export const SKINS = [
   cortex,
-  // P2：dossier（墨刊）、nocturne（夜航星图）
+  nocturne,
+  // P2：dossier（墨刊）
 ];
 
 export function skinById(id) {

@@ -42,6 +42,7 @@ const YE_FIREFLY_MOOD_COLORS = {
 };
 
 const PRESETS = {
+  // 别名键：真实角色 id 与概念稿 pid 并存（ye-shunguang 人设的 characterId 是 ye-shunguang）
   whale: {
     pal: { a: '#3d7bff', a2: '#8ec5ff', soft: '#e7f0ff', deep: '#0d2a66' },
     traits: [['傲娇', .92], ['嘴硬心软', .84], ['贪吃 token', .76], ['认真靠谱', .68], ['怕被冷落', .55]],
@@ -61,6 +62,8 @@ const PRESETS = {
     mono: '萤', en: 'FIREFLY', tagline: '想看一次真正日出的少女', title: '流萤',
   },
 };
+// 别名：characterId 为完整人设 id 的实例也命中预设
+PRESETS['ye-shunguang'] = PRESETS.ye;
 
 // ── 哈希派生（兜底：无 meta 且无预设的角色）──
 function hashStr(s) {
