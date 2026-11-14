@@ -188,9 +188,12 @@ function boot() {
   store.on((what) => {
     if (what === 'data') {
       paintBrand(); paintNav(); paintSkins(); paintPersonaSel(); paintStats(); paintEditing();
-      // ?sel=<id>：首屏数据到达后选中对应记忆
+      // 首屏挂载在人设到达前 → 按 whale 回落；首数据到达后按真实角色重解皮肤一次
       if (!selApplied) {
         selApplied = true;
+        const want = implementedSkin(mapCtx());
+        if (section() === 'map' && want && mapView._skin && mapView._skin !== want) routerRefresh();
+        // ?sel=<id>：首屏数据到达后选中对应记忆
         const sel = new URLSearchParams(location.search).get('sel');
         if (sel) mapView.select?.(sel);
       }
