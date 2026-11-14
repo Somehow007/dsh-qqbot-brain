@@ -473,3 +473,26 @@ P2(S5+S6)：nocturne 星盘（150星/24标/彗星流星/补间/still零rAF/hidde
 ### Status
 
 [OK] **Completed**
+
+
+## Session 116: 星图 absorbed 存档降级+配额密度+碰撞落位修复
+<!-- trellis-session: v=2 fp=7e845e504e679b42 -->
+
+**Date**: 2026-11-14
+**Task**: 星图 absorbed 存档降级+配额密度+碰撞落位修复
+**Branch**: `main`
+
+### Summary
+
+排查：星图极坐标角度=√年龄/半径=kind，但 absorbed 存档条（生产407条中237条=58%）不被过滤不被区分与活记忆同权上星（'一周前情景记忆'主因），quotaPick(150)不看时间放大失真，ang()~39.5天回绕隐患。修复（全在nocturne.js/css，vm.js零改动）：absorbed降级为外带r=302存档星尘≤40（优先derived引用者、可点选、存档徽标），活星改!absorbed+按环容配额{24,38,52}=114，巩固弧活星→星尘保留/相似会话边限活星间，ang()改渐近饱和330°·d/(d+8)根治回绕；二次反馈'今夜区出现老星'查明为旧碰撞消解单向+0.045×k<60无界推挤（密集格星顶满重试→+154.7°偏移把day11-18甩进顶部），改_place()有界候选落位（真实角→双向±12°→径向±8/15，全撞取净空最大）。验证：typecheck+274tests+build绿，headless demo两轮实测106星+40尘、最大角偏154.7°→11.5°、星座谱/刻度/存档徽标正常、零报错。未部署，用户定其他会话一起上线。归档 tasks/archive/2026-11/11-14-nocturne-star-layout
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `9ae132e` | fix(brain): 星图 absorbed 存档降级为星尘层 + 活星按环容配额 + ang() 防回绕 |
+| `a3b6c4f` | fix(brain): 星图碰撞消解改有界候选落位——根治老星被甩进「今夜」区 |
+
+### Status
+
+[OK] **Completed**

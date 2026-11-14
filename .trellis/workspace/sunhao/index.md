@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-2.md`
-- **Total Sessions**: 115
+- **Total Sessions**: 116
 - **Last Active**: 2026-11-14
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-2.md` | ~475 | Active |
+| `journal-2.md` | ~498 | Active |
 | `journal-1.md` | ~1988 | Archived |
 <!-- @@@/auto:active-documents -->
 
@@ -30,6 +30,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 116 | 2026-11-14 | 星图 absorbed 存档降级+配额密度+碰撞落位修复 | `9ae132e`, `a3b6c4f` | `main` |
 | 115 | 2026-11-14 | 蒸馏归因缺陷 P0+P1 修复 | `1d3a763` | `main` |
 | 114 | 2026-11-14 | 验收登记处机制设计与落地 | `ff3a2ae` | `main` |
 | 113 | 2026-11-14 | F5+活人感验收归档；迭代D+UI重构整体部署生产 | - | `main` |
