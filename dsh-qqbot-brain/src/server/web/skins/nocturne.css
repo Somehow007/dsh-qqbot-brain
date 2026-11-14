@@ -111,6 +111,9 @@
 .noc .wc ul{list-style:none;margin:0;padding:0}
 .noc .wc li{font:13px/1.7 var(--serif);color:var(--c2);padding:1px 0}
 .noc .star.hi .core{filter:drop-shadow(0 0 6px var(--a2))}
+/* 存档星尘：已沉淀记忆的极弱化呈现——点可点选，hi/sel 时提亮 */
+.noc .star.arc .dot{transition:opacity .2s}
+.noc .star.arc.hi .dot,.noc .star.arc.sel .dot{opacity:.95}
 .noc .dist{display:flex;align-items:flex-end;gap:14px;height:118px;padding-top:10px}
 .noc .db{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:4px;min-width:0}
 .noc .db i{display:block;width:72%;max-width:36px;background:linear-gradient(180deg,var(--a2),var(--a));border-radius:2px 2px 0 0;min-height:3px}

@@ -2,7 +2,8 @@
 // 鎏金星盘 / 星云银河 canvas / 时间指针扫掠 / 彗星(≤3)·流星 / 鼠标视差 / 切人设颜色补间 /
 // 侧栏「今夜星语 · 本命星座 · 自己的星」/ 星历六块（七日星象/被想起/将隐没/观测对象/星等/星座谱）。
 // 数据一律消费 ctx.vm（core/vm.js buildMapVM）；皮肤自身不 fetch。
-// LOD：星体 ≤150（quotaPick 三 kind 按比例）、常驻标签 ≤24（labelPick）、连线 ≤200（derived 优先）。
+// LOD：活星（非 absorbed）≤114 按 kind 环容分配；存档星尘（absorbed）≤40 画成外带淡点。
+// 标签 ≤24（labelPick）、连线 ≤200（derived 优先；相似/会话边只在活星间画）。
 
 import { el, fmtT } from '../core/ui.js';
 import { getPref, setPref, hashColor, DEFAULT_MOODS } from '../core/theme.js';
@@ -14,7 +15,10 @@ import {
 const SVGNS = 'http://www.w3.org/2000/svg';
 const C = 380, RO = 330;
 const R = { attitude: 132, semantic: 206, episodic: 280 };
-const STAR_CAP = 150, LABEL_CAP = 24, EDGE_CAP = 200, COMET_MAX = 3;
+const ARCHIVE_DY = 22; // 存档星尘在所属 kind 环外再让一带，读作「星尘 halo」
+const LIVE_CAP = { attitude: 24, semantic: 38, episodic: 52 };
+const LIVE_TOTAL = Object.values(LIVE_CAP).reduce((a, b) => a + b, 0);
+const ARCHIVE_CAP = 40, LABEL_CAP = 24, EDGE_CAP = 200, COMET_MAX = 3;
 const PERIOD = 48000, DAY_MS = 86400e3;
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -25,7 +29,9 @@ const svg = (t, attrs = {}, parent) => {
   return e;
 };
 const pt = (r, a) => [C + r * Math.cos(a), C + r * Math.sin(a)];
-const ang = (d) => -Math.PI / 2 + Math.sqrt(Math.max(0, d) / 32) * Math.PI * 1.8;
+// 年龄→角：单调增且渐近 330°、永不回绕——旧 √ 口径在 ~39.5 天绕回正上方与「今」重叠；
+// 分母 +8 让近期（0–16 天）铺开程度与旧曲线接近，老龄自然压向左上渐近线
+const ang = (d) => -Math.PI / 2 + (Math.PI * 11 / 6) * (Math.max(0, d) / (Math.max(0, d) + 8));
 const sameLocalDay = (a, b) => {
   const x = new Date(a), y = new Date(b);
   return x.getFullYear() === y.getFullYear() && x.getMonth() === y.getMonth() && x.getDate() === y.getDate();
@@ -111,13 +117,14 @@ export default {
                 <span><svg width="10" height="10"><circle cx="5" cy="5" r="3" fill="#ebe2cb"/></svg>共享的星</span>
                 <span><svg width="26" height="6"><line x1="1" y1="3" x2="25" y2="3" stroke="#ebe2cb" stroke-opacity=".6"/></svg>沉淀成星座</span>
                 <span><svg width="26" height="6"><line x1="1" y1="3" x2="25" y2="3" stroke="#ebe2cb" stroke-opacity=".4" stroke-dasharray="1 3"/></svg>彼此相似（点选后显示）</span>
+                <span><svg width="10" height="10"><circle cx="5" cy="5" r="1.6" fill="#ebe2cb" opacity=".4"/></svg>存档星尘（已沉淀）</span>
                 <span>由内而外 · 态度 / 语义 / 情景 · 顺时针渐远</span>
               </div>
             </div>
             <aside class="side" id="nSide"></aside>
           </div>
           <div class="alm" id="nAlm"></div>
-          <div class="foot"><span>NOCTURNE ATLAS</span><span>星等＝重要度 · 亮度＝保持率 · 上限 ${STAR_CAP} 星</span></div>
+          <div class="foot"><span>NOCTURNE ATLAS</span><span>星等＝重要度 · 亮度＝保持率 · 活星 ≤${LIVE_TOTAL} · 存档尘 ≤${ARCHIVE_CAP}</span></div>
         </div>
       </div>`;
 
@@ -177,7 +184,7 @@ export default {
     const self = this._drawnCount?.self ?? 0;
     const total = this._drawnCount?.total ?? 0;
     q('#nSt').textContent = vm
-      ? `星 ${total}/${vm.notes.length} · 本命 ${self} · 共享 ${total - self} · 星座线 ${this._edgeEls.length}`
+      ? `星 ${total}/${vm.notes.length} · 本命 ${self} · 共享 ${total - self} · 尘 ${this._drawnCount?.arch ?? 0} · 星座线 ${this._edgeEls.length}`
       : '星图加载中……';
     this._paintSide();
     this._paintAlmanac();
@@ -188,18 +195,44 @@ export default {
     return t.moodColors?.[word] || hashColor(word || '?');
   },
 
-  // LOD：quotaPick 取星（三 kind 按比例）；选中星被截也保证进绘制集？——否：截掉的仍可在侧栏看详情但不画
+  // LOD：活星（!absorbed）按 kind 环容分配配额——外环周长最大给 episodic 最多、
+  // 内环最少，保证各环星间距都不压到碰撞阈值；组内仍 quotaPick 的 importance×retention
   _drawnNotes() {
     const vm = this._vm;
     if (!vm) return [];
-    return quotaPick(vm.notes, STAR_CAP);
+    const out = [];
+    for (const [k, cap] of Object.entries(LIVE_CAP)) {
+      out.push(...quotaPick(vm.notes.filter((n) => (n.kind ?? 'episodic') === k && !n.absorbed), cap));
+    }
+    return out;
   },
 
-  _edges(drawn) {
-    const set = new Set(drawn.map((n) => n.id));
-    const rels = (this._vm?.relations ?? []).filter((r) => set.has(r.a) && set.has(r.b));
-    rels.sort((a, b) => (a.primary === 'derived' ? 0 : 1) - (b.primary === 'derived' ? 0 : 1) || b.score - a.score);
-    return rels.slice(0, EDGE_CAP).map((r) => ({ a: r.a, b: r.b, t: relType(r) }));
+  // 存档星尘：absorbed（已被语义巩固吸收退池）的记忆——优先被活星 derived 边引用的
+  // （它们是星座成员），不足再按 imp×ret 补齐；只画淡点，不占活星配额
+  _archiveNotes(live) {
+    const vm = this._vm;
+    if (!vm) return [];
+    const liveIds = new Set(live.map((n) => n.id));
+    const conn = new Set();
+    for (const r of vm.relations ?? []) {
+      if (r.primary !== 'derived') continue;
+      if (liveIds.has(r.a)) conn.add(r.b); else if (liveIds.has(r.b)) conn.add(r.a);
+    }
+    const score = (n) => (n.imp ?? 0) * (n.ret ?? 0);
+    return vm.notes
+      .filter((n) => n.absorbed)
+      .sort((a, b) => (conn.has(b.id) ? 1 : 0) - (conn.has(a.id) ? 1 : 0) || score(b) - score(a) || (a.id < b.id ? -1 : 1))
+      .slice(0, ARCHIVE_CAP);
+  },
+
+  _edges(live, arch) {
+    const liveSet = new Set(live.map((n) => n.id));
+    const all = new Set([...liveSet, ...arch.map((n) => n.id)]);
+    const rels = (this._vm?.relations ?? []).filter((r) => all.has(r.a) && all.has(r.b));
+    // 巩固弧允许落到存档星尘；相似/会话边只在活星之间画，避免噪声
+    const keep = rels.filter((r) => relType(r) === 'consolidate' || (liveSet.has(r.a) && liveSet.has(r.b)));
+    keep.sort((a, b) => (a.primary === 'derived' ? 0 : 1) - (b.primary === 'derived' ? 0 : 1) || b.score - a.score);
+    return keep.slice(0, EDGE_CAP).map((r) => ({ a: r.a, b: r.b, t: relType(r) }));
   },
 
   // ── 星盘 SVG ──
@@ -309,16 +342,23 @@ export default {
       }
     }
 
-    // 星位：角度=√(day/32)，碰撞沿角推移
+    // 星位：角度=ang(ageDays)（渐近不回绕），半径=kind；活星 30px 碰撞推挤，存档星尘放宽到 10px
     const drawn = this._drawnNotes();
+    const arch = this._archiveNotes(drawn);
     this._drawnCount = {
       total: drawn.length,
       self: drawn.filter((n) => n.track === 'self').length,
+      arch: arch.length,
     };
     const taken = [];
     for (const m of [...drawn].sort((a, b) => a.day - b.day)) {
       let a = ang(m.day), r = R[m.kind] ?? R.episodic, k = 0;
       while (taken.some(([x, y]) => Math.hypot(x - pt(r, a)[0], y - pt(r, a)[1]) < 30) && k < 60) { k++; a += .045; }
+      this._pos[m.id] = pt(r, a); taken.push(this._pos[m.id]);
+    }
+    for (const m of [...arch].sort((a, b) => a.day - b.day)) {
+      let a = ang(m.day), r = (R[m.kind] ?? R.episodic) + ARCHIVE_DY, k = 0;
+      while (taken.some(([x, y]) => Math.hypot(x - pt(r, a)[0], y - pt(r, a)[1]) < 10) && k < 20) { k++; a += .08; }
       this._pos[m.id] = pt(r, a); taken.push(this._pos[m.id]);
     }
 
@@ -333,8 +373,8 @@ export default {
     this._comets = svg('g', {}, s);
     const gn = svg('g', {}, s);
 
-    // 连线：巩固弧常显，相似/会话点选后显
-    for (const l of this._edges(drawn)) {
+    // 连线：巩固弧常显（活星→存档星尘），相似/会话点选后显
+    for (const l of this._edges(drawn, arch)) {
       const [x1, y1] = this._pos[l.a], [x2, y2] = this._pos[l.b];
       const mx = (x1 + x2) / 2 - C, my = (y1 + y2) / 2 - C, md = Math.hypot(mx, my) || 1, k = Math.max(md, 175) / md;
       const e = svg('path', {
@@ -383,6 +423,15 @@ export default {
       g.addEventListener('click', () => this.select(m.id));
       this._starEls.set(m.id, g);
     }
+    // 存档星尘：无标签无星芒的极弱化点，可点选看详情（进 byId/relations，LOD 外语义一致）
+    for (const m of arch) {
+      const [x, y] = this._pos[m.id];
+      const g = svg('g', { class: 'star arc', 'data-id': m.id, transform: `translate(${x} ${y})` }, gn);
+      svg('circle', { r: 9, fill: 'transparent' }, g);
+      svg('circle', { r: 1.5, class: 'dot core', fill: m.track === 'self' ? 'var(--a2)' : '#ebe2cb', opacity: .34 }, g);
+      g.addEventListener('click', () => this.select(m.id));
+      this._starEls.set(m.id, g);
+    }
     if (this._qhit.size) this._applyHi([...this._qhit]);
     if (this._sel) this._focusClasses();
   },
@@ -425,7 +474,7 @@ export default {
 
   _selfCluster() {
     const vm = this._vm;
-    const ids = new Set(vm.notes.filter((n) => n.track === 'self').map((n) => n.id));
+    const ids = new Set(vm.notes.filter((n) => n.track === 'self' && !n.absorbed).map((n) => n.id));
     const adj = {};
     (vm.relations ?? []).filter((r) => r.primary === 'derived' && ids.has(r.a) && ids.has(r.b))
       .forEach((l) => { (adj[l.a] = adj[l.a] || []).push(l.b); (adj[l.b] = adj[l.b] || []).push(l.a); });
@@ -438,7 +487,7 @@ export default {
     }
     comps.sort((a, b) => b.length - a.length);
     if (!comps.length) {
-      const top = vm.notes.filter((n) => n.track === 'self').sort((a, b) => (b.hits ?? 0) - (a.hits ?? 0))[0];
+      const top = vm.notes.filter((n) => n.track === 'self' && !n.absorbed).sort((a, b) => (b.hits ?? 0) - (a.hits ?? 0))[0];
       return top ? { ids: [top.id], hub: top, members: [top] } : null;
     }
     const comp = comps[0], ms = comp.map((id) => vm.byId[id]);
@@ -492,8 +541,8 @@ export default {
       });
     }
 
-    // 今夜星语：最新的自我轨记忆（真实数据替代概念虚构段落）
-    const newest = vm.notes.filter((n2) => n2.track === 'self').sort((x, y) => (y.createdAt ?? 0) - (x.createdAt ?? 0))[0];
+    // 今夜星语：最新的自我轨记忆（真实数据替代概念虚构段落；存档条不算「今夜」）
+    const newest = vm.notes.filter((n2) => n2.track === 'self' && !n2.absorbed).sort((x, y) => (y.createdAt ?? 0) - (x.createdAt ?? 0))[0];
     if (newest) {
       side.append(this._sec('今夜星语'));
       const p = el('p', 'astro');
@@ -512,7 +561,7 @@ export default {
       side.append(p);
     }
 
-    const ss = vm.notes.filter((n2) => n2.track === 'self');
+    const ss = vm.notes.filter((n2) => n2.track === 'self' && !n2.absorbed);
     if (ss.length) {
       side.append(this._sec(`${title}自己的星`));
       const ul = el('ul', 'rel');
@@ -540,7 +589,7 @@ export default {
     const back = el('button', 'back', '← 回到本星'); back.type = 'button';
     back.onclick = () => this.select(null);
     side.append(back);
-    const kick = el('div', 'kicker', `${kindLabel(n.kind)} · ${n.track === 'self' ? '只属于' + title : '众星共享'}`);
+    const kick = el('div', 'kicker', `${kindLabel(n.kind)} · ${n.track === 'self' ? '只属于' + title : '众星共享'}${n.absorbed ? ' · 已沉淀存档' : ''}`);
     kick.style.marginTop = '20px';
     side.append(kick, el('h2', '', n.title), el('p', 'body', n.content));
     if (!this._pos[n.id]) side.append(el('div', 'empty', '该星在当前星图 LOD 之外，未画出。'));
