@@ -624,7 +624,7 @@ export default {
   _applyFocus() {
     const key = this._sel, lit = new Set(key ? [key, ...this._neighbors(key).map((x) => x.id)] : []);
     this._brain.classList.toggle('focus', !!key);
-    this._nodeEls.forEach((g, k) => { g.classList.toggle('lit', lit.has(k)); g.classList.toggle('selected', k === key); });
+    this._nodeEls.forEach((g, k) => { g.classList.toggle('lit', lit.has(k)); g.classList.toggle('selected', k === key); g.classList.toggle('qhit', this._qhit?.has(k) ?? false); });
     this._edgeEls.forEach((e) => {
       const on = !!key && (e.a === key || e.b === key);
       e.el.classList.toggle('lit', on);
@@ -679,7 +679,7 @@ export default {
     if (e) this._fire(e, this._sel && e.b === this._sel ? e.b : e.a, 0, this._sel ? this._colorOf(this._sel) : undefined);
   },
 
-  // ── 漂浮：节点在原位 ±2.5 单位内缓慢游荡，边同帧跟随 ──
+  // ── 漂浮：节点在原位 ±2.5 单位内缓慢游荡，边同帧跟随；30fps 节流（SVG 滤镜层每帧全量重绘很贵）──
   _driftOf(k) {
     let s = this._driftSeed.get(k);
     if (!s) {
@@ -702,7 +702,7 @@ export default {
   },
   _driftTick(now) {
     if (!this._particlesOn) { this._driftRAF = 0; this._driftApply(0); return; }
-    if (!document.hidden) this._driftApply(now / 1000);
+    if (!document.hidden && now - (this._driftLast || 0) >= 33) { this._driftLast = now; this._driftApply(now / 1000); }
     this._driftRAF = requestAnimationFrame((t) => this._driftTick(t));
   },
 
@@ -887,8 +887,10 @@ export default {
   // ── 皮肤接口 ──
   update(vm, ctx) {
     if (!this._root) return;
-    this._ctx = ctx ?? this._ctx;
-    this._vm = vm ?? this._vm;
+    if (ctx) this._ctx = ctx;
+    // 同一 vm 引用（paused/editing 事件没重建数据）→ 不整层重排，只放行面板态
+    if (vm === undefined || vm === this._vm) return;
+    this._vm = vm;
     this._render();
     // 编辑中不重绘检查器（保住未保存输入）；与旧页 load() 同口径
     const ae = document.activeElement;
