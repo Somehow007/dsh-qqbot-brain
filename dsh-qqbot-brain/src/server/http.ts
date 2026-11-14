@@ -1,6 +1,6 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
-import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { readdirSync, readFileSync, type Dirent } from 'node:fs';
+import { dirname, extname, join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { GLOBAL_SESSION_ID, type Brain, type IntentConfigPatch, type IntentDraft, type IntentKind, type IntentStatus } from '../brain/index.ts';
 import type { PersonaMeta } from '../brain/store.ts';
@@ -16,6 +16,38 @@ interface WebRoute { path: string; method?: string; handler: (req: IncomingMessa
 interface WebServerLike { register(route: WebRoute): () => void }
 
 const PAGE_FILE = join(dirname(fileURLToPath(import.meta.url)), 'page.html');
+const INDEX_FILE = join(dirname(fileURLToPath(import.meta.url)), 'web', 'index.html');
+const WEB_DIR = join(dirname(fileURLToPath(import.meta.url)), 'web');
+
+/** web/ 静态白名单扩展名：只放行代码与立绘，没有数据文件 */
+const WEB_TYPES: Record<string, string> = {
+  '.js': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.svg': 'image/svg+xml',
+};
+
+/**
+ * 启动时递归收集 web/ 白名单：key 为前缀后的 URL 路径（'web/app.js'），
+ * value 为磁盘绝对路径。目录不存在/为空 → 空表，/web/* 一律 404。
+ */
+function buildWebFiles(dir: string): Map<string, string> {
+  const files = new Map<string, string>();
+  const walk = (d: string): void => {
+    let entries: Dirent[];
+    try { entries = readdirSync(d, { withFileTypes: true }); } catch { return; }
+    for (const e of entries) {
+      const p = join(d, e.name);
+      if (e.isDirectory()) { walk(p); continue; }
+      if (!e.isFile()) continue;
+      if (!(extname(e.name).toLowerCase() in WEB_TYPES)) continue;
+      files.set(`web/${relative(dir, p).split(sep).join('/')}`, p);
+    }
+  };
+  walk(dir);
+  return files;
+}
 
 function json(res: ServerResponse, data: unknown): void {
   res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-cache' });
@@ -40,6 +72,7 @@ export class BrainHttpServer {
   private brain: Brain;
   private cfg: HttpConfig;
   private log: (msg: string) => void;
+  private readonly webFiles: Map<string, string>;
 
   private onPersonaSet?: (text: string) => void;
 
@@ -47,6 +80,7 @@ export class BrainHttpServer {
     this.brain = brain;
     this.cfg = cfg;
     this.log = log;
+    this.webFiles = buildWebFiles(WEB_DIR);
     this.onPersonaSet = onPersonaSet;
   }
 
@@ -54,6 +88,11 @@ export class BrainHttpServer {
     const url = new URL(req.url ?? '/', 'http://x');
     const p = url.pathname;
     const prefix = this.cfg.prefix.replace(/\/$/, '');
+
+    // web/ 静态资源免口令：ES module 相对 import 带不了 token；
+    // 目录内只有代码与立绘、无数据。口令仍覆盖 /brain HTML 与全部 /api/*。
+    const webAsset = p.startsWith(`${prefix}/web/`);
+    if (webAsset) return this.serveWeb(res, p.slice(prefix.length + 1));
 
     // 可选口令保护
     if (this.cfg.token) {
@@ -373,15 +412,44 @@ export class BrainHttpServer {
       return json(res, { hits });
     }
     if (p === prefix || p === `${prefix}/`) {
+      // ?ui=legacy：迁移期保留旧单文件页（P4 移除）
+      if (url.searchParams.get('ui') === 'legacy') {
+        try {
+          res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache' });
+          res.end(readFileSync(PAGE_FILE, 'utf8'));
+        } catch {
+          res.writeHead(503).end('legacy page not found');
+        }
+        return;
+      }
       try {
+        // <base> 让 ./web/* 相对路径在任意前缀（含宿主挂载路径）下解析正确
+        const base = `${prefix === '' ? '/' : `${prefix}/`}`;
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache' });
-        res.end(readFileSync(PAGE_FILE, 'utf8'));
+        res.end(readFileSync(INDEX_FILE, 'utf8').replace('<!--BRAIN_BASE-->', `<base href="${base}">`));
       } catch {
-        res.writeHead(503).end('brain page not built yet (M3)');
+        res.writeHead(503).end('brain page not built yet');
       }
       return;
     }
     res.writeHead(404).end('not found');
+  }
+
+  /** web/ 白名单静态服务：仅启动时收集的文件，查表失败一律 404 */
+  private serveWeb(res: ServerResponse, rel: string): void {
+    let key = rel;
+    try { key = decodeURIComponent(rel); } catch { /* 畸形编码按原样查表，必 404 */ }
+    const file = !key.includes('..') && !key.startsWith('/') ? this.webFiles.get(key) : undefined;
+    if (!file) { res.writeHead(404).end('not found'); return; }
+    try {
+      res.writeHead(200, {
+        'Content-Type': WEB_TYPES[extname(file).toLowerCase()] ?? 'application/octet-stream',
+        'Cache-Control': 'no-cache',
+      });
+      res.end(readFileSync(file));
+    } catch {
+      res.writeHead(404).end('not found');
+    }
   }
 
   /** 尝试挂到宿主 webServer，失败则自起端口。返回实际可访问的地址描述。 */
@@ -398,6 +466,10 @@ export class BrainHttpServer {
       webServer.register({ path: `${prefix}/`, handler: (r, s) => this.route(r, s) });
       for (const sub of ['/api/state', '/api/query', '/api/persona', '/api/personas', '/api/personas/activate', '/api/sessions', '/api/sessions/domain', '/api/profiles', '/api/profiles/merge', '/api/profiles/regenerate', '/api/ops', '/api/notes', '/api/notes/purge', '/api/digests', '/api/reset', '/api/export', '/api/import', '/api/dedup', '/api/intents']) {
         webServer.register({ path: `${prefix}${sub}`, handler: (r, s) => this.route(r, s) });
+      }
+      // web/ 静态白名单逐文件注册（与 API 路径同一精确匹配口径）
+      for (const key of this.webFiles.keys()) {
+        webServer.register({ path: `${prefix}/${key}`, handler: (r, s) => this.route(r, s) });
       }
       this.log(`brain: 已挂载到宿主 webServer ${prefix}`);
       return `host:${prefix}`;

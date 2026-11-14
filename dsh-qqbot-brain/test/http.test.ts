@@ -323,3 +323,67 @@ test('放行候选 API：返回域内待放行队列，PATCH private:public 放�
     rmSync(dir, { recursive: true });
   }
 });
+
+test('web 静态白名单：免口令可访问、仅白名单文件、?ui=legacy 分流旧页', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'brain-web-http-'));
+  const store = new BrainStore(dir);
+  const brain = new Brain({
+    store,
+    distiller: new Distiller({ enabled: false, baseUrl: '', apiKey: '', model: '', timeoutMs: 1000, maxNotes: 1 }),
+  });
+  const http = new BrainHttpServer(brain, {
+    enabled: true, port: 0, host: '127.0.0.1', prefix: '/brain', token: 'test-token',
+  }, () => {});
+  const server = createServer((req, res) => {
+    (http as unknown as { route: (req: typeof req, res: typeof res) => Promise<void> }).route(req, res).catch((err) => {
+      res.writeHead(500).end(String(err));
+    });
+  });
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  try {
+    const addr = server.address();
+    assert.ok(addr && typeof addr !== 'string');
+    const base = `http://127.0.0.1:${addr.port}`;
+    const auth = { headers: { 'x-brain-token': 'test-token' } };
+
+    // 白名单内静态文件免口令（ES module 相对 import 带不了 token）
+    const js = await fetch(`${base}/brain/web/app.js`);
+    assert.equal(js.status, 200);
+    assert.match(js.headers.get('content-type') ?? '', /javascript/);
+    assert.match(await js.text(), /core\/api\.js/);
+    assert.equal((await fetch(`${base}/brain/web/core/theme.js`)).status, 200);
+    assert.equal((await fetch(`${base}/brain/web/app.css`)).status, 200);
+
+    // 白名单外/不存在/目录 → 404（.html 不在扩展名白名单；目录无文件）
+    assert.equal((await fetch(`${base}/brain/web/nope.js`)).status, 404);
+    assert.equal((await fetch(`${base}/brain/web/index.html`)).status, 404);
+    assert.equal((await fetch(`${base}/brain/web/core`)).status, 404);
+    // 字面 ../ 被 URL 归一化出 /web/ 前缀 → 落回口令保护（401）；
+    // 编码形态 %2e%2e%2f 留在 /web/ 内 → serveWeb 解码后拒 '..' → 404
+    assert.equal((await fetch(`${base}/brain/web/../page.html`)).status, 401);
+    assert.equal((await fetch(`${base}/brain/web/%2e%2e%2fpage.html`)).status, 404);
+
+    // API 与 HTML 仍受口令保护
+    assert.equal((await fetch(`${base}/brain/api/state`)).status, 401);
+    assert.equal((await fetch(`${base}/brain`)).status, 401);
+    assert.equal((await fetch(`${base}/brain?ui=legacy`)).status, 401);
+
+    // /brain → 新壳 index.html（注入 <base>）
+    const page = await fetch(`${base}/brain`, auth);
+    assert.equal(page.status, 200);
+    const html = await page.text();
+    assert.match(html, /<base href="\/brain\/">/);
+    assert.match(html, /web\/app\.js/);
+    assert.doesNotMatch(html, /大肥鱼 \/ 心智图谱/);
+
+    // ?ui=legacy → 旧单文件页
+    const legacy = await fetch(`${base}/brain?ui=legacy`, auth);
+    assert.equal(legacy.status, 200);
+    const lhtml = await legacy.text();
+    assert.match(lhtml, /大肥鱼 \/ 心智图谱/);
+    assert.doesNotMatch(lhtml, /<base href/);
+  } finally {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    rmSync(dir, { recursive: true });
+  }
+});

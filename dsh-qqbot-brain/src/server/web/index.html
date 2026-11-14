@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>脑图 · Brain</title>
+<!--BRAIN_BASE-->
+<link rel="stylesheet" href="./web/app.css">
+<link rel="stylesheet" href="./web/skins/cortex.css">
+</head>
+<body>
+<header class="topbar">
+  <button class="tb-brand" id="tbBrand" type="button" title="回到脑图">
+    <span class="tb-avatar" id="tbAvatar">脑</span>
+    <span class="tb-name"><b id="tbPersona">…</b><small id="tbSub"></small></span>
+  </button>
+  <nav class="tb-nav" aria-label="主导航">
+    <button class="tb-link" data-nav="map" type="button">脑图</button>
+    <button class="tb-link" data-nav="admin" type="button">管理</button>
+  </nav>
+  <div class="tb-skins" id="tbSkins" role="group" aria-label="皮肤"></div>
+  <div class="tb-search">
+    <input id="tbQuery" type="search" placeholder="搜索记忆…" autocomplete="off">
+    <select id="tbQSess" aria-label="搜索会话"></select>
+    <div class="hits" id="tbHits" hidden></div>
+  </div>
+  <label class="tb-view">查看人设
+    <select id="tbPersonaSel" aria-label="查看人设"></select>
+  </label>
+  <span class="tb-editing" id="tbEditing" hidden>编辑中 · 自动刷新已暂停</span>
+  <div class="tb-stats" id="tbStats"></div>
+</header>
+<main id="view"></main>
+<div class="toast" id="toast" role="status" hidden></div>
+<div class="modal" id="modal" hidden></div>
+<aside class="drawer" id="drawer" hidden></aside>
+<script type="module" src="./web/app.js"></script>
+</body>
+</html>

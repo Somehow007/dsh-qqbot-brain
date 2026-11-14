@@ -1,0 +1,6 @@
+/* cortex 皮肤样式：S2 占位骨架，S4 迁移旧页 .stage/.side/.inspector 等全部规则 */
+.skin-cortex { position: absolute; inset: 0; }
+.skin-cortex .cx-placeholder {
+  height: 100%; display: grid; place-items: center;
+  color: var(--dim); font-size: 13px;
+}
