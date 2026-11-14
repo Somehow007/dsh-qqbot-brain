@@ -496,3 +496,23 @@ P2(S5+S6)：nocturne 星盘（150星/24标/彗星流星/补间/still零rAF/hidde
 ### Status
 
 [OK] **Completed**
+
+
+## Session 117: 墨刊地层图 cell 聚合重构
+<!-- trellis-session: v=2 fp=c14c7157ada33616 -->
+
+**Date**: 2026-11-14
+**Task**: 墨刊地层图 cell 聚合重构
+**Branch**: `main`
+
+### Summary
+
+墨刊节点富集修复：根因=ageDays整数天同x+quotaPick随recency单调+absorbed存档条(生产58%)占LOD+碰撞仅y向30px固定。方案=数据诚实(absorbed退出+刊头存档计数)+(kind×天)cell聚合(≤4点+'+N'带缝标记点击侧栏roster)+三级配额allocBudget(kind→时间桶→cell保60cap)+连续年龄x+全局碰撞pass(步4×±24最大净空)+标签AABB防叠。验证：274tests+typecheck+build绿，headless实测60节点46标记零重叠零互压全轴均布。未部署。→ tasks/archive/2026-11/11-14-dossier-node-cluster
+
+### Git Commits
+
+(No commits - planning session)
+
+### Status
+
+[OK] **Completed**
