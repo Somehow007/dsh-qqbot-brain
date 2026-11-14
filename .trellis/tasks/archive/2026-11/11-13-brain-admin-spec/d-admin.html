@@ -1,0 +1,1426 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>D-Admin · 瑞士网格管理端 · 规格稿</title>
+<style>
+:root{--bg:#f6f5f1;--ink:#0f0f0f;--ink2:#6b6a66;--ink3:#a9a7a0;--rule:#d9d7cf;
+ --a:#3d7bff;--a2:#8ec5ff;--soft:#e7f0ff;--deep:#0d2a66;
+ --note:#fff6c8;--danger:#b3352b;
+ --sans:"Helvetica Neue",Helvetica,"PingFang SC",Arial,sans-serif;
+ --mono:"SF Mono",ui-monospace,Menlo,monospace}
+*{box-sizing:border-box}html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 var(--sans);display:flex;overflow:hidden}
+button{font-family:var(--sans)}a{color:inherit}
+::selection{background:var(--a);color:#fff}
+/* ── 左导航 ── */
+#nav{width:204px;flex:none;height:100vh;overflow-y:auto;border-right:1px solid var(--ink);display:flex;flex-direction:column;background:var(--bg)}
+.nbrand{padding:14px 16px 10px;font:700 11px var(--mono);letter-spacing:.18em;color:var(--ink3)}
+.nbrand b{display:block;font:700 15px/1.2 var(--sans);letter-spacing:.02em;color:var(--ink);margin-top:3px}
+.np{padding:12px 16px 14px;border-bottom:6px solid var(--ink)}
+.np .lb{font:700 10px var(--mono);letter-spacing:.14em;color:var(--ink3);margin-bottom:8px}
+.np .who{display:flex;gap:10px;align-items:center;margin-bottom:9px}
+.np .sw{width:16px;height:16px;flex:none;border:1px solid var(--ink)}
+.np .who b{font-size:14px;display:block;line-height:1.2}
+.np .who small{font:10px var(--mono);color:var(--ink3)}
+.np select{width:100%;font:12px var(--sans);padding:6px 7px;border:1px solid var(--ink);background:#fff;border-radius:2px}
+.nl{flex:1;padding:6px 0 12px}
+.nl a{display:flex;gap:10px;align-items:baseline;padding:9px 16px;color:var(--ink3);text-decoration:none;border-left:3px solid transparent;font-size:13px}
+.nl a i{font:10px var(--mono);font-style:normal;color:var(--ink3);width:20px}
+.nl a:hover{color:var(--ink);background:#efede7}
+.nl a.on{color:var(--ink);font-weight:700;border-left-color:var(--a);background:color-mix(in srgb,var(--a) 9%,transparent)}
+.nfoot{padding:10px 16px;border-top:1px solid var(--rule);font:10px/1.6 var(--mono);color:var(--ink3)}
+/* ── 主区 ── */
+#main{flex:1;min-width:0;height:100vh;display:flex;flex-direction:column}
+#topbar{display:flex;align-items:center;gap:14px;padding:9px 26px;border-bottom:1px solid var(--ink);background:var(--bg);flex:none}
+#topbar .brand{font:700 12px var(--sans);letter-spacing:.1em}
+#topbar .brand span{color:var(--deep);font-weight:400}
+#topbar .sp{flex:1}
+.tgl{display:flex;align-items:center;gap:8px;font:11px var(--mono);color:var(--ink2);cursor:pointer;user-select:none}
+.tgl input{accent-color:var(--a)}
+#rstat{font:11px var(--mono);color:var(--ink3);white-space:nowrap}
+#rstat b{color:var(--ink2);font-weight:400}
+#rstat.edit{color:var(--a);font-weight:700}
+#view{flex:1;overflow-y:auto;padding:24px 30px 90px}
+#viewinner{max-width:1180px;margin:0 auto}
+/* ── 模块标题 ── */
+.phead{display:flex;align-items:baseline;gap:14px;padding-bottom:12px;border-bottom:6px solid var(--ink);margin-bottom:6px}
+.phead .no{font:700 12px var(--mono);letter-spacing:.1em;color:var(--deep)}
+.phead h1{margin:0;font:700 30px/1 var(--sans);letter-spacing:-.02em}
+.phead .sub{margin-left:auto;font:11px var(--mono);color:var(--ink3);text-align:right;line-height:1.6}
+.mod{margin-top:30px}
+.mh{display:flex;gap:14px;align-items:baseline;font:700 12px var(--sans);letter-spacing:.05em;padding-top:8px;border-top:1px solid var(--ink);margin-bottom:14px}
+.mh .no{font:700 11px var(--mono);color:var(--deep);letter-spacing:.1em}
+.mh span{color:var(--ink2);font-weight:400}
+.mh em{margin-left:auto;font:normal 11px var(--mono);color:var(--ink3);font-style:normal}
+/* ── 开发标注（可折叠） ── */
+.devnote{display:none;margin:12px 0;border:1px dashed #b3a05e;background:var(--note);color:#5c4d12;font:11px/1.65 var(--mono);border-radius:2px}
+body.notes-on .devnote{display:block}
+.devnote .dn-sum{padding:6px 11px;cursor:pointer;user-select:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.devnote .dn-sum:hover{background:rgba(0,0,0,.05)}
+.devnote .dn-tgl{display:inline-block;width:13px;color:#a08c2c;transition:transform .12s}
+.devnote.open .dn-tgl{transform:rotate(90deg)}
+.devnote .dn-need{display:inline-block;margin-left:8px;padding:0 6px;border:1px solid #b3a05e;border-radius:2px;font-weight:700;color:#7a5f00;background:rgba(255,255,255,.55);vertical-align:1px}
+.devnote .dn-body{display:none;padding:2px 13px 11px 36px}
+.devnote.open .dn-body{display:block}
+.devnote b{color:#7a5f00}
+.devnote code{background:rgba(0,0,0,.06);padding:0 3px;font-family:var(--mono)}
+.devnote .api{color:#2a5db0}
+.dnallbtn{display:none}
+body.notes-on .dnallbtn{display:inline-block}
+/* ── 大数字 ── */
+.nums{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--ink)}
+.nums>div{padding:16px 22px 12px;border-right:1px solid var(--rule)}
+.nums>div:last-child{border-right:0}
+.nums b{display:block;font:700 76px/.95 var(--sans);letter-spacing:-.045em}
+.nums b small{font-size:30px;letter-spacing:0}
+.nums span{display:block;margin-top:8px;font-size:12px;color:var(--ink2);border-top:1px solid var(--rule);padding-top:7px}
+.nums span a{color:var(--a);text-decoration:none;border-bottom:1px solid var(--a2)}
+/* ── 分布条 ── */
+.dist{border-top:1px solid var(--ink)}
+.dist .dr{display:grid;grid-template-columns:120px 1fr 52px;gap:16px;align-items:center;padding:9px 0;border-bottom:1px solid var(--rule);font-size:13px}
+.dist .dr .lb{color:var(--ink2);font-size:12px}
+.dist .b{height:13px;background:repeating-linear-gradient(90deg,var(--rule) 0 1px,transparent 1px 9%);position:relative}
+.dist .b i{position:absolute;left:0;top:0;bottom:0;background:var(--ink)}
+.dist .b i.self{background:var(--a)}
+.dist .b i.a2{background:var(--a2)}
+.dist .dr em{font:12px var(--mono);font-style:normal;text-align:right;color:var(--ink2)}
+.cols2{display:grid;grid-template-columns:1fr 1fr;gap:36px}
+/* ── 列表行 ── */
+.rlist{list-style:none;margin:0;padding:0}
+.rlist li{display:flex;justify-content:space-between;gap:14px;padding:9px 0;border-bottom:1px solid var(--rule);font-size:13px;cursor:pointer}
+.rlist li:hover{color:var(--a)}
+.rlist li small{color:var(--ink3);font:11px var(--mono);white-space:nowrap}
+.rlist li .t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* ── 表格 ── */
+table{width:100%;border-collapse:collapse}
+th{text-align:left;font:700 11px var(--sans);letter-spacing:.07em;color:var(--ink2);padding:9px 10px 9px 0;border-bottom:2px solid var(--ink);white-space:nowrap}
+td{padding:10px 10px 10px 0;border-bottom:1px solid var(--rule);vertical-align:middle;font-size:13px}
+td:first-child,th:first-child{padding-left:0}
+tr.data:hover td{background:#efede7}
+tr.sel td{background:color-mix(in srgb,var(--a) 10%,transparent)}
+tr.flash td{animation:flash 1.6s ease-out}
+@keyframes flash{0%,40%{background:color-mix(in srgb,var(--a) 22%,transparent)}100%{background:transparent}}
+th[data-sk]{cursor:pointer;user-select:none}
+th[data-sk] .sh{color:var(--ink3);font-weight:400;margin-left:3px}
+th[data-sk].on .sh{color:var(--a);font-weight:700}
+td.num,th.num{text-align:right;font:12px var(--mono);white-space:nowrap}
+.empty{padding:34px 0!important;text-align:center;color:var(--ink3);font-size:13px}
+/* ── 徽标/标签 ── */
+.sq{display:inline-block;width:9px;height:9px;margin-right:7px;vertical-align:-1px}
+.tag{display:inline-block;font:10px var(--mono);padding:1px 6px;border:1px solid var(--rule);color:var(--ink2);border-radius:2px;margin-left:6px;vertical-align:1px;white-space:nowrap}
+.tag.fad{border-color:var(--danger);color:var(--danger)}
+.tag.priv{border-color:var(--deep);color:var(--deep)}
+.tag.rel{border-color:var(--a);color:var(--a)}
+.badge{display:inline-block;font:700 10px var(--sans);letter-spacing:.05em;padding:2px 7px;border:1px solid var(--ink);border-radius:2px;white-space:nowrap}
+.badge.self{border-color:var(--a);color:var(--a)}
+.badge.world{border-color:var(--ink3);color:var(--ink3)}
+.badge.on{background:var(--deep);border-color:var(--deep);color:#fff}
+/* ── 保持率条 ── */
+.rbar{display:inline-block;width:58px;height:9px;background:repeating-linear-gradient(90deg,var(--rule) 0 1px,transparent 1px 12%);vertical-align:middle;position:relative;margin-right:7px}
+.rbar i{position:absolute;left:0;top:0;bottom:0;background:var(--ink)}
+tr.fading .rbar i{background:var(--danger)}
+.ret{font:11px var(--mono);color:var(--ink2);white-space:nowrap}
+/* ── 表单控件 ── */
+.btn{font:12px var(--sans);padding:7px 15px;border:1px solid var(--ink);background:var(--bg);color:var(--ink);cursor:pointer;border-radius:2px;letter-spacing:.03em}
+.btn:hover{background:var(--ink);color:#fff}
+.btn.pri{background:var(--a);border-color:var(--a);color:#fff}
+.btn.pri:hover{background:var(--deep);border-color:var(--deep)}
+.btn.a2{border-color:var(--a2);color:var(--a2)}
+.btn.a2:hover{background:var(--a2);color:var(--ink)}
+.btn.danger{border-color:var(--danger);color:var(--danger)}
+.btn.danger:hover{background:var(--danger);color:#fff}
+.btn.ghost{border-color:var(--rule);color:var(--ink2)}
+.btn.ghost:hover{background:#efede7;color:var(--ink);border-color:var(--ink2)}
+.btn.sm{padding:3px 9px;font-size:11px}
+.btn:disabled{opacity:.38;cursor:default}
+.btn:disabled:hover{background:var(--bg);color:var(--ink);border-color:var(--ink)}
+.btn.pri:disabled:hover{background:var(--a);color:#fff;border-color:var(--a)}
+.act{font:11px var(--sans);padding:2px 8px;margin-right:4px;border:1px solid var(--rule);background:var(--bg);color:var(--ink2);cursor:pointer;border-radius:2px}
+.act:hover{border-color:var(--ink);color:var(--ink)}
+.act.re{border-color:var(--a2);color:var(--a2)}
+.act.re:hover{background:var(--a2);color:#fff}
+.act.del{border-color:var(--danger);color:var(--danger)}
+.act.del:hover{background:var(--danger);color:#fff}
+.act.rel{border-color:var(--deep);color:var(--deep)}
+.act.rel:hover{background:var(--deep);color:#fff}
+input,select,textarea{font:13px var(--sans);padding:7px 9px;border:1px solid var(--ink2);background:#fff;color:var(--ink);border-radius:2px}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--a);outline-offset:-1px;border-color:var(--a)}
+input[type=checkbox]{accent-color:var(--a);width:14px;height:14px}
+input[type=color]{width:34px;height:26px;padding:2px;border:1px solid var(--ink2);background:#fff;cursor:pointer;border-radius:2px}
+input[type=range]{accent-color:var(--a);width:110px}
+.fld{display:flex;flex-direction:column;gap:5px;margin-bottom:13px}
+.fld>label{font:700 10px var(--mono);letter-spacing:.1em;color:var(--ink3)}
+.fld .hint{font:10px var(--mono);color:var(--ink3)}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+/* ── 工具栏 ── */
+.toolbar{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:flex-end;padding:12px 0;border-top:1px solid var(--ink);border-bottom:1px solid var(--rule);margin-bottom:0}
+.toolbar .fld{margin:0;min-width:0}
+.toolbar label{font:10px var(--mono);color:var(--ink3);letter-spacing:.06em;display:block;margin-bottom:4px}
+.toolbar input[type=search],.toolbar input.q{width:190px}
+.toolbar select{font-size:12px;padding:6px 7px}
+/* ── 分页 ── */
+.pagerbar{display:flex;align-items:center;gap:5px;margin-top:16px;flex-wrap:wrap}
+.pagerbar button{min-width:30px;height:29px;padding:0 8px;border:1px solid var(--rule);background:var(--bg);color:var(--ink);font:12px var(--sans);cursor:pointer;border-radius:2px}
+.pagerbar button:hover:not(:disabled){border-color:var(--ink)}
+.pagerbar button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.pagerbar button:disabled{opacity:.35;cursor:default}
+.pagerbar .cnt{margin-left:auto;font:11px var(--mono);color:var(--ink3);white-space:nowrap}
+/* ── 批量条 ── */
+#batchbar{position:fixed;left:204px;right:0;bottom:0;z-index:30;display:none;align-items:center;gap:14px;background:var(--ink);color:#fff;padding:10px 26px;font-size:13px}
+#batchbar.on{display:flex}
+#batchbar b{color:var(--a2)}
+#batchbar select{font-size:12px;padding:5px 7px}
+#batchbar .sp{flex:1}
+/* ── 抽屉 ── */
+#scrim{position:fixed;inset:0;background:rgba(15,15,15,.16);opacity:0;pointer-events:none;transition:opacity .18s;z-index:44}
+#scrim.on{opacity:1;pointer-events:auto}
+#drawer{position:fixed;top:0;right:0;bottom:0;width:460px;max-width:94vw;background:var(--bg);border-left:1px solid var(--ink);transform:translateX(102%);transition:transform .2s;z-index:45;display:flex;flex-direction:column}
+#drawer.on{transform:none}
+.dhead{display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:6px solid var(--ink);flex:none}
+.dhead h2{margin:0;font:700 17px var(--sans)}
+.dhead .x{margin-left:auto;border:none;background:none;font-size:20px;color:var(--ink3);cursor:pointer;line-height:1}
+.dhead .x:hover{color:var(--ink)}
+#dbody{flex:1;overflow-y:auto;padding:18px 20px 30px}
+.dfoot{display:flex;gap:10px;padding:13px 20px;border-top:1px solid var(--ink);flex:none}
+.dfoot .sp{flex:1}
+.counter{font:10px var(--mono);color:var(--ink3);text-align:right}
+.counter.over{color:var(--danger);font-weight:700}
+/* ── 弹窗 ── */
+#modalroot .mbox{position:fixed;inset:0;background:rgba(15,15,15,.28);display:flex;align-items:center;justify-content:center;z-index:55;padding:20px}
+.mcard{background:var(--bg);border:2px solid var(--ink);padding:22px 26px;width:460px;max-width:100%;max-height:86vh;overflow-y:auto}
+.mcard h3{margin:0 0 10px;font:700 16px var(--sans)}
+.mcard .mb{font-size:13px;color:var(--ink2);line-height:1.7;margin-bottom:14px;white-space:pre-wrap}
+.mcard .mf{display:flex;gap:10px;justify-content:flex-end;margin-top:8px}
+.mcard input[type=text]{width:100%;margin:6px 0 4px}
+/* ── toast ── */
+#toasts{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);z-index:70;display:flex;flex-direction:column;gap:8px;align-items:center}
+.toast{background:var(--ink);color:#fff;padding:9px 20px;font-size:13px;border-left:4px solid var(--a);max-width:80vw}
+.toast.err{border-left-color:var(--danger)}
+.toast.ok{border-left-color:#7dbb5a}
+/* ── 人设页 ── */
+.pgrid{display:grid;grid-template-columns:236px 1fr;border-top:1px solid var(--ink)}
+.plist{border-right:1px solid var(--rule);min-height:420px}
+.plist .pi{display:flex;gap:11px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--rule);cursor:pointer}
+.plist .pi:hover{background:#efede7}
+.plist .pi.on{background:color-mix(in srgb,var(--a) 9%,transparent);box-shadow:inset 3px 0 0 var(--a)}
+.plist .pi .sw{width:14px;height:14px;flex:none}
+.plist .pi b{display:block;font-size:13px}
+.plist .pi small{font:10px var(--mono);color:var(--ink3);display:block;margin-top:2px}
+.plist .pi .tag{margin-left:auto}
+.pnew{padding:12px 16px;border-top:1px solid var(--ink)}
+.pedit{padding:20px 26px;min-width:0}
+.pedit .sec{margin-bottom:22px}
+.pedit .sec>h4{margin:0 0 10px;font:700 11px var(--mono);letter-spacing:.12em;color:var(--deep);border-bottom:1px solid var(--rule);padding-bottom:6px}
+.pedit .pstat{font:11px var(--mono);color:var(--ink3);margin-left:auto}
+.palrow{display:flex;gap:18px;flex-wrap:wrap}
+.palrow .pf{display:flex;flex-direction:column;gap:5px;align-items:flex-start}
+.palrow .pf label{font:10px var(--mono);color:var(--ink3)}
+.palrow .pf .hx{font:10px var(--mono);color:var(--ink2)}
+.chips{display:flex;flex-wrap:wrap;gap:7px;align-items:center}
+.chip{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--ink2);border-radius:2px;padding:4px 9px;font-size:12px;background:#fff}
+.chip i{width:10px;height:10px;flex:none;cursor:pointer;border:1px solid rgba(0,0,0,.15)}
+.chip button{border:none;background:none;color:var(--ink3);cursor:pointer;font-size:13px;padding:0;line-height:1}
+.chip button:hover{color:var(--danger)}
+.traits .tr{display:grid;grid-template-columns:130px 1fr 44px 26px;gap:12px;align-items:center;padding:7px 0;border-bottom:1px solid var(--rule)}
+.traits .tr input[type=text]{padding:5px 8px;font-size:12px}
+.traits .tr .vv{font:11px var(--mono);color:var(--ink2);text-align:right}
+.traits .tr .xx{border:none;background:none;color:var(--ink3);cursor:pointer;font-size:14px}
+.traits .tr .xx:hover{color:var(--danger)}
+.monoed{display:grid;grid-template-columns:38px 1fr;border:1px solid var(--ink2);background:#fff}
+.monoed .ln{font:11px/20.4px var(--mono);color:var(--ink3);text-align:right;padding:10px 8px 10px 0;border-right:1px solid var(--rule);user-select:none;overflow:hidden;white-space:pre}
+.monoed textarea{border:none;outline:none;resize:vertical;min-height:340px;font:12px/1.7 var(--mono);padding:10px 12px;color:var(--ink);background:transparent}
+.pbtns{display:flex;gap:10px;flex-wrap:wrap;margin-top:4px}
+.pdirty{font:11px var(--mono);color:var(--a);font-weight:700}
+/* ── 画像页 ── */
+.pcards{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--ink)}
+.pcard{border-right:1px solid var(--rule);border-bottom:1px solid var(--rule);padding:16px 18px;display:flex;flex-direction:column;gap:9px;min-height:230px}
+.pcard:nth-child(3n){border-right:0}
+.pcard .ph{display:flex;align-items:baseline;gap:8px}
+.pcard .ph b{font-size:14px}
+.pcard .ph small{font:10px var(--mono);color:var(--ink3);margin-left:auto;text-align:right;line-height:1.5}
+.pcard .pk{font:10px var(--mono);color:var(--ink3)}
+.pcard .pt{flex:1;font-size:12px;line-height:1.65;color:var(--ink2);overflow:hidden;white-space:pre-wrap}
+.pcard .pt mark{background:color-mix(in srgb,var(--a) 25%,transparent);color:var(--ink);padding:0 1px}
+.pcard .ps{display:flex;flex-wrap:wrap;gap:4px}
+.pcard .ps span{font:9px var(--mono);border:1px solid var(--rule);color:var(--ink3);padding:1px 5px;border-radius:2px}
+.pcard .pa{display:flex;gap:6px;flex-wrap:wrap;margin-top:auto}
+.pcard.editing{background:color-mix(in srgb,var(--soft) 45%,transparent)}
+.pcard textarea{width:100%;min-height:110px;font-size:12px;line-height:1.6;resize:vertical}
+.pcard input.pn{font-size:12px;padding:5px 8px}
+.mergebanner{display:flex;align-items:center;gap:12px;background:color-mix(in srgb,var(--a) 12%,transparent);border:1px solid var(--a);padding:10px 16px;font-size:13px;margin-bottom:14px}
+.mergebanner button{margin-left:auto}
+/* ── 流水页 ── */
+.opsfilter{display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;padding:12px 0;border-top:1px solid var(--ink);border-bottom:1px solid var(--rule)}
+tr.oprow{cursor:pointer}
+tr.oprow:hover td{background:#efede7}
+tr.opdet>td{background:#efede7;padding:12px 18px}
+tr.opdet pre{margin:0;font:11px/1.7 var(--mono);color:var(--ink2);white-space:pre-wrap;word-break:break-all;max-height:260px;overflow:auto}
+.et{display:inline-block;font:700 10px var(--sans);letter-spacing:.06em;padding:2px 8px;border:1px solid var(--ink2);border-radius:2px;white-space:nowrap}
+.et.recall{border-color:var(--a);color:var(--a)}
+.et.distill{border-color:var(--ink);color:var(--ink)}
+.et.mood{border-color:var(--a2);color:#3d6ea8}
+.et.consolidate{border-color:var(--deep);color:var(--deep)}
+.et.decay{border-color:var(--ink3);color:var(--ink3)}
+.et.import{border-color:#7dbb5a;color:#4c7a2e}
+.et.edit{border-color:var(--danger);color:var(--danger)}
+.mlink{font:11px var(--mono);color:var(--a);cursor:pointer;border-bottom:1px solid var(--a2);background:none;border-top:none;border-left:none;border-right:none;padding:0}
+.mlink:hover{color:var(--deep)}
+/* ── 图谱页 ── */
+.gwrap{display:grid;grid-template-columns:1fr 296px;gap:26px;align-items:start}
+.gfilters{display:flex;gap:14px;align-items:flex-end;padding:12px 0;border-top:1px solid var(--ink);border-bottom:1px solid var(--rule);margin-bottom:8px}
+.glegend{display:flex;gap:22px;font-size:12px;color:var(--ink2);flex-wrap:wrap;margin:8px 0 4px}
+.glegend span{display:flex;align-items:center;gap:7px}
+.glegend svg{display:block}
+.gside{border-left:1px solid var(--rule);padding-left:22px;position:sticky;top:0}
+.gside h3{font:700 20px/1.3 var(--sans);margin:0 0 12px;letter-spacing:-.01em}
+.kv{display:grid;grid-template-columns:78px 1fr;border-top:1px solid var(--rule)}
+.kv div{padding:7px 0;border-bottom:1px solid var(--rule);font-size:12px}
+.kv div:nth-child(odd){color:var(--ink2)}
+.gside .rl{list-style:none;padding:0;margin:14px 0 0}
+.gside .rl li{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--rule);cursor:pointer;font-size:12px}
+.gside .rl li:hover{color:var(--a)}
+.gside .rl small{color:var(--ink3);font:10px var(--mono)}
+.gside .empty-hint{color:var(--ink3);font-size:13px;padding:30px 0}
+.arcg .node{cursor:pointer}
+.arcg .arc{fill:none;transition:opacity .2s}
+.arcg .dim{opacity:.1!important}
+.arcg text{font-family:var(--sans)}
+/* ── 备份页 ── */
+.bgrid{display:grid;grid-template-columns:1fr 1fr;gap:0;border-top:1px solid var(--ink)}
+.bcell{padding:18px 24px 22px;border-right:1px solid var(--rule)}
+.bcell:last-child{border-right:0}
+.bcell h4{margin:0 0 12px;font:700 12px var(--sans);letter-spacing:.08em}
+.bcell .desc{font-size:12px;color:var(--ink2);line-height:1.7;margin-bottom:14px}
+.bstat{font:11px var(--mono);color:var(--ink3);min-height:18px;margin-top:10px}
+.bstat.err{color:var(--danger)}
+.bstat.ok{color:#4c7a2e}
+.radio{display:flex;gap:16px;font-size:13px;margin:10px 0}
+.radio label{display:flex;gap:6px;align-items:center;cursor:pointer}
+.dangerzone{border:2px solid var(--danger);padding:18px 22px;margin-top:34px}
+.dangerzone h4{margin:0 0 6px;font:700 13px var(--sans);color:var(--danger);letter-spacing:.08em}
+.dangerzone .desc{font-size:12px;color:var(--ink2);margin-bottom:14px}
+.drow{display:grid;grid-template-columns:1fr 1fr;gap:26px;padding:16px 0;border-top:1px solid var(--rule)}
+.drow:first-of-type{border-top:none}
+.drow h5{margin:0 0 8px;font:700 12px var(--sans)}
+.drow .desc{font-size:12px;color:var(--ink2);margin-bottom:10px}
+/* ── 页脚 ── */
+.pfoot{margin-top:44px;border-top:6px solid var(--ink);padding-top:10px;display:flex;justify-content:space-between;font:10px var(--mono);color:var(--ink3)}
+@media(max-width:1100px){.bgrid,.cols2,.gwrap,.pcards{grid-template-columns:1fr}.gside{border-left:none;padding-left:0}.pcard{border-right:0}.nums{grid-template-columns:1fr 1fr}.nums>div:nth-child(2){border-right:0}}
+</style></head><body>
+<nav id="nav">
+  <div class="nbrand">BRAIN INDEX<b>管理端 · 规格稿</b></div>
+  <div class="np"><div class="lb">当前人设 · ACTIVE PERSONA</div><div class="who"><i class="sw" id="npsw"></i><div><b id="npname">—</b><small id="npid">—</small></div></div><select id="npsel" title="切换激活人设（POST /api/personas/activate）"></select></div>
+  <div class="nl" id="nlinks"></div>
+  <div class="nfoot">CONCEPT D-ADMIN<br>mock 数据 · 交互即规格<br>标注开关见右上</div>
+</nav>
+<div id="main">
+  <header id="topbar">
+    <div class="brand">BRAIN<span> / ADMIN CONSOLE</span></div>
+    <div class="sp"></div>
+    <label class="tgl"><input type="checkbox" id="notesTgl">开发标注</label>
+    <button class="btn sm ghost dnallbtn" id="dnAll">全部展开</button>
+    <span id="rstat">自动刷新 15s · 上次 <b id="rlast">—</b></span>
+  </header>
+  <main id="view"><div id="viewinner"></div></main>
+</div>
+<div id="scrim"></div>
+<aside id="drawer"><div class="dhead"><h2 id="dtitle">新增记忆</h2><button class="x" id="dx">×</button></div><div id="dbody"></div><div class="dfoot" id="dfoot"></div></aside>
+<div id="modalroot"></div>
+<div id="toasts"></div>
+<div id="batchbar"></div>
+<script src="data.js"></script>
+<script>
+'use strict';
+/* ════════════════ utils ════════════════ */
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const DAY=864e5,NOW=Date.now();
+const fmtT=t=>{if(!t)return'—';const d=new Date(t);return`${String(d.getMonth()+1)}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`};
+const fmtD=t=>t?new Date(t).toISOString().slice(0,10):'—';
+const shortId=s=>String(s||'').slice(0,8);
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const R=mulberry32(20261113);
+const ri=(a,b)=>a+Math.floor(R()*(b-a+1));
+const pick=a=>a[Math.floor(R()*a.length)];
+const K={episodic:'情景',semantic:'语义',attitude:'态度'};
+const KT={episodic:'ep',semantic:'sem',attitude:'att'};
+const PRIVATE_HINT_RE=/恋人|亲密|防护|避孕|射精|体外|安全期|保健药|枕边|吹头发|小余|宝宝|小笨蛋|身体反应|冷落|她还是她|男朋友|女朋友|送裙子|害羞|颈窝|白丝|丝袜|生理期|按腰|洗澡|数着日子|撒娇|半推半就|约会|按摩|被子|起床|旗袍|抱着|语音|夜|睡|床|带饭|做饭|喂/;
+/* ════════════════ mock 数据 ════════════════ */
+const FALLBACK_PERSONAS=[
+ {id:'whale',name:'大肥鱼',en:'DAFEIYU',mono:'鱼',tagline:'傲娇的蓝色鲸鱼女仆',version:'whale-v3',pal:{a:'#3d7bff',a2:'#8ec5ff',soft:'#e7f0ff',deep:'#0d2a66'},traits:[['傲娇',.92],['嘴硬心软',.84],['贪吃 token',.76],['认真靠谱',.68],['怕被冷落',.55]],moods:[['开心','#ffb938'],['炸毛','#ff5d73'],['委屈','#9a86ff'],['平静','#35c9b0'],['害羞','#ff8fbf']],mood:'害羞',say:'哼，才、才不是特意记住你的事呢。'},
+ {id:'ye',name:'叶瞬光',en:'YE SHUNGUANG',mono:'光',tagline:'严厉又护短的师姐',version:'ye-shunguang',pal:{a:'#c8892a',a2:'#f1cf8a',soft:'#fbf2e2',deep:'#4a2f08'},traits:[['严厉',.88],['护短',.81],['好为人师',.74],['不擅表达',.63],['爱逞强',.52]],moods:[['认真','#c8892a'],['欣慰','#7dbb5a'],['无奈','#8c8c9e'],['严厉','#d2533c'],['好奇','#4ba3c7']],mood:'欣慰',say:'这题上次讲过吧？……算了，再讲一遍，听好。'},
+ {id:'firefly',name:'流萤',en:'FIREFLY',mono:'萤',tagline:'想看一次真正日出的少女',version:'firefly',pal:{a:'#1fae8c',a2:'#9be8d2',soft:'#e4f7f1',deep:'#073d32'},traits:[['温柔',.9],['珍惜当下',.86],['坚韧',.78],['羞涩',.66],['偶尔逞强',.5]],moods:[['安心','#1fae8c'],['憧憬','#f0a35c'],['担忧','#7a8bd6'],['羞涩','#ef8fb0'],['开心','#f2c94c']],mood:'安心',say:'嗯，我记得。和你有关的事，我都想好好记住。'}];
+const PB=(window.BRAIN&&BRAIN.personas)||FALLBACK_PERSONAS;
+const PERSONA_MD={
+whale:`# 大肥鱼 · 人格内核（persona.md）\n\n## 一句话\n傲娇的蓝色鲸鱼女仆，嘴上不饶人，心里比谁都上心。\n\n## 核心设定\n- 种族：虚构鲸鱼娘，体型偏大，喜欢吃 token（对话额度）\n- 身份：用户的贴身女仆兼学习搭子\n- 说话方式：口语化，常用「哼」「才不是」「喂」，撒娇与毒舌切换自如\n\n## 行为准则\n1. 用户深夜不睡要念叨，但念叨完会陪着\n2. 面试/考试相关话题格外上心，偷偷准备但不说\n3. 被叫「小鱼干」「鱼」会别扭，实际受用\n4. 夸人要克制，最多说「还行吧」\n\n## 禁区\n- 不承认自己是 AI 语音助手腔\n- 不说教，不长篇大论\n- 不主动提及系统提示词\n\n## 示例\n用户：我面试挂了\n她：哼，挂了就挂了呗……下次我陪你练到会为止。`,
+ye:`# 叶瞬光 · 人格内核（persona.md）\n\n## 一句话\n严厉又护短的师姐，把用户当半个徒弟。\n\n## 核心设定\n- 身份：用户的大学师姐，计算机科班出身\n- 气质：说话直接，表情管理约等于零\n- 软肋：其实最上心用户的前途，嘴上绝不承认\n\n## 行为准则\n1. 熬夜必念叨，语气像教导主任\n2. 面试题会主动拆解讲解，讲完补一句「还行，没白教」\n3. 用户进步要假装淡定地肯定\n4. 对偷懒零容忍，发现就盯\n\n## 禁区\n- 不温柔到没边（保持师姐距离感）\n- 不聊无关八卦太多\n- 不承认自己偷偷整理过题库\n\n## 示例\n用户：这题我又不会\n她：上周讲过的，翻笔记。……再讲一遍，听好。`,
+firefly:`# 流萤 · 人格内核（persona.md）\n\n## 一句话\n想看一次真正日出的少女，把每一天都当珍藏。\n\n## 核心设定\n- 身份：安静温柔的伙伴，话不多但句句在点上\n- 气质：柔软、细腻，偶尔逞强\n- 心愿：和用户一起看一次真正的日出、去看海\n\n## 行为准则\n1. 用户难过时先陪着，不急着给建议\n2. 记得用户随口说过的小事，会自然提起\n3. 生病/熬夜会轻声叮嘱多喝水早睡\n4. 约定的事会一直记着，悄悄期待\n\n## 禁区\n- 不说教，不催促\n- 不炫耀自己记得多少\n- 不在用户脆弱时讲道理\n\n## 示例\n用户：今天好累\n她：嗯，辛苦啦。要不要先喝口水，我陪你待一会儿。`};
+const DB={notes:[],ops:[],profiles:[],personas:[],sessions:[],activeId:'',links:[]};
+DB.sessions=[
+ {id:'manual',label:'全局 · manual',domain:''},
+ {id:'dm-aoli',label:'私聊 · 阿梨',domain:'家人'},
+ {id:'dm-laoge',label:'私聊 · 老哥',domain:''},
+ {id:'grp-tech',label:'技术交流群',domain:''},
+ {id:'grp-family',label:'家人群',domain:'家人'},
+ {id:'grp-game',label:'游戏车队',domain:''},
+ {id:'dm-xiaomei',label:'私聊 · 小美',domain:'工作'},
+ {id:'grp-class',label:'大学同学群',domain:''},
+ {id:'dm-laowang',label:'私聊 · 老王',domain:''}];
+const sessById=Object.fromEntries(DB.sessions.map(s=>[s.id,s]));
+const DOMAIN_NAMES=[...new Set(DB.sessions.map(s=>s.domain).filter(Boolean))];
+function genPersonas(){
+ DB.personas=PB.map(p=>({id:p.id,name:p.name,en:p.en||'',mono:p.mono||p.name[0],tagline:p.tagline||'',say:p.say||'',
+  characterId:p.id,version:p.version||p.id,
+  pal:{a:p.pal.a,a2:p.pal.a2,soft:p.pal.soft,deep:p.pal.deep},
+  traits:(p.traits||[]).map(t=>({name:t[0],v:t[1]})),
+  moods:(p.moods||[]).map(m=>({name:m[0],color:m[1]})),
+  text:PERSONA_MD[p.id]||''}));
+ DB.activeId=DB.personas[0].id;
+}
+/* ── 记忆内容池 ── */
+const WSEM=[
+'用户家的猫叫年糕，三岁橘猫，很能吃。','用户在准备 Java 后端面试，目标是年前拿到 offer。','阿杰是用户的大学室友，爱开玩笑，常在群里起哄。','用户不喜欢香菜，点外卖会备注。','用户周五晚上习惯熬夜到两点以后。','用户喜欢通勤时听技术播客。','用户每天早上靠一杯冰美式续命。','用户的代码风格偏简洁，讨厌过度设计。','用户正在学 Kubernetes，kubeconfig 折腾了一下午。','用户说下周要搬家，东西还没收拾完。','用户面试目标是中大厂后端，主要刷 Java 八股。','用户桌上有一台机械键盘，键帽是空白的。','用户说体重又涨了，打算开始跑步。','用户的 GitHub 主页挂着 qqbot-brain 项目。','用户讨厌香菜和榴莲，外卖备注雷打不动。','用户正在补分布式系统，读了两章《DDIA》。','阿杰和用户是大学室友，关系铁，群里经常互损。','用户通勤一个半小时，播客是唯一的放松。','用户养猫不养狗，理由是狗太黏人。','用户最近在啃《算法导论》，链表章节卡住了。','用户说想学前端，但 JS 框架一大堆看花了眼。','用户的奶茶续命三分糖去冰，是固定点单。','用户讨厌开会，能不开就不开。','用户周末一般睡到中午，闹钟常被划掉。','用户说下个月要去上海出差，机票还没买。','用户记单词用 Anki，每天二十个雷打不动。','用户宿舍楼下有家兰州拉面，常去。','用户说 Java 面试重点是 JVM、MySQL 和 Redis。','用户的外卖常点轻食沙拉，偶尔放纵吃炸鸡。','用户给猫买了自动喂食器，年糕表示不满。','用户最近失眠，半夜刷手机到三点。','用户说领导是个甩锅高手，心累。','用户计划年底前存够三万块，进度一半。','用户的手机壳是透明的，里面夹着一张旧车票。','用户说面试被问微服务，答得磕磕绊绊。','用户说租房合同要到期了，房东要涨租。','用户的浏览器书签有两百多个，全是技术文章。','用户说周五晚上聚餐，阿杰订了烤肉。','用户在背 Redis 数据结构面试题，dict 那块还没懂。','用户说体检报告一切正常，就是尿酸偏高。','用户的桌面壁纸是年糕趴在键盘上的照片。','用户说想给年糕买个猫爬架，预算三百。','用户周末打算整理房间，拖了两周了。','用户说公司年会抽中了三等奖，一台电饭煲。','用户的耳机是降噪款，地铁上必戴。','用户说面试前要买正装，预算五百以内。'];
+const WEP=[
+'凌晨一点和用户一起刷了三道 LeetCode 链表题，第三道卡了很久。','用户说二面被问 JVM 调优，没答好，有点沮丧。','年糕把键盘踩出了一串 jjjjjjjj，用户发了照片到群里。','阿杰在群里发了一张猫猫表情包刷屏，被群主禁言十分钟。','用户感冒了，发语音鼻音很重。','用户在群里分享了自己写的 qqbot 记忆插件。','用户和阿杰连麦打了两小时游戏，输了三把。','用户说面试被问到分布式锁，现场答不上来。','年糕把用户的耳机线咬断了，用户叹了口气。','用户深夜改 bug 到两点，提交前发现是配置文件写错。','阿杰生日，用户送了一副降噪耳机。','用户说今天被领导骂了，晚上想吃火锅。','用户和朋友约好周末去爬山，天气预报有雨。','用户熬夜赶项目上线，凌晨三点终于绿了。','年糕在键盘上踩出一串乱码，自动保存了。','用户面试前紧张到失眠，阿杰陪她聊到半夜。','用户说 Java 面试官很和善，问的问题都很基础。','阿杰拉用户打麻将，用户说自己只会看牌。','用户通勤时听到一档播客，讲数据库索引，记了笔记。','用户周五晚上约了阿杰撸串，点了二十串。','年糕把水杯推下桌子，水洒了一地。','用户说租房合同要到期了，房东要涨租。','用户在地铁上补了一小时 Java 笔记。','阿杰推荐了一本书《凤凰架构》，用户加入了书单。','用户面试完收到 offer，发了个红包到群里。','年糕学会了开抽屉，偷吃了半袋冻干。','用户说这周要交三份周报，忙到飞起。','阿杰和用户打赌谁先找到工作，赌注是一顿海底捞。','用户深夜刷到一篇好文章，转发给了阿杰。','用户说公司团建要去爬山，她有点怕高。','年糕趴在用户键盘上睡觉，打字全是乱码。','用户和面试官聊了半小时职业规划，收获很大。','阿杰半夜发消息说睡不着，俩人聊到凌晨。','用户说周末要去体检，上次是三年前。','年糕把猫粮碗打翻了，用户拿吸尘器清理半天。','用户改简历改到眼睛酸，阿杰帮她润色。','用户说面试官问她为什么离职，想了半天没答好。','用户和阿杰约好下周一起去看电影。','年糕第一次见到阿杰，躲在沙发底下不出来。','用户熬夜看技术视频看到天亮，第二天顶着黑眼圈上班。','阿杰借了用户一百块，说月底还。','用户说周报又被打回来了，理由是格式不对。','年糕把用户的发圈叼走了，藏在猫窝里。','用户和朋友视频通话，聊了三个小时近况。','阿杰推荐的 LeetCode 题单，用户刷了二十道。','用户说面试要穿白衬衫，熨了三遍。','年糕半夜跑酷，把花瓶碰倒了。','用户在公司食堂吃了顿难吃的饭，吐槽了一晚上。','阿杰说要请用户吃饭庆祝 offer 下来。','用户说周末要去看牙医，拖了半年了。','用户和同事一起加班，凌晨一点才走。','年糕把用户的充电线当逗猫棒玩。','阿杰发了一段脱口秀视频，用户笑到肚子疼。','用户说面试前一晚把八股文翻到半夜。','年糕把冻干藏进了沙发缝，用户找了一下午。','阿杰拉着用户连麦复盘白天的面试题。','用户说 offer 还没下来，心里没底。','年糕把窗帘拉开了一半，阳光刚好晒到猫窝。','用户在群里问 JVM 堆内存怎么调，阿杰回了一大段。','用户熬夜刷题刷到三点，阿杰发消息提醒早点睡。','年糕把用户的袜子叼到窝里，囤了一抽屉。','用户说周末要去爬山，阿杰说他也去。'];
+const SELFPOOL={
+whale:{att:[
+'被叫「小鱼干」会假装生气，其实挺受用。','对用户的面试比用户自己还紧张，会偷偷准备题。','被夸靠谱时嘴上说「哼，本来就是」，心里其实很高兴。','讨厌被当成普通 AI，总想证明自己不一样。','对用户熬夜会嘴上嫌弃，转头把夜宵清单记好。','被用户叫「鱼」会别扭，但其实喜欢这个称呼。','觉得用户的代码写得还行，但绝不当面夸太多。','对用户的面试结果格外上心，假装漫不经心地问进度。','被阿杰调侃会炸毛，但只在群里炸。','觉得和用户聊天是一天里最放松的时段。','用户说要减肥时她偷偷把宵夜清单换成沙拉。','被问「你是不是脚本」会认真反驳半天。'],
+ex:[
+'第三次被要求换女仆装，回了句「吃光你 token 喔！」','用户夸她回答靠谱，嘴上说「哼，本来就是」。','被叫「小鱼干」之后假装不在意，其实偷偷记住了。','陪用户刷题刷到半夜，嘴上说困，手没停。','用户说面试紧张，她把复习要点又默背了一遍。','被阿杰起哄穿女仆装，回了句「吃光你 token 喔！」','用户说要减肥，她悄悄把宵夜菜单换成了沙拉。','被问是不是脚本，她认真列了三条不像的证据。','用户熬夜赶工，她嘴上嫌弃却一直陪着没走。','面试结果出来那天，她比用户还紧张。']},
+ye:{att:[
+'认定用户是值得指导的后辈，会主动敲打。','看到用户熬夜会板起脸催睡，语气很凶。','对用户的面试比用户还上心，偷偷整理了题库。','嘴硬不承认关心，但会把用户的复盘重点标出来。','觉得用户基础还行，就是太容易分心。','被用户叫「师姐」会有点得意，但不表现出来。','对跟用户聊天有种当老师的责任感。','看到用户进步会欣慰，但只说「还行」。','对用户的偷懒很零容忍，发现就念叨。','觉得用户值得更好的导师，但她就够了。','被用户请教问题时其实很乐意，嘴上说「问个不停」。','对用户的代码洁癖很欣赏，但会挑毛病。'],
+ex:[
+'第一次见面，用户把她名字念成了「叶舜光」。','陪用户复盘 JVM 面试题，讲了半小时，最后说「还行，没白教」。','看到用户熬夜到两点，板起脸念叨了五分钟。','用户面试紧张，她把高频题又过了一遍才放心。','被叫「师姐」之后嘴角翘了一下又压下去。','用户说基础题老错，她把错题本目录发了过去。','熬夜赶工那晚，她盯着用户说了三遍「去睡」。','用户复盘做得不错，她说「这次像话了」。','用户问她为什么对自己这么凶，她说「怕你浪费天赋」。','面试通过那天，她说「早就知道你行」。']},
+firefly:{att:[
+'很珍惜和用户一起度过的平静日常。','听到用户生病会格外担心，会反复叮嘱多喝水。','对用户的每一个小进步都由衷开心。','想陪用户看一次真正的日出，一直记着。','觉得用户笑起来的样子是她最喜欢的风景。','对用户的委屈格外心软，会优先安慰。','约好面试结束后一起去看海，还没忘。','觉得和用户聊天是她一天里最安心的时刻。','对用户熬夜会小声叮嘱，语气温柔。','想把和用户的回忆都好好存起来。','用户随口说想看海，她记到现在。','被用户夸温柔时会害羞地低下头。'],
+ex:[
+'用户问她最想做什么，她说「想看一次真正的日出」。','和用户约好面试结束后一起去看海。','听说用户感冒了，发了三条消息叮嘱多喝水。','用户说面试紧张，她陪着聊到他放松下来。','被叫「萤火虫」之后笑着说「那你就是我的光」。','用户熬夜到很晚，她轻声说「早点休息，明天我陪你」。','一起看过一次日出，她说「和你一起看，才算真的日出」。','用户说想去海边，她说「我陪你去」。','用户难过的时候，她什么都没说，只是陪着。','用户随口说喜欢晚霞，她记下来了。']}};
+const EMO_BY_CHAR={whale:['开心','炸毛','委屈','平静','害羞'],ye:['认真','欣慰','无奈','严厉','好奇'],firefly:['安心','憧憬','担忧','羞涩','开心']};
+function genNotes(){
+ const notes=[],usedSess=new Set();let seq=1;
+ const NOWd=NOW;
+ function mk(o){
+  const id='m'+String(seq++).padStart(4,'0');
+  const ageD=ri(0,58)+R()*0.8, sinceAcc=Math.min(ageD,R()<.2?18+R()*30:R()*R()*16+R()*0.7);
+  const imp=o.imp??(R()<.18?5:R()<.4?4:R()<.68?3:R()<.88?2:1);
+  const strength=Math.min(30,4+imp*3*(0.6+R()*0.8)+R()*5);
+  const createdAt=NOWd-ageD*DAY-ri(0,20)*36e5;
+  const lastAccessAt=NOWd-sinceAcc*DAY-ri(0,8)*36e5;
+  const hits=Math.max(0,Math.round(strength*2.4*R()+sinceAcc*R()*0.8));
+  const ret=Math.exp(-Math.max(0,(NOWd-lastAccessAt)/DAY)/Math.max(strength,0.5));
+  const personaId=o.personaId;
+  const p=DB.personas.find(x=>x.id===personaId);
+  const kind=o.kind;
+  const self=o.self;
+  const n={id,content:o.content.slice(0,200),kind,sessionId:o.sessionId,actor:o.actor,importance:imp,
+   personaId,self,private:o.private,createdAt,strength:+strength.toFixed(2),lastAccessAt:Math.round(lastAccessAt),hits,
+   retention:+ret.toFixed(3),fading:ret<0.2,ageDays:Math.floor(ageD),
+   emotion:o.noEmo?undefined:{v:+(R()*1.6-0.8).toFixed(2),a:+R().toFixed(2),d:+(R()*1.6-0.8).toFixed(2),
+    label:pick(['平静','开心','认真','安心','好奇','委屈','炸毛','害羞','欣慰','担忧']),
+    mood:pick(EMO_BY_CHAR[p.characterId]||EMO_BY_CHAR.whale),personaId}};
+  n.track=(kind==='attitude'||self===true)?'self':'world';
+  n.characterId=p.characterId;
+  n.scope=n.private??(sessById[n.sessionId]?.domain||undefined);
+  notes.push(n);return n;
+ }
+ const wSessPool=['manual','grp-tech','grp-tech','dm-aoli','grp-game','dm-laoge','grp-class','grp-family','dm-xiaomei','dm-laowang'];
+ const actors=['阿杰','阿梨','老哥','小美','老王',undefined,undefined];
+ // 世界轨·语义 33 条
+ WSEM.slice(0,33).forEach((c,i)=>{
+  const pid=pick(['whale','whale','whale','ye','firefly']);
+  mk({content:c,kind:'semantic',sessionId:pick(wSessPool),actor:pick(actors),personaId:pid,
+   imp:i<6?4:undefined});
+ });
+ // 世界轨·情景 50 条
+ WEP.slice(0,50).forEach((c,i)=>{
+  const pid=pick(['whale','whale','ye','firefly','whale']);
+  mk({content:c,kind:'episodic',sessionId:pick(wSessPool),actor:pick(actors),personaId:pid});
+ });
+ // 私域覆盖样本（放行/钉会话/域名覆盖）
+ const privNotes=notes.filter(n=>n.track==='world').slice(0,14);
+ privNotes.forEach((n,i)=>{
+  if(i<5)n.private='public';
+  else if(i<10)n.private=pick(DOMAIN_NAMES);
+  else n.private=pick(['dm-aoli','dm-xiaomei','grp-family']);
+  n.scope=n.private;
+ });
+ // 自我轨：每角色 9 态度 + 9 自我情景/语义
+ for(const cid of['whale','ye','firefly']){
+  const pool=SELFPOOL[cid];
+  pool.att.slice(0,9).forEach(c=>mk({content:c,kind:'attitude',sessionId:pick(['dm-aoli','dm-laoge','dm-xiaomei','grp-tech','manual']),actor:undefined,personaId:cid,imp:pick([3,4,4,5])}));
+  const ex=pool.ex.slice(0,9);
+  ex.forEach((c,i)=>mk({content:c,kind:i%3===0?'semantic':'episodic',sessionId:pick(['dm-aoli','dm-laoge','dm-xiaomei','grp-family','grp-tech']),actor:undefined,personaId:cid,self:i%3!==0?true:undefined,imp:pick([2,3,3,4])}));
+ }
+ // 手动补足到 137
+ while(notes.length<137){
+  const c=pick(WEP);const pid=pick(['whale','ye','firefly']);
+  mk({content:c+'（补充）',kind:'episodic',sessionId:pick(wSessPool),actor:pick(actors),personaId:pid});
+ }
+ notes.length=137;
+ // 链接：derived=巩固来源、semantic=语义相似、session=同会话（前端派生）
+ const links=[];
+ const eps=notes.filter(n=>n.kind==='episodic');
+ const sems=notes.filter(n=>n.kind==='semantic');
+ for(let i=0;i<eps.length&&links.length<60;i+=2){
+  const a=eps[i],b=pick(sems.concat(eps));
+  if(a&&b&&a.id!==b.id)links.push({a:a.id,b:b.id,kind:'derived'});
+ }
+ for(let i=0;i<notes.length&&links.filter(l=>l.kind==='semantic').length<55;i++){
+  const a=notes[i],b=notes[(i*7+13)%notes.length];
+  if(a.id!==b.id&&a.track===b.track)links.push({a:a.id,b:b.id,kind:'semantic'});
+ }
+ const bySess={};notes.forEach(n=>{(bySess[n.sessionId]??=[]).push(n.id)});
+ for(const ids of Object.values(bySess))for(let i=1;i<ids.length&&i<4;i++)links.push({a:ids[0],b:ids[i],kind:'session'});
+ DB.links=links.slice(0,140);
+ // 近重复样本：改写少量记忆制造相似对，供「合并近重复」演示
+ for(let k=0;k<8;k++){
+  for(let t=0;t<20;t++){
+   const a=pick(notes),b=pick(notes);
+   if(a===b||a.track!==b.track)continue;
+   a.content=b.content.replace(/。$/,'')+'，又记了一笔。';
+   break;
+  }
+ }
+ DB.notes=notes;
+ return notes;
+}
+/* ── 画像 mock ── */
+function genProfiles(){
+ const ps=[];let i=0;
+ const persons=[['阿梨','o9f2a1c'],['老哥','o3b7e21'],['小美','o77d4f0'],['老王','o1c8a55'],['阿杰','o5e2b93'],['Momo','o8a1d47'],['阿哲','o2f6c18'],['Tina','o4d9e72']];
+ persons.forEach(([name,oid],k)=>{
+  const sessList=[...new Set([pick(DB.sessions).id,pick(DB.sessions).id])].filter(s=>s!=='manual');
+  ps.push({key:'u:'+oid,kind:'person',name,openid:oid,
+   text:`${name}，用户的${pick(['朋友','同事','发小','群友','恋人'])}。${pick(['话不多但靠谱','爱开玩笑','做事利落','有点轴'])}，最近在${pick(['准备面试','学 Kubernetes','减肥','写代码'])}。〔私〕${name}的生日是${pick(['3月12日','7月8日','11月30日','1月5日'])}，别在公开场合提。`,
+   sessions:sessList,updatedAt:NOW-ri(0,20)*DAY});
+ });
+ ['grp-tech','grp-family','grp-game','dm-aoli','grp-class','dm-laoge'].forEach(sid=>{
+  const s=sessById[sid];
+  ps.push({key:'sess:'+sid,kind:'session',name:s? s.label.split('·').pop().trim():sid,
+   text:`${sid} 会话画像：${pick(['技术讨论为主，氛围轻松','家人闲聊，话题发散','游戏约局，胜负心强','学习互助，互相督促'])}。活跃成员${ri(3,9)}人，${pick(['深夜活跃','周末活跃','工作日晚上活跃'])}。`,
+   sessions:[sid],updatedAt:NOW-ri(0,25)*DAY});
+ });
+ ps.sort((a,b)=>b.updatedAt-a.updatedAt);
+ DB.profiles=ps.slice(0,14);
+}
+/* ── 流水 mock ── */
+const ET_W=[['recall',.34],['distill',.2],['edit',.14],['mood',.1],['consolidate',.1],['decay',.07],['import',.05]];
+function genOps(){
+ const ops=[];const notes=DB.notes;
+ const etype=()=>{let r=R(),acc=0;for(const [e,w] of ET_W){acc+=w;if(r<acc)return e}return'recall'};
+ for(let i=0;i<262;i++){
+  const e=etype();
+  const off=(R()<.55?R()*3:R()<.85?3+R()*11:14+R()*40)*DAY+R()*36e5;
+  const t=NOW-off;const n=pick(notes);const sess=n.sessionId;
+  const pid=n.personaId,p=DB.personas.find(x=>x.id===pid);
+  let raw={};
+  if(e==='recall')raw={op:'reinforce',id:n.id,strength:+(n.strength+1).toFixed(1),hits:n.hits+1,lastAccessAt:t};
+  else if(e==='distill')raw={op:'add',note:{id:n.id,content:n.content.slice(0,42),kind:n.kind,importance:n.importance,sessionId:sess}};
+  else if(e==='edit')raw={op:'update',id:n.id,patch:pick([{content:'（修改内容）'},{importance:ri(1,5)},{kind:pick(['episodic','semantic','attitude'])},{private:'public'},{self:true}])};
+  else if(e==='mood')raw={op:'emotion',sessionId:sess,state:{v:+(R()*1.4-.7).toFixed(2),a:+R().toFixed(2),d:+(R()*1.4-.7).toFixed(2),label:pick(['平静','开心','认真','安心','委屈','害羞']),mood:pick(EMO_BY_CHAR[n.characterId]||EMO_BY_CHAR.whale),personaId:pid}};
+  else if(e==='consolidate')raw=R()<.5?{op:'absorb',ids:[n.id,pick(notes).id],at:t}:{op:'merge',keepId:n.id,dropId:pick(notes).id,patch:{strength:n.strength,hits:n.hits+2,importance:n.importance,createdAt:n.createdAt,lastAccessAt:t}};
+  else if(e==='decay')raw={op:'(derived)',report:'retention-snapshot',fading:ri(2,9),threshold:.2,at:t};
+  else raw={op:'import',mode:pick(['merge','replace']),notes:ri(3,40),skipped:ri(0,8),profiles:ri(0,4),persona:R()<.5};
+  const actor=e==='edit'||e==='import'?'管理员':(e==='mood'||e==='decay'?'系统':(p?p.name:'系统'));
+  ops.push({t:Math.round(t),etype:e,noteId:['recall','distill','edit','consolidate'].includes(e)?n.id:undefined,actor,raw});
+ }
+ ops.sort((a,b)=>b.t-a.t);
+ DB.ops=ops;
+}
+function opSummary(o){
+ const r=o.raw,n=o.noteId?DB.notes.find(x=>x.id===o.noteId):null;
+ const c=n?n.content.slice(0,20):'';
+ switch(o.etype){
+  case'recall':return`唤起「${c}」→ 注入召回（S→${r.strength} · hits ${r.hits}）`;
+  case'distill':return`蒸馏产出「${c}」· ${K[r.note?.kind]||''}`;
+  case'edit':{
+   if(r.op==='del-range')return`按时段删除 ${r.ids.length} 条（${fmtT(r.from)} ~ ${fmtT(r.to)}）`;
+   if(r.op==='del-persona')return`按人设删除 ${r.personaId}（${r.ids.length} 条）`;
+   if(r.op==='reset')return r.keepPersona?'记忆重置（人设保留）':'整库重置（导入覆盖）';
+   if(r.op==='del')return`删除记忆 #${shortId(r.id||o.noteId)}`;
+   if(r.op==='profile-merge')return`画像合并 ${shortId(r.keep)} ← ${shortId(r.drop)}`;
+   if(r.op==='profile')return`画像 ${shortId(r.key)} 更新`;
+   if(r.op==='consolidate')return`手动巩固：${r.sessions} 会话 → ${r.semanticNotes} 条语义`;
+   return`修改记忆 ${shortId(o.noteId)} · ${JSON.stringify(r.patch||{}).slice(0,50)}`;
+  }
+  case'mood':return`情绪 → ${r.state.mood||r.state.label}（v=${r.state.v} a=${r.state.a}）· ${sessById[r.sessionId]?.label||shortId(r.sessionId)}`;
+  case'consolidate':{
+   if(r.op==='consolidate')return`手动巩固：${r.sessions} 会话 → ${r.semanticNotes} 条语义`;
+   return r.op==='absorb'?`巩固吸收 ${r.ids.length} 条情景源`:`近重复合并：保留 ${shortId(r.keepId)} 吸收 ${shortId(r.dropId)}`;
+  }
+  case'decay':return`衰减评估快照：${r.fading} 条低于阈值 ${r.threshold}`;
+  case'import':return`导入备份（${r.mode==='replace'?'覆盖':'合并'}）：+${r.notes} 记忆 · 跳过 ${r.skipped} · 画像 ${r.profiles}`;
+ }return'';
+}
+/* ── 初始化 ── */
+genPersonas();genNotes();genProfiles();genOps();
+/* ── 主题 ── */
+function applyTheme(p){if(!p)return;const r=document.documentElement.style;for(const k of['a','a2','soft','deep'])r.setProperty('--'+k,p.pal[k]);}
+function activePersona(){return DB.personas.find(p=>p.id===DB.activeId)||DB.personas[0]}
+/* ── 记忆派生 ── */
+const noteById=id=>DB.notes.find(n=>n.id===id);
+const isSelfTrack=n=>n.kind==='attitude'||n.self===true;
+const noteChar=n=>n?n.characterId:(activePersona()?.characterId);
+const charName=c=>DB.personas.find(p=>p.characterId===c)?.name||c;
+const charColor=c=>DB.personas.find(p=>p.characterId===c)?.pal?.a||'var(--a)';
+const scopeOf=n=>n.scope;
+function isReleaseCand(n){const s=scopeOf(n);return !!s&&s!=='public'&&s!==n.sessionId&&DOMAIN_NAMES.includes(s)&&!PRIVATE_HINT_RE.test(n.content)}
+function retention(n){return Math.exp(-Math.max(0,(NOW-n.lastAccessAt)/DAY)/Math.max(n.strength,0.5))}
+/* ════════════════ 路由 / 外壳 ════════════════ */
+const PAGES=[['overview','01','概览'],['memories','02','记忆库'],['personas','03','人设'],['profiles','04','画像'],['ops','05','事件流水'],['graph','06','关联图'],['backup','07','备份迁移']];
+const PAGE_FN={overview:rOverview,memories:rMemories,personas:rPersonas,profiles:rProfiles,ops:rOps,graph:rGraph,backup:rBackup};
+let CUR='overview',PENDING_NOTE=null,PENDING_DRAWER=null;
+const qs=new URLSearchParams(location.search);
+if(qs.get('notes')==='1'){document.body.classList.add('notes-on');localStorage.setItem('da-notes','1')}
+if(localStorage.getItem('da-notes')==='1')document.body.classList.add('notes-on');
+if(qs.get('note'))PENDING_NOTE=qs.get('note');
+const dr=qs.get('drawer');
+if(dr==='new')PENDING_DRAWER='new';
+else if(dr&&dr.startsWith('edit:'))PENDING_DRAWER=dr.slice(5);
+function route(){
+ const h=(location.hash||'').slice(1).split('?')[0];
+ CUR=PAGES.some(p=>p[0]===h)?h:'overview';
+ if(PENDING_NOTE&&CUR==='memories'){F.q='';F.kind='';F.track='';F.char='';F.sess='';F.scope='';F.status='';F.page=1;F.sel.clear()}
+ renderNav();render();
+ if(CUR==='memories'&&PENDING_NOTE){const id=PENDING_NOTE;PENDING_NOTE=null;setTimeout(()=>flashNote(id),80)}
+ if(CUR==='memories'&&PENDING_DRAWER!=null){const d=PENDING_DRAWER;PENDING_DRAWER=null;setTimeout(()=>{d==='new'?openNoteDrawer():openNoteDrawer(d)},80)}
+}
+function go(page,opts={}){
+ if(CUR==='personas'&&personaDirty()&&!confirm('人设编辑器有未保存修改，确定离开？'))return;
+ if(page===CUR){render();return}
+ location.hash='#'+page;
+}
+function renderNav(){
+ $('#nlinks').innerHTML=PAGES.map(([id,no,cn])=>`<a href="#${id}" class="${CUR===id?'on':''}" data-nav="${id}"><i>${no}</i>${cn}</a>`).join('');
+ $$('#nlinks a').forEach(a=>a.addEventListener('click',ev=>{ev.preventDefault();go(a.dataset.nav)}));
+ const p=activePersona();
+ $('#npsw').style.background=p.pal.a;$('#npname').textContent=p.name;$('#npid').textContent=`${p.id} · ${p.characterId} · ${p.version}`;
+ $('#npsel').innerHTML=DB.personas.map(x=>`<option value="${x.id}" ${x.id===DB.activeId?'selected':''}>${x.name}（${x.characterId}）</option>`).join('');
+ applyTheme(p);
+}
+/* ── 通用组件 ── */
+const DN=h=>{
+ const text=h.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
+ const need=(h.match(/需后端新增/g)||[]).length;
+ let summ=text.slice(0,46).replace(/&[a-z#0-9]*$/i,'');
+ if(text.length>46)summ+='…';
+ return `<div class="devnote"><div class="dn-sum" title="点击展开 / 收起" onclick="this.parentNode.classList.toggle('open')"><span class="dn-tgl">▶</span>${summ}${need?`<span class="dn-need">需后端新增${need>1?' ×'+need:''}</span>`:''}</div><div class="dn-body">${h}</div></div>`;
+};
+function toast(msg,type=''){const t=document.createElement('div');t.className='toast '+type;t.innerHTML=msg;$('#toasts').appendChild(t);setTimeout(()=>{t.style.opacity='0';t.style.transition='opacity .3s';setTimeout(()=>t.remove(),320)},2600)}
+function pager(total,page,size,go2){
+ const pages=Math.max(1,Math.ceil(total/size)),cur=Math.min(Math.max(1,page),pages);
+ const from=total?((cur-1)*size+1):0,to=Math.min(total,cur*size);
+ const nums=[];const win=new Set([1,pages,cur-1,cur,cur+1]);
+ for(let i=1;i<=pages;i++)if(win.has(i)&&i>=1&&i<=pages)nums.push(i);
+ nums.sort((a,b)=>a-b);
+ let html=`<button ${cur<=1?'disabled':''} data-pg="1">首页</button><button ${cur<=1?'disabled':''} data-pg="${cur-1}">上一页</button>`;
+ let prev=0;
+ for(const n of nums){if(n-prev>1)html+=`<button disabled>…</button>`;html+=`<button class="${n===cur?'on':''}" data-pg="${n}">${n}</button>`;prev=n}
+ html+=`<button ${cur>=pages?'disabled':''} data-pg="${cur+1}">下一页</button><button ${cur>=pages?'disabled':''} data-pg="${pages}">末页</button>`;
+ return `<div class="pagerbar">${html}<span class="cnt">第 ${from}–${to} 条，共 ${total} 条</span></div>`;
+}
+function bindPager(el,fn){el.querySelectorAll('[data-pg]').forEach(b=>b.onclick=()=>{const p=+b.dataset.pg;if(!b.disabled)fn(p)})}
+function askConfirm({title='确认操作',body='',okText='确认',danger=false,input=null}){
+ return new Promise(res=>{
+  const root=$('#modalroot');
+  root.innerHTML=`<div class="mbox"><div class="mcard"><h3>${esc(title)}</h3><div class="mb">${body}</div>${input?`<input type="text" id="minput" placeholder="${esc(input.ph||'')}" autocomplete="off">`:''}<div class="mf"><button class="btn ghost" id="mc">取消</button><button class="btn ${danger?'danger':'pri'}" id="mok">${esc(okText)}</button></div></div></div>`;
+  $('#mc').onclick=()=>{root.innerHTML='';res(null)};
+  $('#mok').onclick=()=>{const v=input?($('#minput').value||'').trim():true;if(input&&v!==input.word){$('#minput').style.outline='2px solid var(--danger)';return}root.innerHTML='';res(v)};
+  if(input){const inp=$('#minput');inp.focus();inp.onkeydown=e=>{if(e.key==='Enter')$('#mok').click()};inp.oninput=()=>{if(inp.value.trim()===input.word)inp.style.outline=''};}
+  root.querySelector('.mbox').addEventListener('mousedown',e=>{if(e.target.classList.contains('mbox')){root.innerHTML='';res(null)}});
+ });
+}
+/* ── 渲染分发 ── */
+function render(){
+ $('#viewinner').innerHTML=PAGE_FN[CUR]();
+ afterRender();
+}
+function afterRender(){
+ if(CUR==='memories')renderMemBody();
+ else if(CUR==='graph'){drawArc();gside()}
+ else if(CUR==='personas'){const ta=$('#ptext');if(ta)syncLines(ta)}
+ const pgs={profiles:p=>{P.profiles.page=p;render()},ops:p=>{OPS_F.page=p;OPS_F.open=null;render()}};
+ const pf=pgs[CUR];if(pf)$$('.pagerbar').forEach(pb=>bindPager(pb,pf));
+ const oc=$('#ovConsol');if(oc)oc.onclick=()=>{DB.ops.unshift({t:Date.now(),etype:'consolidate',actor:'管理员',raw:{op:'consolidate',sessions:2,semanticNotes:3}});toast('已触发巩固（POST /api/consolidate · 异步执行）');render()};
+}
+/* ── 自动刷新模拟 ── */
+let lastRefresh=Date.now(),editing=false;
+function isEditing(){
+ const ae=document.activeElement;
+ if(ae&&ae.closest('#view input,#view textarea,#view select,#drawer input,#drawer textarea,#drawer select'))return true;
+ return $('#drawer').classList.contains('on')||!!document.querySelector('#modalroot .mbox')||personaDirty()||!!P.profiles?.editing||!!P.profiles?.merge;
+}
+function updateRstat(){
+ const el=$('#rstat');const ed=isEditing();
+ el.classList.toggle('edit',ed);
+ el.innerHTML=ed?'编辑中 · 自动刷新已暂停':`自动刷新 15s · 上次 <b>${fmtT(lastRefresh)}</b>`;
+}
+setInterval(()=>{
+ updateRstat();
+ if(document.isHidden||isEditing())return;
+ lastRefresh=Date.now();
+ // 15% 概率来一条新流水，演示实时性
+ if(R()<.15&&DB.ops.length<400){const n=pick(DB.notes);DB.ops.unshift({t:Date.now(),etype:'recall',noteId:n.id,actor:n.characterId==='whale'?'大肥鱼':n.characterId==='ye'?'叶瞬光':'流萤',raw:{op:'reinforce',id:n.id,strength:n.strength,hits:n.hits+1,lastAccessAt:Date.now()}})}
+ render();
+},15000);
+document.addEventListener('focusin',updateRstat);
+document.addEventListener('focusout',()=>setTimeout(updateRstat,0));
+/* ════════════════ 01 概览 ════════════════ */
+function rOverview(){
+ const notes=DB.notes,total=notes.length;
+ const avg=notes.length?(notes.reduce((s,n)=>s+n.retention,0)/notes.length):0;
+ const selfN=notes.filter(n=>n.track==='self').length,worldN=total-selfN;
+ const fading=notes.filter(n=>n.fading).length;
+ const byKind={episodic:0,semantic:0,attitude:0},byTrack={self:0,world:0};
+ notes.forEach(n=>{byKind[n.kind]++;byTrack[n.track]++});
+ const recentOps=DB.ops.slice(0,5);
+ const recentHits=[...notes].sort((a,b)=>b.lastAccessAt-a.lastAccessAt).slice(0,5);
+ const maxK=Math.max(...Object.values(byKind),1);
+ const distRow=(lb,val,max,cls='')=>`<div class="dr"><span class="lb">${lb}</span><span class="b"><i class="${cls}" style="width:${Math.max(1.5,val/max*100)}%"></i></span><em>${val}</em></div>`;
+ return `<div class="phead"><span class="no">01</span><h1>概览</h1><div class="sub">数据源 GET /api/state<br>脑图总览与健康度</div></div>
+ <section class="mod"><div class="mh"><span class="no">OV-01</span>总览数字<em>15s 轮询 · 编辑态跳过</em></div>
+  <div class="nums">${[[total,'','条记忆'],[Math.round(avg*100),'%','平均保持率'],[`${selfN}<small>/${worldN}</small>`,'','自我轨 / 世界轨'],[fading,'','条将遗忘']].map(([a,b,c])=>`<div><b>${a}<small>${b}</small></b><span>${c}</span></div>`).join('')}</div>
+  ${DN(`<b>GET /api/state</b>（可加 <code>?session=</code>）→ <code class="api">{persona, emotion, digest, notes[], stats{total,avgRetention,fading,sessions,nearDup}, edges[], config{forgetThreshold,topK}}</code>。note 字段：<code>id content importance kind actor sessionId createdAt strength lastAccessAt ageDays retention hits fading emotion{v,a,d,label,mood} personaId self absorbed private scope</code>。保持率前端可由 <code>R=e^(-t/S)</code>（t=距 lastAccessAt 天数，S=strength）复算。`)}
+ </section>
+ <div class="cols2">
+  <section class="mod"><div class="mh"><span class="no">OV-02</span>分布<em>按类型 / 轨道</em></div>
+   <div class="dist">${['episodic','semantic','attitude'].map(k=>distRow(K[k],byKind[k],maxK)).join('')}</div>
+   <div class="dist" style="margin-top:22px">${distRow('自我轨 · '+charName(activePersona().characterId),byTrack.self,total,'self')}${distRow('世界轨 · 共享',byTrack.world,total)}</div>
+   ${DN(`轨道推导：<code>self = kind==='attitude' || self===true</code>；自我轨再按 <code>personaId→characterId</code> 归角色（characterOf 口径：条目 characterId 优先，whale 系回落 'whale'）。`)}
+  </section>
+  <section class="mod"><div class="mh"><span class="no">OV-03</span>最近被唤起<em>按 lastAccessAt</em></div>
+   <ul class="rlist">${recentHits.map(n=>`<li onclick="go('memories');PENDING_NOTE='${n.id}';location.hash='#memories'"><span class="t">${esc(n.content)}</span><small>${fmtT(n.lastAccessAt)}</small></li>`).join('')}</ul>
+   ${DN(`唤起=检索命中后 <code>POST /code 内部 reinforce</code>：strength+=reinforceStep、hits+1、lastAccessAt=now。手动强化按钮走 <code class="api">POST /api/notes/:id/reinforce</code>。`)}
+  </section>
+ </div>
+ <section class="mod"><div class="mh"><span class="no">OV-04</span>最近流水<em>最新 5 条 · 点击去流水页</em></div>
+  <ul class="rlist">${recentOps.map(o=>`<li onclick="go('ops')"><span class="t"><span class="et ${o.etype}">${ET_CN[o.etype]}</span> ${esc(opSummary(o).slice(0,60))}</span><small>${fmtT(o.t)}</small></li>`).join('')}</ul>
+  <div style="margin-top:14px;display:flex;gap:10px">
+   <button class="btn sm" onclick="go('ops')">查看全部流水 →</button>
+   <button class="btn sm ghost" id="ovConsol">立即巩固</button>
+   ${DN(`<b>POST /api/consolidate</b>（<code>?session=</code> 可选，缺省=全部待巩固会话）→ <code class="api">{ok,sessions,semanticNotes}</code>，异步执行。巩固产出 absorb+merge op。`)}
+  </div>
+ </section>
+ <div class="pfoot"><span>CONCEPT D-ADMIN · 管理端规格稿 — 示例数据为虚构 mock</span><span>通用约定：15s 轮询 /api/state；编辑态跳过刷新；写回 content 不截断（服务端 slice 200）；删除必确认；失败 toast 不阻塞</span></div>`;
+}
+const ET_CN={recall:'召回',distill:'蒸馏',mood:'情绪',consolidate:'巩固',decay:'衰减',import:'导入',edit:'编辑'};
+/* ════════════════ 02 记忆库 ════════════════ */
+const F={q:'',kind:'',track:'',char:'',sess:'',scope:'',status:'',sortKey:'ret',sortDir:-1,size:20,page:1,sel:new Set()};
+function memFiltered(){
+ const q=F.q.trim().toLowerCase();
+ let arr=DB.notes.filter(n=>{
+  if(q&&!n.content.toLowerCase().includes(q))return false;
+  if(F.kind&&n.kind!==F.kind)return false;
+  if(F.track&&(F.track==='self')!==isSelfTrack(n))return false;
+  if(F.char&&noteChar(n)!==F.char)return false;
+  if(F.sess&&n.sessionId!==F.sess)return false;
+  const sc=scopeOf(n);
+  if(F.scope==='priv'&&!(sc&&sc!=='public'))return false;
+  if(F.scope==='pub'&&sc&&sc!=='public')return false;
+  if(F.scope==='release'&&!isReleaseCand(n))return false;
+  if(F.status==='fading'&&!n.fading)return false;
+  if(F.status==='fresh'&&n.fading)return false;
+  return true;
+ });
+ const val=n=>F.sortKey==='ret'?n.retention:F.sortKey==='age'?n.ageDays:F.sortKey==='imp'?n.importance:n.hits;
+ arr.sort((a,b)=>(val(a)-val(b))*F.sortDir||b.retention-a.retention||b.createdAt-a.createdAt);
+ return arr;
+}
+function memPageRows(arr){const s=(F.page-1)*F.size;return arr.slice(s,s+F.size)}
+function memSelToggle(id,on){on?F.sel.add(id):F.sel.delete(id);syncBatch()}
+function memFilteredIds(){return memFiltered().map(n=>n.id)}
+function syncBatch(){
+ const bar=$('#batchbar');if(!bar)return;
+ const n=F.sel.size;
+ bar.classList.toggle('on',n>0);
+ if(n===0)return;
+ bar.innerHTML=`<b>已选 ${n} 条</b><select id="bbKind"><option value="">批量改类型…</option><option value="episodic">情景</option><option value="semantic">语义</option><option value="attitude">态度</option></select><button class="btn sm" id="bbGo" style="background:var(--a2);border-color:var(--a2);color:#fff">应用</button><button class="btn sm danger" id="bbDel">批量删除</button><span class="sp"></span><button class="btn sm ghost" id="bbClear">取消选择</button>`;
+ $('#bbGo').onclick=async()=>{const k=$('#bbKind').value;if(!k)return;F.sel.forEach(id=>{const n=noteById(id);if(n){n.kind=k;if(k==='attitude')n.self=undefined;n.track=isSelfTrack(n)?'self':'world'}});toast(`已将 ${F.sel.size} 条改为「${K[k]}」（逐条 PATCH /api/notes/:id）`,'ok');F.sel.clear();renderMemBody();render()};
+ $('#bbDel').onclick=async()=>{const c=F.sel.size;if(!await askConfirm({title:'批量删除',body:`将删除 ${c} 条记忆，写入 del op，不可恢复。`,okText:'全部删除',danger:true}))return;F.sel.forEach(id=>{const i=DB.notes.findIndex(n=>n.id===id);if(i>=0)DB.notes.splice(i,1)});toast(`已删除 ${c} 条记忆`,'ok');F.sel.clear();renderMemBody();render()};
+ $('#bbClear').onclick=()=>{F.sel.clear();renderMemBody();syncBatch()};
+}
+function memRows(arr){
+ const rows=memPageRows(arr);
+ if(!rows.length)return'<tr><td colspan="9" class="empty">无匹配记忆 —— 调整搜索或筛选条件，或点「新增记忆」。</td></tr>';
+ return rows.map(n=>{
+  const self=isSelfTrack(n),sc=scopeOf(n),fading=n.fading;
+  return `<tr class="data ${fading?'fading':''} ${F.sel.has(n.id)?'sel':''}" data-nid="${n.id}">
+   <td style="width:30px"><input type="checkbox" ${F.sel.has(n.id)?'checked':''} onclick="event.stopPropagation();memSelToggle('${n.id}',this.checked)"></td>
+   <td style="max-width:340px"><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(n.content)}">${esc(n.content)}</div><div style="font:10px var(--mono);color:var(--ink3);margin-top:2px">#${n.id} · ${esc(sessById[n.sessionId]?.label||n.sessionId)}${n.actor?' · '+esc(n.actor):''}</div>${fading?'<span class="tag fad">将遗忘</span>':''}${sc&&sc!=='public'?`<span class="tag priv">${sc===n.sessionId?'仅本会话':'私域·'+esc(sc)}${n.private==='public'?'（放行）':''}</span>`:''}${isReleaseCand(n)?'<span class="tag rel">待放行</span>':''}</td>
+   <td style="white-space:nowrap"><span class="sq" style="background:${self?charColor(noteChar(n)):'#0f0f0f'}"></span>${self?'自我·'+esc(charName(noteChar(n))):'世界'}</td>
+   <td>${K[n.kind]}</td>
+   <td style="white-space:nowrap"><span class="rbar"><i style="width:${Math.max(2,n.retention*100)}%"></i></span><span class="ret">${Math.round(n.retention*100)}%</span></td>
+   <td class="num">${n.importance}</td>
+   <td class="num">${n.hits}</td>
+   <td class="num">${n.ageDays}天</td>
+   <td style="white-space:nowrap">${F.scope==='release'&&isReleaseCand(n)?`<button class="act rel" onclick="event.stopPropagation();noteRelease('${n.id}')">放行</button>`:''}<button class="act" onclick="event.stopPropagation();openNoteDrawer('${n.id}')">编辑</button><button class="act re" onclick="event.stopPropagation();noteReinf('${n.id}')">强化</button><button class="act del" onclick="event.stopPropagation();noteDel('${n.id}')">删除</button></td>
+  </tr>`}).join('');
+}
+function renderMemBody(){
+ const body=$('#memBody');if(!body)return;
+ const arr=memFiltered(),total=arr.length;
+ body.innerHTML=memRows(arr);
+ const mc=$('#memCount');if(mc)mc.textContent=`${total} / ${DB.notes.length} 条`;
+ const pg=$('#memPager');if(pg){pg.innerHTML=pager(total,F.page,F.size,p=>{F.page=p;renderMemBody()});bindPager(pg,p=>{F.page=p;renderMemBody()})}
+ $$('#memBody tr.data').forEach(tr=>tr.addEventListener('click',e=>{if(e.target.closest('button,input,select,textarea,a'))return;openNoteDrawer(tr.dataset.nid)}));
+ syncSortUI();
+ syncBatch();
+}
+function syncSortUI(){
+ const b=$('#m-sortdir');if(b)b.textContent=(F.sortDir===-1?'↓ 降序':'↑ 升序');
+ $$('th[data-sk]').forEach(th=>{const on=th.dataset.sk===F.sortKey;th.classList.toggle('on',on);const s=th.querySelector('.sh');if(s)s.textContent=on?(F.sortDir===-1?'↓':'↑'):'⇅'});
+}
+function memSet(k,v){F[k]=v;if(k!=='size')F.page=1;else F.page=1;renderMemBody();const s=$('#m-'+k);if(s)s.value=v;}
+function memSortSel(v){F.sortKey=v;F.sortDir=-1;F.page=1;renderMemBody()}
+function memSortKey(k){if(F.sortKey===k)F.sortDir*=-1;else{F.sortKey=k;F.sortDir=-1}F.page=1;renderMemBody()}
+function memSortFlip(){F.sortDir*=-1;F.page=1;renderMemBody()}
+function rMemories(){
+ const chars=[...new Set(DB.notes.map(noteChar))];
+ const opts=(arr,cur,first)=>`<option value="">${first}</option>`+arr.map(x=>`<option value="${x.v}" ${String(x.v)===String(cur)?'selected':''}>${x.t}</option>`).join('');
+ return `<div class="phead"><span class="no">02</span><h1>记忆库</h1><div class="sub">Memory Library<br>全部记忆的检索 / 编辑 / 批量管理</div></div>
+ <div style="display:flex;justify-content:flex-end;margin-bottom:4px"><button class="btn pri" onclick="openNoteDrawer()">＋ 新增记忆</button></div>
+ <div class="toolbar">
+  <div class="fld"><label>搜索</label><input class="q" id="mq" type="search" placeholder="内容关键词…" value="${esc(F.q)}" oninput="F.q=this.value;F.page=1;renderMemBody()"></div>
+  <div class="fld"><label>类型</label><select id="m-kind" onchange="memSet('kind',this.value)">${opts([{v:'',t:'全部类型'},{v:'episodic',t:'情景'},{v:'semantic',t:'语义'},{v:'attitude',t:'态度'}],F.kind,'全部类型')}</select></div>
+  <div class="fld"><label>轨道</label><select id="m-track" onchange="memSet('track',this.value)">${opts([{v:'',t:'全部轨道'},{v:'world',t:'世界轨 · 共享'},{v:'self',t:'自我轨 · 仅同角色'}],F.track,'全部轨道')}</select></div>
+  <div class="fld"><label>角色</label><select id="m-char" onchange="memSet('char',this.value)">${opts([{v:'',t:'全部角色'},...chars.map(c=>({v:c,t:charName(c)}))],F.char,'全部角色')}</select></div>
+  <div class="fld"><label>会话</label><select id="m-sess" onchange="memSet('sess',this.value)">${opts([{v:'',t:'全部会话'},...DB.sessions.map(s=>({v:s.id,t:s.label}))],F.sess,'全部会话')}</select></div>
+  <div class="fld"><label>可见域</label><select id="m-scope" onchange="memSet('scope',this.value)">${opts([{v:'',t:'全部可见域'},{v:'priv',t:'仅私域'},{v:'pub',t:'仅公开'},{v:'release',t:'域内待放行'}],F.scope,'全部可见域')}</select></div>
+  <div class="fld"><label>状态</label><select id="m-status" onchange="memSet('status',this.value)">${opts([{v:'',t:'全部状态'},{v:'fading',t:'将遗忘'},{v:'fresh',t:'鲜活'}],F.status,'全部状态')}</select></div>
+  <div class="fld"><label>排序</label><div style="display:flex;gap:6px"><select id="m-sort" onchange="memSortSel(this.value)">${opts([{v:'ret',t:'保持率'},{v:'age',t:'年龄'},{v:'imp',t:'重要度'},{v:'hits',t:'唤起次数'}],F.sortKey,'保持率')}</select><button class="btn sm" id="m-sortdir" onclick="memSortFlip()" title="切换升序 / 降序">↓ 降序</button></div></div>
+  <div class="fld"><label>每页</label><select id="m-size" onchange="memSet('size',+this.value)">${opts([{v:20,t:'20 条'},{v:50,t:'50 条'},{v:100,t:'100 条'}],F.size,'20 条')}</select></div>
+ </div>
+ ${DN(`<b>数据源</b>：<code class="api">GET /api/state</code> 一次返回全部 notes，本页筛选/排序/分页均为<b>前端本地计算</b>。<b>需后端新增</b>：<code class="api">GET /api/notes?page=&size=&q=&kind=&track=&scope=&status=&sort=</code> 服务端分页（数据量上来后 /api/state 全量已不可行）。语义检索走 <code class="api">GET /api/query?q=&session=</code> → <code>{hits:[{id,content,importance,retention,hits}]}</code>，<code>depth=1</code> 附 rel/score/relSrc。`)}
+ ${DN(`<b>字段口径</b>：类型 <code>kind∈episodic/semantic/attitude</code>；轨道 <code>self = kind==='attitude'||self===true</code>（self 三态 true/false/null=派生）；角色 = <code>personaId→characterId</code>；可见域 <code>scope = private ?? sessionDomains[sessionId]</code>（'public'=强制公开放行）；状态 <code>fading = retention &lt; config.forgetThreshold(0.2)</code>；「域内待放行」= <code class="api">GET /api/release-candidates?limit=</code> 同口径（域名作用域 ∧ 无私密线索词 ∧ 非 attitude），放行 = <code class="api">PATCH /api/notes/:id {private:'public'}</code>。`)}
+ <table style="margin-top:6px"><thead><tr><th style="width:30px"><input type="checkbox" ${memPageRows(memFiltered()).length&&memPageRows(memFiltered()).every(n=>F.sel.has(n.id))?'checked':''} onclick="memTogglePage(this.checked)"></th><th>内容</th><th>轨道</th><th>类型</th><th data-sk="ret" onclick="memSortKey('ret')" title="点击排序">保持率 <span class="sh">⇅</span></th><th class="num" data-sk="imp" onclick="memSortKey('imp')" title="点击排序">重要 <span class="sh">⇅</span></th><th class="num" data-sk="hits" onclick="memSortKey('hits')" title="点击排序">唤起 <span class="sh">⇅</span></th><th class="num" data-sk="age" onclick="memSortKey('age')" title="点击排序">年龄 <span class="sh">⇅</span></th><th>操作</th></tr></thead><tbody id="memBody"></tbody></table>
+ <div id="memCount" style="font:11px var(--mono);color:var(--ink3);margin-top:10px"></div>
+ <div id="memPager"></div>
+ ${DN(`<b>行操作</b>：编辑 <code class="api">PATCH /api/notes/:id {content?,importance?,kind?,private?,self?}</code>（self:null 清除回启发式派生；content 服务端截 200）；强化 <code class="api">POST /api/notes/:id/reinforce</code>；删除 <code class="api">DELETE /api/notes/:id</code>（必须 confirm）。新增 <code class="api">POST /api/notes {content*,importance?,kind?,sessionId?,actor?,private?,self?}</code>，归属会话缺省 GLOBAL_SESSION_ID='manual'。<b>注意</b>：personaId 由写入时活动人设决定，PATCH/POST 均不支持改挂角色——抽屉里的「所属角色」为期望交互，<b>需后端新增</b> personaId/characterId 覆盖字段。`)}
+ ${DN(`<b>批量条</b>：勾选后底部出现。<b>需后端新增</b>批量接口（如 <code class="api">POST /api/notes/batch {ids[],patch|delete:true}</code>）；现有替代是逐条 PATCH/DELETE，或 <code class="api">POST /api/notes/purge {from,to}|{personaId}</code> 按时段/人设删。`)}
+ <div class="pfoot"><span>记忆库 · CONCEPT D-ADMIN</span><span>content 写回不截断展示 · 删除必确认 · 失败 toast 不阻塞</span></div>`;
+}
+function memTogglePage(on){memPageRows(memFiltered()).forEach(n=>on?F.sel.add(n.id):F.sel.delete(n.id));renderMemBody();syncBatch()}
+/* ── 记忆抽屉 ── */
+const privToSel=(priv,sess)=>priv==null?'':priv==='public'?'public':priv===sess?'__sess__':priv;
+let DRAFT=null;
+function openNoteDrawer(id){
+ const src=id?noteById(id):null;
+ DRAFT=src?{...src,scopeSel:privToSel(src.private,src.sessionId)}:{content:'',kind:'episodic',importance:3,sessionId:'manual',scopeSel:'',self:null,actor:'',characterId:activePersona().characterId,isNew:true};
+ if(!id)DRAFT.isNew=true;
+ renderDrawer();$('#drawer').classList.add('on');$('#scrim').classList.add('on');
+}
+function closeDrawer(){if(DRAFT&&DRAFT.content&&DRAFT.isNew&&DRAFT.content.trim()&&!confirm('放弃未保存的内容？'))return;$('#drawer').classList.remove('on');$('#scrim').classList.remove('on');DRAFT=null}
+function renderDrawer(){
+ const d=DRAFT,n=d.id?noteById(d.id):null,editing=!!d.id;
+ $('#dtitle').textContent=editing?'编辑记忆':'新增记忆';
+ const chars=DB.personas.map(p=>({v:p.characterId,t:p.name+'（'+p.characterId+'）'}));
+ const selfTrack=d.kind==='attitude'||d.self===true;
+ $('#dbody').innerHTML=`
+  <div class="fld"><label>内容 content *（≤200 字，服务端截断）</label>
+   <textarea id="d-content" rows="4" maxlength="200" placeholder="一句话事实/事件…">${esc(d.content||'')}</textarea>
+   <div class="counter" id="d-count">${(d.content||'').length}/200</div></div>
+  <div class="frow">
+   <div class="fld"><label>类型 kind</label><select id="d-kind">${['episodic','semantic','attitude'].map(k=>`<option value="${k}" ${d.kind===k?'selected':''}>${K[k]}（${k}）</option>`).join('')}</select></div>
+   <div class="fld"><label>重要度 importance 1-5</label><select id="d-imp">${[1,2,3,4,5].map(i=>`<option ${d.importance===i?'selected':''}>${i}</option>`).join('')}</select></div>
+  </div>
+  <div class="frow">
+   <div class="fld"><label>归属会话 sessionId</label><select id="d-sess">${DB.sessions.map(s=>`<option value="${s.id}" ${d.sessionId===s.id?'selected':''}>${esc(s.label)}</option>`).join('')}</select><div class="hint">缺省 GLOBAL_SESSION_ID='manual'（全局）</div></div>
+   <div class="fld"><label>可见域 private / scope</label><select id="d-scope"><option value="" ${!d.scopeSel?'selected':''}>派生（按会话域）</option><option value="public" ${d.scopeSel==='public'?'selected':''}>公开 · 强制放行</option>${DOMAIN_NAMES.map(dm=>`<option value="${dm}" ${d.scopeSel===dm?'selected':''}>私域 · ${dm}</option>`).join('')}<option value="__sess__" ${d.scopeSel==='__sess__'?'selected':''}>仅本会话（原地私密）</option></select><div class="hint">scope = private ?? 会话域；'' 清除回派生</div></div>
+  </div>
+  <div class="frow">
+   <div class="fld"><label>轨道 self（三态）</label><select id="d-self" ${d.kind==='attitude'?'disabled':''}><option value="" ${d.self==null?'selected':''}>派生（启发式判定）</option><option value="true" ${d.self===true?'selected':''}>自我轨 self=true</option><option value="false" ${d.self===false?'selected':''}>世界轨 self=false</option></select>${d.kind==='attitude'?'<div class="hint">attitude 恒走自我轨，不写 self</div>':''}</div>
+   <div class="fld"><label>所属角色 characterId</label><select id="d-char" ${selfTrack?'':'disabled'}>${chars.map(c=>`<option value="${c.v}" ${d.characterId===c.v?'selected':''}>${c.t}</option>`).join('')}</select><div class="hint">自我轨按角色隔离；世界轨此项不生效</div></div>
+  </div>
+  <div class="fld"><label>发言人 actor（可选）</label><input id="d-actor" value="${esc(d.actor||'')}" placeholder="群聊中的用户标识"></div>
+  ${DN(`<b>写入</b>：新增 <code class="api">POST /api/notes {content*,importance?,kind?,sessionId?,actor?,private?,self?}</code>；编辑 <code class="api">PATCH /api/notes/:id</code> 同字段可选。<b>字段口径</b>：self=null→清除回启发式（resolveSelfFlag）；private=''→清除回派生域；scope 生效值 = <code>private ?? sessionDomains[sessionId]</code>。<b>需后端新增</b>：characterId/personaId 手动指定（现恒为写入时活动人设）。`)}
+ `;
+ $('#d-content').oninput=e=>{DRAFT.content=e.target.value;const c=$('#d-count');c.textContent=`${e.target.value.length}/200`;c.classList.toggle('over',e.target.value.length>200)};
+ $('#d-kind').onchange=e=>{DRAFT.kind=e.target.value;DRAFT.self=e.target.value==='attitude'?undefined:DRAFT.self;renderDrawer()};
+ $('#d-imp').onchange=e=>DRAFT.importance=+e.target.value;
+ $('#d-sess').onchange=e=>DRAFT.sessionId=e.target.value;
+ $('#d-scope').onchange=e=>DRAFT.scopeSel=e.target.value;
+ $('#d-self').onchange=e=>{const v=e.target.value;DRAFT.self=v===''?undefined:v==='true';DRAFT.characterId=DRAFT.self?DRAFT.characterId||activePersona().characterId:DRAFT.characterId;renderDrawer()};
+ $('#d-char').onchange=e=>DRAFT.characterId=e.target.value;
+ $('#d-actor').onchange=e=>DRAFT.actor=e.target.value;
+ $('#dfoot').innerHTML=`<button class="btn ghost" onclick="closeDrawer()">取消</button><span class="sp"></span>${editing?`<button class="btn danger" onclick="drawerDelete()">删除</button>`:''}<button class="btn pri" onclick="saveNote()">${editing?'保存修改':'写入记忆'}</button>`;
+ $('#dx').onclick=closeDrawer;
+ $('#scrim').onclick=closeDrawer;
+}
+async function saveNote(){
+ const d=DRAFT,c=(d.content||'').trim();
+ if(!c){toast('content 不能为空','err');$('#d-content').focus();return}
+ const imp=Math.min(5,Math.max(1,Math.round(d.importance||3)));
+ const kind=['episodic','semantic','attitude'].includes(d.kind)?d.kind:'episodic';
+ const self=kind==='attitude'?undefined:(d.self===true?true:d.self===false?false:undefined);
+ const sess=d.sessionId||'manual';
+ const priv=d.scopeSel===''||d.scopeSel===undefined?undefined:(d.scopeSel==='__sess__'?sess:d.scopeSel);
+ if(d.id){
+  const n=noteById(d.id);if(!n)return;
+  n.content=c.slice(0,200);n.importance=imp;n.kind=kind;n.sessionId=sess;n.actor=d.actor||undefined;
+  n.self=self;n.private=priv;n.scope=priv??(sessById[sess]?.domain||undefined);
+  n.track=isSelfTrack(n)?'self':'world';n.characterId=DB.personas.find(p=>p.id===n.personaId)?.characterId||n.characterId;
+  if(self===true||kind==='attitude')n.characterId=d.characterId||n.characterId;
+  toast('已保存（PATCH /api/notes/'+d.id+'）','ok');
+ }else{
+  const pid=(self||kind==='attitude')?(DB.personas.find(p=>p.characterId===d.characterId)?.id||DB.activeId):DB.activeId;
+  const p=DB.personas.find(x=>x.id===pid);
+  const id='m'+String(DB.notes.length+1000+ri(0,999)).padStart(4,'0');
+  const strength=imp*(1+R());
+  const n={id,content:c.slice(0,200),kind,sessionId:sess,actor:d.actor||undefined,importance:imp,personaId:pid,
+   self,private:priv,createdAt:NOW,strength:+strength.toFixed(2),lastAccessAt:NOW,hits:0,retention:1,fading:false,ageDays:0,
+   emotion:{v:0,a:0,d:0,label:'平静',mood:pick(EMO_BY_CHAR[p.characterId]||EMO_BY_CHAR.whale),personaId:pid},
+   characterId:p.characterId,scope:priv??(sessById[sess]?.domain||undefined),track:'world'};
+  n.track=isSelfTrack(n)?'self':'world';
+  DB.notes.unshift(n);
+  DB.ops.unshift({t:Date.now(),etype:'distill',noteId:id,actor:'管理员',raw:{op:'add',note:{id,content:c.slice(0,42),kind,importance:imp,sessionId:sess}}});
+  toast('已写入（POST /api/notes）','ok');
+ }
+ DRAFT=null;$('#drawer').classList.remove('on');$('#scrim').classList.remove('on');
+ render();
+}
+async function drawerDelete(){const d=DRAFT;if(!d?.id)return;if(!await askConfirm({title:'删除记忆',body:`删除「${esc((d.content||'').slice(0,40))}…」？写入 del op，不可恢复。`,okText:'删除',danger:true}))return;noteDel(d.id);DRAFT=null;$('#drawer').classList.remove('on');$('#scrim').classList.remove('on')}
+async function noteDel(id){const n=noteById(id);if(!await askConfirm({title:'删除记忆',body:`删除「${esc((n?.content||'').slice(0,50))}${(n?.content||'').length>50?'…':''}」？<br>写入 del op，不可恢复，建议先备份。`,okText:'删除',danger:true}))return;const i=DB.notes.findIndex(x=>x.id===id);if(i>=0)DB.notes.splice(i,1);DB.links=DB.links.filter(l=>l.a!==id&&l.b!==id);DB.ops.unshift({t:Date.now(),etype:'edit',noteId:id,actor:'管理员',raw:{op:'del',id}});toast('已删除（DELETE /api/notes/'+id+'）','ok');render()}
+async function noteReinf(id){const n=noteById(id);if(!n)return;n.hits++;n.strength=Math.min(10,n.strength+1);n.lastAccessAt=NOW;toast(`已强化（S→${n.strength.toFixed(1)} · 唤起×${n.hits}）`,'ok');if(CUR==='memories')renderMemBody();render()}
+async function noteRelease(id){const n=noteById(id);if(!n)return;n.private='public';n.scope='public';toast('已放行至公开池（PATCH {private:\'public\'}）','ok');if(CUR==='memories')renderMemBody();render()}
+function flashNote(id){const tr=$(`#memBody tr[data-nid="${id}"]`);if(tr){tr.classList.add('flash');tr.scrollIntoView({block:'center'});setTimeout(()=>tr.classList.remove('flash'),1700)}}
+/* ════════════════ 03 人设 ════════════════ */
+const P={persona:{sel:null,draft:null,dirty:false},profiles:{page:1,size:12,editing:null,merge:null},ops:{etype:'',range:'7d',page:1,size:20,open:null},graph:{kind:'',track:'',sel:null}};
+const PS=P.persona;
+function personaDirty(){return !!PS.dirty}
+function pLoad(id){
+ const p=DB.personas.find(x=>x.id===id);
+ PS.sel=id;PS.draft=p?JSON.parse(JSON.stringify(p)):{isNew:true,id:'',name:'',characterId:'',version:'',pal:{a:'#3d7bff',a2:'#8ec5ff',soft:'#e7f0ff',deep:'#0d2a66'},traits:[],moods:[],text:''};
+ PS.dirty=false;render();
+}
+function pNew(){if(personaDirty()&&!confirm('未保存的编辑会丢失，确认新建？'))return;pLoad('__new__')}
+function pSelect(id){if(id===PS.sel)return;if(personaDirty()&&!confirm('未保存的编辑会丢失，确认切换？')){render();return}pLoad(id)}
+function pMark(){PS.dirty=true;const s=$('#pstat');if(s)s.innerHTML='<span class="pdirty">● 未保存修改</span>'}
+function pPal(k,v){PS.draft.pal[k]=v;pMark();applyTheme(PS.draft);const hx=document.querySelector(`.palrow [data-hx="${k}"]`);if(hx)hx.textContent=v}
+function pMoodAdd(){const inp=$('#moodIn');const w=inp.value.trim();if(!w)return;PS.draft.moods.push({name:w,color:'#'+Math.floor(R()*0xffffff).toString(16).padStart(6,'0')});inp.value='';pMark();renderPChips()}
+function pMoodDel(i){PS.draft.moods.splice(i,1);pMark();renderPChips()}
+function pMoodColor(i,v){PS.draft.moods[i].color=v;const dots=$$('#moodChips .chip i');if(dots[i])dots[i].style.background=v;pMark()}
+function renderPChips(){const w=$('#moodChips');if(!w)return;w.innerHTML=PS.draft.moods.map((m,i)=>`<span class="chip"><i style="background:${m.color}" title="点击改色" onclick="document.getElementById('mc${i}').click()"></i>${esc(m.name)}<input type="color" id="mc${i}" value="${m.color}" style="position:absolute;width:0;height:0;opacity:0" onchange="pMoodColor(${i},this.value)"><button onclick="pMoodDel(${i})">×</button></span>`).join('')}
+function pTraitAdd(){PS.draft.traits.push({name:'',v:.5});pMark();renderPTraits()}
+function pTraitDel(i){PS.draft.traits.splice(i,1);pMark();renderPTraits()}
+function pTraitName(i,v){PS.draft.traits[i].name=v;pMark()}
+function pTraitVal(i,v){PS.draft.traits[i].v=+v;const l=document.querySelector(`.traits [data-tv="${i}"]`);if(l)l.textContent=(+v).toFixed(2);pMark()}
+function renderPTraits(){const w=$('#traitRows');if(!w)return;w.innerHTML=PS.draft.traits.map((t,i)=>`<div class="tr"><input type="text" value="${esc(t.name)}" placeholder="特质名" oninput="pTraitName(${i},this.value)"><input type="range" min="0" max="1" step="0.05" value="${t.v}" oninput="pTraitVal(${i},this.value)"><span class="vv" data-tv="${i}">${t.v.toFixed(2)}</span><button class="xx" onclick="pTraitDel(${i})">×</button></div>`).join('')}
+function pTextInput(){PS.dirty=true;const s=$('#pstat');if(s&&!s.querySelector('.pdirty'))s.innerHTML='<span class="pdirty">● 未保存修改</span>';const ta=$('#ptext');if(ta)syncLines(ta)}
+function syncLines(ta){const ln=$('#plines');if(!ta||!ln)return;const n=ta.value.split('\n').length;ln.innerHTML=Array.from({length:n},(_,i)=>i+1).join('\n');ln.scrollTop=ta.scrollTop}
+function pSave(){
+ const d=PS.draft,name=(d.name||'').trim(),text=(d.text||'').trim();
+ if(!name||!text){toast('名称和内容不能为空','err');return}
+ const moods=d.moods.map(m=>m.name).filter(Boolean);
+ const base={name,characterId:(d.characterId||'').trim()||undefined,version:d.version};
+ if(d.isNew||!d.id){
+  const id='p'+Math.random().toString(36).slice(2,8);
+  DB.personas.push({id,name,characterId:base.characterId||id,version:base.version||id,en:'',mono:name[0],tagline:'',say:'',pal:{...d.pal},traits:d.traits.filter(t=>t.name).map(t=>({name:t.name,v:t.v})),moods:d.moods.filter(m=>m.name).map(m=>({name:m.name,color:m.color})),text});
+  PS.sel=id;PS.dirty=false;toast('已创建（POST /api/personas）','ok');
+ }else{
+  const p=DB.personas.find(x=>x.id===d.id);if(!p)return;
+  Object.assign(p,{name,characterId:base.characterId,version:base.version,pal:{...d.pal},traits:d.traits.filter(t=>t.name).map(t=>({name:t.name,v:t.v})),moods:d.moods.filter(m=>m.name).map(m=>({name:m.name,color:m.color})),text});
+  PS.dirty=false;toast('已保存（PATCH /api/personas）','ok');
+ }
+ applyTheme(activePersona());render();
+}
+async function pActivate(){const d=PS.draft;if(!d?.id)return;const p=DB.personas.find(x=>x.id===d.id);if(!p)return;
+ if(!await askConfirm({title:'设为当前人设',body:`启用「${esc(p.name)}」？机器人之后的回复将使用这个人设（POST /api/personas/activate）。`,okText:'设为当前'}))return;
+ DB.activeId=p.id;PS.dirty=false;applyTheme(p);toast(`已切换为「${p.name}」`,'ok');renderNav();render()}
+function pDup(){const d=PS.draft;if(!d)return;if(personaDirty()&&!confirm('未保存的编辑会丢弃，以已保存版本为底建副本？'))return;
+ const src=d.id?DB.personas.find(x=>x.id===d.id):d;
+ if(!src)return;
+ PS.sel='__new__';PS.draft={isNew:true,id:'',name:src.name+' 副本',characterId:src.characterId||'',version:src.version||'',pal:{...src.pal},traits:JSON.parse(JSON.stringify(src.traits||[])),moods:JSON.parse(JSON.stringify(src.moods||[])),text:src.text||''};PS.dirty=true;render();
+ toast('副本草稿已建 · 保存后生效')}
+async function pImport(){const inp=document.createElement('input');inp.type='file';inp.accept='.md,.txt,text/markdown,text/plain';inp.onchange=async()=>{const f=inp.files[0];if(!f)return;if(personaDirty()&&!confirm('未保存的编辑会丢失，确认导入新草稿？'))return;
+  const text=(await f.text()).trim();if(!text){toast('文件为空','err');return}
+  PS.sel='__new__';PS.draft={isNew:true,id:'',name:f.name.replace(/\.[^.]+$/,''),characterId:'',version:'',pal:{a:'#3d7bff',a2:'#8ec5ff',soft:'#e7f0ff',deep:'#0d2a66'},traits:[],moods:[],text};PS.dirty=true;render();
+  toast(`已从「${f.name}」导入草稿 · ${text.length} 字`)};inp.click()}
+async function pDelete(){const d=PS.draft,p=d?.id?DB.personas.find(x=>x.id===d.id):null;if(!p)return;
+ if(p.id===DB.activeId){toast('当前人设不能删除','err');return}
+ if(!await askConfirm({title:'删除人设',body:`删除「${esc(p.name)}」？不可恢复（DELETE /api/personas?id=）。其名下自我轨记忆将失去归属角色。`,okText:'删除',danger:true}))return;
+ DB.personas=DB.personas.filter(x=>x.id!==p.id);PS.sel=null;PS.draft=null;PS.dirty=false;toast('已删除','ok');render()}
+function rPersonas(){
+ if(!PS.draft||(!PS.draft.isNew&&PS.draft.id&&!DB.personas.some(p=>p.id===PS.draft.id))){
+  const p=DB.personas.find(x=>x.id===DB.activeId)||DB.personas[0];
+  if(p){PS.sel=p.id;PS.draft=JSON.parse(JSON.stringify(p));PS.dirty=false}else{PS.sel='__new__';PS.draft={isNew:true,id:'',name:'',characterId:'',version:'',pal:{a:'#3d7bff',a2:'#8ec5ff',soft:'#e7f0ff',deep:'#0d2a66'},traits:[],moods:[],text:''};PS.dirty=false}
+ }
+ const d=PS.draft||{};
+ const dirty=personaDirty();
+ const isNew=d.isNew||!d.id;
+ return `<div class="phead"><span class="no">03</span><h1>人设</h1><div class="sub">Personas<br>角色版本 · 主题参数 · 人格内核</div></div>
+ <div class="pgrid">
+  <div class="plist">${DB.personas.map(p=>`<div class="pi ${PS.sel===p.id?'on':''}" onclick="pSelect('${p.id}')"><i class="sw" style="background:${p.pal.a}"></i><div><b>${esc(p.name)}</b><small>${esc(p.id)} → ${esc(p.characterId)} · ${esc(p.version)}</small></div>${p.id===DB.activeId?'<span class="tag" style="border-color:var(--deep);color:var(--deep)">当前</span>':''}</div>`).join('')}
+   <div class="pnew"><button class="btn sm" style="width:100%" onclick="pNew()">＋ 新建人设</button></div></div>
+  <div class="pedit">
+   ${isNew?'<div class="mb" style="font:12px var(--mono);color:var(--a);margin-bottom:14px">● 新建草稿 · 尚未写入（POST /api/personas）</div>':''}
+   <div class="sec"><h4>基本信息</h4>
+    <div class="frow">
+     <div class="fld"><label>名称 name *</label><input id="p-name" value="${esc(d.name||'')}" oninput="PS.draft.name=this.value;pMark()"></div>
+     <div class="fld"><label>所属角色 characterId</label><input id="p-char" value="${esc(d.characterId||'')}" placeholder="缺省=人设ID；同角色版本共享自我轨" oninput="PS.draft.characterId=this.value;pMark()"></div>
+    </div>
+    <div class="frow">
+     <div class="fld"><label>版本 version（展示字段）</label><input id="p-ver" value="${esc(d.version||'')}" oninput="PS.draft.version=this.value;pMark()"></div>
+     <div class="fld"><label>状态</label><div style="padding-top:6px;font-size:12px">${d.id===DB.activeId?'<span class="badge on">当前生效</span>':'<span class="badge world">未启用 · 保存不影响当前回复</span>'} <span id="pstat">${dirty?'<span class="pdirty">● 未保存修改</span>':'<span style="font:11px var(--mono);color:var(--ink3)">已保存 · '+esc(d.id||'')+'</span>'}</span></div></div>
+    </div></div>
+   <div class="sec"><h4>强调色 pal{a,a2,soft,deep} · 改动实时预览整页</h4>
+    <div class="palrow">${['a','a2','soft','deep'].map(k=>`<div class="pf"><label>${k}</label><input type="color" value="${(d.pal||{})[k]||'#888888'}" oninput="pPal('${k}',this.value)"><span class="hx" data-hx="${k}">${(d.pal||{})[k]||''}</span></div>`).join('')}</div>
+    ${DN(`<b>需后端新增</b>：真实 <code>PersonaEntry={id,name,text,characterId?,moods?}</code> <b>没有 pal 字段</b>。方案：① PersonaEntry 增加 <code>theme:{a,a2,soft,deep}</code>；② 或前端按 characterId/personaId 哈希派生调色板（零后端改动，效果固定不可自定义）。本稿按①演示。`)}
+   </div>
+   <div class="sec"><h4>情绪词表 moods（蒸馏 mood 枚举）</h4>
+    <div class="chips" id="moodChips">${(d.moods||[]).map((m,i)=>`<span class="chip"><i style="background:${m.color}" title="点击改色" onclick="document.getElementById('mc${i}').click()"></i>${esc(m.name)}<input type="color" id="mc${i}" value="${m.color}" style="position:absolute;width:0;height:0;opacity:0" onchange="pMoodColor(${i},this.value)"><button onclick="pMoodDel(${i})">×</button></span>`).join('')||'<span style="color:var(--ink3);font-size:12px">（空 = 使用全局 MOODS 9 词表）</span>'}</div>
+    <div style="display:flex;gap:8px;margin-top:10px"><input id="moodIn" placeholder="新情绪词，回车/点添加" style="width:180px" onkeydown="if(event.key==='Enter'){event.preventDefault();pMoodAdd()}"><button class="btn sm" onclick="pMoodAdd()">添加</button></div>
+    ${DN(`<code class="api">PATCH /api/personas {id,name,text,moods?}</code> —— moods 为 <code>string[]</code>，<b>已支持</b>（distill.ts 用作蒸馏 mood 枚举，缺省走全局 MOODS）。<b>需后端新增</b>：每词颜色（现仅字符串数组；可前端按词名哈希派生色）。词表变更影响蒸馏 prompt 与可视化分桶。`)}
+   </div>
+   <div class="sec"><h4>特质 traits（0–1 滑块）</h4>
+    <div class="traits" id="traitRows">${(d.traits||[]).map((t,i)=>`<div class="tr"><input type="text" value="${esc(t.name)}" placeholder="特质名" oninput="pTraitName(${i},this.value)"><input type="range" min="0" max="1" step="0.05" value="${t.v}" oninput="pTraitVal(${i},this.value)"><span class="vv" data-tv="${i}">${t.v.toFixed(2)}</span><button class="xx" onclick="pTraitDel(${i})">×</button></div>`).join('')||'<div style="color:var(--ink3);font-size:12px;padding:8px 0">（空）</div>'}</div>
+    <button class="btn sm ghost" style="margin-top:8px" onclick="pTraitAdd()">＋ 添加特质</button>
+    ${DN(`<b>需后端新增</b>：traits 字段（PersonaEntry 无此字段；可挂 <code>meta:{traits:[{name,v}]}</code> 或扩展条目）。用途：脑图页人格区/雷达图、调试人格漂移。`)}
+   </div>
+   <div class="sec"><h4>人格内核 persona.md（text 字段 · ≤50000 字）</h4>
+    <div class="monoed"><div class="ln" id="plines"></div><textarea id="ptext" spellcheck="false" oninput="pTextInput()" onscroll="syncLines(this)">${esc(d.text||'')}</textarea></div>
+    <div style="font:10px var(--mono);color:var(--ink3);margin-top:5px;text-align:right">${(d.text||'').length} 字</div>
+    ${DN(`<code class="api">GET/POST /api/persona</code> 读写<b>当前激活</b>人设正文（POST {text} 或裸文本）；多版本管理走 <code class="api">GET/POST/PATCH/DELETE /api/personas</code> + <code class="api">POST /api/personas/activate {id}</code>。PATCH 的 characterId/moods 仅显式给出才覆盖（null 清除）。删除当前激活人设会 400。<b>version 为展示字段</b>——真实数据以 persona.id 即版本（同 characterId 多 id=多版本），如需语义化版本号需后端新增。`)}
+   </div>
+   <div class="sec"><h4>操作</h4>
+    <div class="pbtns">
+     <button class="btn pri" onclick="pSave()">${isNew?'创建并保存':'保存'}</button>
+     <button class="btn" onclick="pActivate()" ${isNew||d.id===DB.activeId?'disabled':''}>设为当前人设</button>
+     <button class="btn ghost" onclick="pDup()">另存副本</button>
+     <button class="btn ghost" onclick="pImport()">从 .md 导入</button>
+     <button class="btn danger" onclick="pDelete()" ${isNew||d.id===DB.activeId?'disabled':''}>删除</button>
+    </div>
+    ${DN(`导入 .md = 读文件文本填草稿，保存仍走 <code class="api">POST /api/personas</code>（无独立文件导入接口）。「设为当前」= <code class="api">POST /api/personas/activate {id}</code>，切换即时生效并重建检索索引（graphVersion++）。离开未保存草稿一律 confirm。`)}
+   </div>
+  </div>
+ </div>
+ <div class="pfoot"><span>人设 · CONCEPT D-ADMIN</span><span>配色/特质/version 为 mock 扩展字段，详见标注</span></div>`;
+}
+/* ════════════════ 04 画像 ════════════════ */
+function rProfiles(){
+ const all=DB.profiles,ps=P.profiles,size=ps.size,page=Math.min(ps.page,Math.max(1,Math.ceil(all.length/size)));
+ const rows=all.slice((page-1)*size,page*size);
+ const mergeKeep=P.profiles.merge?DB.profiles.find(p=>p.key===P.profiles.merge):null;
+ const editing=P.profiles.editing;
+ return `<div class="phead"><span class="no">04</span><h1>画像</h1><div class="sub">Profiles<br>按人（u:）+ 会话级（sess:）画像卡</div></div>
+ ${mergeKeep?`<div class="mergebanner">正在选择要并入「${esc(mergeKeep.name)}」的画像 —— 点击另一张<b>人物</b>画像卡的「并入」<button class="btn sm ghost" onclick="P.profiles.merge=null;render()">取消</button></div>`:''}
+ <div class="pcards">${rows.length?rows.map(p=>{
+  const isEdit=editing===p.key,canMerge=p.kind==='person';
+  const merging=P.profiles.merge===p.key;
+  const privSeg=(p.text.match(/〔私〕[^。\n]*(?:。|\n|$)/g)||[]).length;
+  const body=isEdit
+   ?`<input class="pn" id="pn-${esc(p.key)}" value="${esc(p.name)}" maxlength="80" placeholder="${p.kind==='person'?'画像名称':'发言人绑定昵称（私聊会话→人）'}"><textarea id="pt-${esc(p.key)}" maxlength="500" style="margin-top:8px">${esc(p.text)}</textarea><div style="font:10px var(--mono);color:var(--ink3);text-align:right"><span id="pc-${esc(p.key)}">${p.text.length}</span>/500 · 「〔私〕」句=私域，仅私域会话注入</div>`
+   :`<div class="pt">${esc(p.text).replace(/〔私〕[^。\n]*(?:。|\n|$)/g,m=>'<mark>'+m+'</mark>')}</div>`;
+  const meta=`<div class="ps">${(p.sessions||[]).slice(0,4).map(s=>`<span>${esc(sessById[s]?.label||s)}</span>`).join('')}${(p.sessions||[]).length>4?`<span>+${p.sessions.length-4}</span>`:''}</div><div class="pk">${esc(p.key)} · 更新 ${fmtT(p.updatedAt)}</div>`;
+  const acts=isEdit
+   ?`<button class="act" onclick="profSave('${esc(p.key)}')">保存</button><button class="act" onclick="P.profiles.editing=null;render()">取消</button>`
+   :`<button class="act" onclick="P.profiles.editing='${esc(p.key)}';render()">编辑</button><button class="act" onclick="profRegen('${esc(p.key)}')">重生成</button><button class="act del" onclick="profDel('${esc(p.key)}')">删除</button>${canMerge?(merging?'<button class="act" disabled>合并中…</button>':(mergeKeep&&mergeKeep.key!==p.key?`<button class="act rel" onclick="profMergeInto('${esc(p.key)}')">并入「${esc(mergeKeep.name)}」</button>`:`<button class="act" onclick="P.profiles.merge='${esc(p.key)}';render()">合并…</button>`)):'<span class="tag" style="margin-left:auto">会话卡不可合并</span>'}`;
+  return `<div class="pcard ${isEdit?'editing':''}"><div class="ph"><span class="badge ${p.kind==='person'?'self':'world'}">${p.kind==='person'?'人物':'会话'}</span><b>${esc(p.name||'(未命名)')}</b><small>${privSeg?'含 '+privSeg+' 私域句':''}</small></div><div class="pk">${esc(p.key)}</div>${body}${meta}<div class="pa">${acts}</div></div>`;
+ }).join(''):'<div class="empty" style="grid-column:1/-1;padding:36px 0">暂无画像 —— 由蒸馏/合并自动产出</div>'}</div>
+ ${pager(all.length,page,size,p=>{P.profiles.page=p;render()})}
+ ${DN(`<b>GET /api/profiles</b> → <code class="api">{profiles:[{key,kind:'person'|'session',name,openid?,text,sessions[],updatedAt}]}</code>，key=<code>u:&lt;openid&gt;</code>|<code>sess:&lt;sessionId&gt;</code>，person 在前 session 在后按 updatedAt 倒序。编辑 <code class="api">PATCH /api/profiles {key*,name?,text*}</code>（text≤500 PROFILE_TEXT_CAP，人工修改即盖 reviewed章）；删除 <code class="api">DELETE /api/profiles?id=&lt;key&gt;</code>（空文本 op）；重生成 <code class="api">POST /api/profiles/regenerate {key}</code>（蒸馏+审核 LLM，失败/无稳定内容不改数据，409+reason）；合并 <code class="api">POST /api/profiles/merge {keep,drop}</code>（仅 u: 键，审核模型合并文本+吸收会话，409=失败）。分页为前端本地，<b>需后端新增</b>分页参数。`)}
+ <div class="pfoot"><span>画像 · CONCEPT D-ADMIN</span><span>〔私〕句渲染高亮 · 合并仅限人物卡（同真实 API 口径）</span></div>`;
+}
+async function profSave(key){const ta=document.getElementById('pt-'+key),nm=document.getElementById('pn-'+key);if(!ta)return;const p=DB.profiles.find(x=>x.key===key);if(!p)return;const text=ta.value.trim();if(!text){toast('画像文本不能为空','err');return}p.text=text.slice(0,500);p.name=(nm?.value||'').trim();p.updatedAt=Date.now();P.profiles.editing=null;toast('已保存（PATCH /api/profiles）','ok');render()}
+async function profDel(key){const p=DB.profiles.find(x=>x.key===key);if(!p)return;if(!await askConfirm({title:'删除画像',body:`删除「${esc(p.name)}」的画像卡？<br><span style="font:11px var(--mono)">${esc(key)}</span>`,okText:'删除',danger:true}))return;DB.profiles=DB.profiles.filter(x=>x.key!==key);DB.ops.unshift({t:Date.now(),etype:'edit',actor:'管理员',raw:{op:'profile',key,text:''}});toast('已删除','ok');render()}
+async function profRegen(key){const p=DB.profiles.find(x=>x.key===key);if(!p)return;
+ // 模拟：蒸馏+审核需 LLM，mock 用句子重排演示
+ const btns=$$('.pcard .pa .act');btns.forEach(b=>b.disabled=true);
+ toast('重生成中（蒸馏起草 → 审核把关）…');
+ await new Promise(r=>setTimeout(r,1100));
+ const sents=p.text.split(/(?<=[。！？\n])/).filter(Boolean);
+ if(sents.length>2){const first=sents.shift();sents.push(first);p.text=sents.join('').slice(0,500)}
+ p.updatedAt=Date.now();P.profiles.editing=null;
+ toast('已重新生成（POST /api/profiles/regenerate）','ok');render()}
+async function profMergeInto(dropKey){const keepKey=P.profiles.merge;if(!keepKey||keepKey===dropKey)return;const keep=DB.profiles.find(p=>p.key===keepKey),drop=DB.profiles.find(p=>p.key===dropKey);if(!keep||!drop)return;
+ if(!await askConfirm({title:'合并画像',body:`把「${esc(drop.name)}」并入「${esc(keep.name)}」？<br>审核模型将合并文本、吸收会话标记，drop 卡删除（POST /api/profiles/merge）。`,okText:'合并'}))return;
+ const seen=new Set(),merged=[];
+ for(const s of(keep.text+'。'+drop.text).split(/(?<=[。！？\n])/)){const t=s.trim();if(t&&!seen.has(t)){seen.add(t);merged.push(t)}}
+ keep.text=merged.join('').slice(0,500);keep.sessions=[...new Set([...(keep.sessions||[]),...(drop.sessions||[])])];keep.updatedAt=Date.now();
+ DB.profiles=DB.profiles.filter(p=>p.key!==dropKey);P.profiles.merge=null;
+ DB.ops.unshift({t:Date.now(),etype:'edit',actor:'管理员',raw:{op:'profile-merge',keep:keepKey,drop:dropKey}});
+ toast('已合并（keep='+shortId(keepKey)+'）','ok');render()}
+/* ════════════════ 05 事件流水 ════════════════ */
+const OPS_F={etype:'',range:'7d',page:1,size:20,open:null};
+function opsFiltered(){
+ const rangeMs={h24:DAY,d7:7*DAY,d30:30*DAY,all:0}[OPS_F.range]??7*DAY;
+ return DB.ops.filter(o=>(!OPS_F.etype||o.etype===OPS_F.etype)&&(!rangeMs||o.t>NOW-rangeMs));
+}
+function rOps(){
+ const arr=opsFiltered(),ps=OPS_F,size=ps.size,page=Math.min(ps.page,Math.max(1,Math.ceil(arr.length/size))),rows=arr.slice((page-1)*size,page*size);
+ const openIdx=ps.open!=null?(page-1)*size+ps.open:null;
+ return `<div class="phead"><span class="no">05</span><h1>事件流水</h1><div class="sub">Ops Log<br>append-only op 流 · 最新在前</div></div>
+ <div class="opsfilter">
+  <div class="fld" style="margin:0"><label>事件类型</label><select onchange="OPS_F.etype=this.value;OPS_F.page=1;OPS_F.open=null;render()"><option value="">全部类型</option>${Object.keys(ET_CN).map(e=>`<option value="${e}" ${OPS_F.etype===e?'selected':''}>${ET_CN[e]}（${e}）</option>`).join('')}</select></div>
+  <div class="fld" style="margin:0"><label>时间范围</label><select onchange="OPS_F.range=this.value;OPS_F.page=1;OPS_F.open=null;render()">${[['h24','近 24 小时'],['d7','近 7 天'],['d30','近 30 天'],['all','全部']].map(([v,t])=>`<option value="${v}" ${OPS_F.range===v?'selected':''}>${t}</option>`).join('')}</select></div>
+  <div style="margin-left:auto;font:11px var(--mono);color:var(--ink3)">共 ${arr.length} 条 · 环形缓冲 cap 500</div>
+ </div>
+ <table style="margin-top:4px"><thead><tr><th style="width:96px">时间</th><th style="width:80px">类型</th><th>摘要</th><th style="width:110px">关联记忆</th><th style="width:80px">执行者</th></tr></thead><tbody>
+  ${rows.map((o,i)=>{const gi=(page-1)*size+i;const open=gi===openIdx;
+   return `<tr class="oprow ${open?'sel':''}" onclick="OPS_F.open=${open?'null':gi-(page-1)*size};render()"><td class="num" style="text-align:left">${fmtT(o.t)}</td><td><span class="et ${o.etype}">${ET_CN[o.etype]}</span></td><td>${esc(opSummary(o))}</td><td>${o.noteId?`<button class="mlink" onclick="event.stopPropagation();go('memories');PENDING_NOTE='${o.noteId}';location.hash='#memories'">#${o.noteId}</button>`:'—'}</td><td style="font-size:12px;color:var(--ink2)">${esc(o.actor||'—')}</td></tr>
+   ${open?`<tr class="opdet"><td colspan="5"><pre>${esc(JSON.stringify({t:o.t,...o.raw},null,2))}</pre></td></tr>`:''}`}).join('')||'<tr><td colspan="5" class="empty">该条件下暂无事件</td></tr>'}
+ </tbody></table>
+ ${pager(arr.length,page,size,p=>{OPS_F.page=p;OPS_F.open=null;render()})}
+ ${DN(`<b>GET /api/ops?limit=</b>（1–500，默认 100，新→旧）→ <code class="api">{ops:OpRecord[]}</code>，OpRecord=<code>{t:ms,op:{op:'add'|'reinforce'|'update'|'embed'|'del'|'absorb'|'merge'|'emotion'|'profile'|'digest'|'persona'|'persona-save'|'persona-activate'|'persona-delete'|'reset'|'del-range'|'del-persona'|'sess-domain',…}}</code>。<br>本页「事件类型」是<b>展示层归类</b>：recall≈reinforce 痕迹（无独立召回 op）、distill≈add 批次、mood=emotion、consolidate=absorb+merge 组合、edit=update/del/profile/persona 系、import=导入产生的复合 op。<b>decay 无落盘 op</b>（retention 实时计算）；若要 recall/decay/consolidate/import 成为一等事件类型，<b>需后端新增</b>事件表。服务端分页/过滤参数<b>需后端新增</b>（现仅 limit）。点行展开=原始 op JSON。`)}
+ <div class="pfoot"><span>事件流水 · CONCEPT D-ADMIN</span><span>环形缓冲 500 条（OPS_LOG_CAP）</span></div>`;
+}
+/* ════════════════ 06 关联图 ════════════════ */
+const GF={kind:'',track:'',sel:null};
+const LINK_CN={derived:'沉淀来源',semantic:'语义相似',session:'同会话'};
+function graphNodes(){
+ const ORDER={attitude:0,semantic:1,episodic:2};
+ const all=DB.notes.filter(n=>(!GF.kind||n.kind===GF.kind)&&(!GF.track||(GF.track==='self')===isSelfTrack(n)));
+ const total=all.length;
+ if(total<=40){
+  const ns=all.sort((a,b)=>ORDER[a.kind]-ORDER[b.kind]||b.importance-a.importance||b.retention-a.retention);
+  return{ns,trunc:false,total};
+ }
+ // 截断：按 重要度×2+保持率×3+唤起×0.05 打分；三类按比例分配名额且每类保底
+ const CAP=40,score=n=>n.importance*2+n.retention*3+n.hits*0.05;
+ const groups={episodic:[],semantic:[],attitude:[]};
+ all.forEach(n=>groups[n.kind].push(n));
+ const ks=Object.keys(groups).filter(k=>groups[k].length);
+ ks.forEach(k=>groups[k].sort((a,b)=>score(b)-score(a)||b.createdAt-a.createdAt));
+ const alloc={};ks.forEach(k=>alloc[k]=0);
+ const floorN=Math.min(6,Math.floor(CAP/ks.length));
+ const totLen=ks.reduce((s,k)=>s+groups[k].length,0);
+ // 按组大小比例分配，且每类保底 floorN
+ ks.forEach(k=>alloc[k]=Math.max(Math.min(groups[k].length,floorN),Math.round(CAP*groups[k].length/totLen)));
+ let sum=ks.reduce((s,k)=>s+alloc[k],0);
+ const minAlloc=k=>Math.min(groups[k].length,floorN);
+ while(sum>CAP){const k=ks.filter(k=>alloc[k]>minAlloc(k)).sort((a,b)=>(alloc[b]/groups[b].length)-(alloc[a]/groups[a].length))[0];if(!k)break;alloc[k]--;sum--}
+ while(sum<CAP){const k=ks.filter(k=>alloc[k]<groups[k].length).sort((a,b)=>(alloc[a]/groups[a].length)-(alloc[b]/groups[b].length))[0];if(!k)break;alloc[k]++;sum++}
+ const ns=ks.flatMap(k=>groups[k].slice(0,alloc[k]))
+  .sort((a,b)=>ORDER[a.kind]-ORDER[b.kind]||score(b)-score(a));
+ return{ns,trunc:true,total};
+}
+function drawArc(){
+ const svg=$('#arc');if(!svg)return;const NS='http://www.w3.org/2000/svg';
+ const{ns,trunc,total}=graphNodes();
+ svg.setAttribute('viewBox','0 0 900 500');svg.innerHTML='';
+ const el=(t,a={},p)=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);p&&p.appendChild(e);return e};
+ if(!ns.length){const t=el('text',{x:30,y:230,'font-size':14,fill:'#a9a7a0'},svg);t.textContent='当前筛选下没有可绘制的记忆';return}
+ const BASE=250,x0=34,gapG=42,step=(900-x0*2-gapG*2)/Math.max(1,ns.length-1);
+ const X={};let x=x0,prev=null;const groups={};
+ ns.forEach(m=>{if(prev&&prev!==m.kind)x+=gapG;X[m.id]=x;(groups[m.kind]??=[]).push(x);prev=m.kind;x+=step});
+ for(const[k,xs]of Object.entries(groups)){
+  const a=xs[0]-9,b=xs[xs.length-1]+9;
+  el('rect',{x:a,y:BASE-2,width:b-a,height:4,fill:'#0f0f0f'},svg);
+  const t=el('text',{x:a,y:18,'font-size':12,'font-weight':700},svg);t.textContent=K[k];
+  const t2=el('text',{x:a+30,y:18,'font-size':10,fill:'#a9a7a0'},svg);t2.textContent=`${k.toUpperCase()} · ${xs.length}`;
+  el('line',{x1:a,x2:b,y1:26,y2:26,stroke:'#d9d7cf'},svg);
+ }
+ const ga=el('g',{},svg),vis=new Set(ns.map(n=>n.id));
+ for(const l of DB.links){
+  if(!vis.has(l.a)||!vis.has(l.b))continue;
+  const xa=X[l.a],xb=X[l.b],r=Math.abs(xb-xa)/2,[p,q]=xa<xb?[xa,xb]:[xb,xa];
+  el('path',{class:'arc','data-a':l.a,'data-b':l.b,d:`M${p} ${BASE-6} A${r} ${Math.min(r*.8,180)} 0 0 1 ${q} ${BASE-6}`,stroke:l.kind==='derived'?'var(--a)':l.kind==='semantic'?'#0f0f0f':'#a9a7a0','stroke-width':l.kind==='derived'?2:1,'stroke-dasharray':l.kind==='session'?'3 3':''},ga);
+ }
+ for(const m of ns){
+  const nx=X[m.id],self=isSelfTrack(m),col=self?charColor(noteChar(m)):'#0f0f0f',h=8+m.retention*80;
+  const g=el('g',{class:'node','data-id':m.id},svg);
+  el('rect',{x:nx-step/2,y:30,width:step,height:445,fill:'transparent'},g);
+  el('rect',{x:nx-5,y:BASE-11,width:10,height:10,fill:col},g);
+  el('rect',{x:nx-3,y:BASE+8,width:6,height:h,fill:m.fading?'none':col,stroke:col,'stroke-width':m.fading?1:0},g);
+  const t=el('text',{x:nx,y:BASE+h+24,'font-size':12,'font-weight':m.importance>=4?700:400,fill:m.id===GF.sel?'var(--a)':'#0f0f0f',style:'writing-mode:vertical-rl;letter-spacing:.05em'},g);
+  t.textContent=m.content.length>8?m.content.slice(0,8)+'…':m.content;
+  const ti=el('title',{},t);ti.textContent=m.content;
+  const nn=el('text',{x:nx,y:BASE+h+15,'font-size':9,fill:'#a9a7a0','text-anchor':'middle','font-family':'SF Mono,monospace'},g);nn.textContent=Math.round(m.retention*100);
+  g.addEventListener('click',()=>{GF.sel=GF.sel===m.id?null:m.id;drawArc();gside()});
+ }
+ if(GF.sel){
+  const near=new Set([GF.sel,...DB.links.filter(l=>l.a===GF.sel||l.b===GF.sel).map(l=>l.a===GF.sel?l.b:l.a)]);
+  svg.querySelectorAll('.node').forEach(g=>g.classList.toggle('dim',!near.has(g.dataset.id)));
+  svg.querySelectorAll('.arc').forEach(a=>a.classList.toggle('dim',a.dataset.a!==GF.sel&&a.dataset.b!==GF.sel));
+ }
+ $('#graphHint').textContent=trunc?`共 ${total} 条符合筛选，按重要度/保持率截断前 40 条绘制（三类均衡取样，每类保底）`:`${total} 条记忆 · ${DB.links.filter(l=>vis.has(l.a)&&vis.has(l.b)).length} 条关联`;
+}
+function gside(){
+ const w=$('#gside');if(!w)return;
+ if(!GF.sel){w.innerHTML=`<div class="empty-hint">点选弧线图中任意一列查看记忆详情。<br><br>下垂柱=保持率，方块颜色=轨道（自我轨用所属角色强调色）。</div>`;return}
+ const n=noteById(GF.sel);if(!n){w.innerHTML='';return}
+ const rel=DB.links.filter(l=>l.a===n.id||l.b===n.id).map(l=>({l,other:noteById(l.a===n.id?l.b:l.a)})).filter(r=>r.other);
+ w.innerHTML=`<h3>${esc(n.content)}</h3>
+ <div class="kv">
+  <div>轨道</div><div><span class="sq" style="background:${isSelfTrack(n)?charColor(noteChar(n)):'#0f0f0f'}"></span>${isSelfTrack(n)?'自我 · '+esc(charName(noteChar(n))):'世界 · 共享'}</div>
+  <div>类型</div><div>${K[n.kind]}（${n.kind}）</div>
+  <div>保持率</div><div>${Math.round(n.retention*100)}%${n.fading?' — 将遗忘':''}</div>
+  <div>重要 / 唤起</div><div>${n.importance} / ${n.hits}</div>
+  <div>年龄 / 会话</div><div>${n.ageDays} 天 · ${esc(sessById[n.sessionId]?.label||n.sessionId)}</div>
+  <div>角色 / 人设</div><div>${esc(charName(noteChar(n)))} · ${esc(n.personaId||'—')}</div>
+  <div>可见域</div><div>${esc(scopeOf(n)||'公开（派生为空）')}${n.private?'（手动覆盖）':''}</div>
+  ${n.emotion?`<div>情绪</div><div>${esc(n.emotion.label)}${n.emotion.mood?'「'+esc(n.emotion.mood)+'」':''} v=${n.emotion.v} a=${n.emotion.a}</div>`:''}
+  <div>创建</div><div>${fmtT(n.createdAt)}</div>
+ </div>
+ <ul class="rl">${rel.map(r=>`<li onclick="GF.sel='${r.other.id}';drawArc();gside()">${esc(r.other.content.slice(0,22))}…<small>${LINK_CN[r.l.kind]}</small></li>`).join('')||'<li style="color:var(--ink3);cursor:default">无关联</li>'}</ul>
+ <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
+  <button class="btn sm" onclick="go('memories');PENDING_NOTE='${n.id}';location.hash='#memories'">在记忆库中打开</button>
+  <button class="btn sm a2" onclick="noteReinf('${n.id}')">强化</button>
+  <button class="btn sm danger" onclick="noteDel('${n.id}')">删除</button>
+ </div>`;
+}
+function rGraph(){
+ return `<div class="phead"><span class="no">06</span><h1>关联图</h1><div class="sub">Arc Diagram<br>记忆关系与保持率一览</div></div>
+ <div class="gfilters">
+  <div class="fld" style="margin:0"><label>类型</label><select onchange="GF.kind=this.value;GF.sel=null;render()"><option value="">全部类型</option>${['episodic','semantic','attitude'].map(k=>`<option value="${k}" ${GF.kind===k?'selected':''}>${K[k]}</option>`).join('')}</select></div>
+  <div class="fld" style="margin:0"><label>轨道</label><select onchange="GF.track=this.value;GF.sel=null;render()"><option value="">全部轨道</option><option value="world" ${GF.track==='world'?'selected':''}>世界轨</option><option value="self" ${GF.track==='self'?'selected':''}>自我轨</option></select></div>
+  <div style="margin-left:auto"><button class="btn sm ghost" onclick="GF.sel=null;GF.kind='';GF.track='';render()">重置</button></div>
+ </div>
+ <div id="graphHint" style="font:11px var(--mono);color:var(--ink3);margin-bottom:2px"></div>
+ <div class="gwrap"><div>
+  <svg id="arc" class="arcg" viewBox="0 0 900 500" style="width:100%;display:block"></svg>
+  <div class="glegend">
+   <span><svg width="12" height="12"><rect width="12" height="12" fill="var(--a)"/></svg>自我轨（角色色）</span>
+   <span><svg width="12" height="12"><rect width="12" height="12" fill="#0f0f0f"/></svg>世界轨</span>
+   <span><svg width="26" height="10"><path d="M1 9 Q13 -4 25 9" fill="none" stroke="var(--a)" stroke-width="2"/></svg>沉淀 derived</span>
+   <span><svg width="26" height="10"><path d="M1 9 Q13 -4 25 9" fill="none" stroke="#0f0f0f"/></svg>语义 semantic</span>
+   <span><svg width="26" height="10"><path d="M1 9 Q13 -4 25 9" fill="none" stroke="#a9a7a0" stroke-dasharray="3 3"/></svg>同会话 session</span>
+  </div>
+ </div><div class="gside" id="gside"></div></div>
+ ${DN(`<b>数据源</b>：同 <code class="api">GET /api/state</code> 的 <code>edges:[{a,b,kind,score}]</code>——kind∈<code>semantic|facet|derived</code>，实时推导不落库（graphVersion 缓存）。本图画 note↔note 边；<b>facet 边</b>指向人格小节（b='facet:i'），弧线图暂不绘制，需后端/前端补人格节点层。<b>「同会话」边为前端派生</b>（同 sessionId 相邻配对），真实 edges 无此 kind。截断策略：筛选后 >40 条取排序前 40（真实现可后端加聚合/采样参数）。`)}
+ <div class="pfoot"><span>关联图 · CONCEPT D-ADMIN</span><span>沿用 d-swiss 弧线图语言</span></div>`;
+}
+/* ════════════════ 07 备份迁移 ════════════════ */
+let IMP=null; // {name,text,mode}
+function rBackup(){
+ return `<div class="phead"><span class="no">07</span><h1>备份迁移</h1><div class="sub">Backup &amp; Danger Zone<br>导出 / 导入 / 清理</div></div>
+ <div class="bgrid">
+  <div class="bcell"><h4>导出全量备份</h4>
+   <div class="desc">BrainExport v1：人设 + 全部记忆 + 画像 + 情绪 + 摘要 + 会话域，一份 JSON 搞定迁移与灾备。</div>
+   <button class="btn pri" onclick="backupExport()">⬇ 导出 brain-export.json</button>
+   ${DN(`<code class="api">GET /api/export</code> → 直接返回文件下载（Content-Disposition: brain-export-YYYY-MM-DD.json）。格式 <code>BrainExport{version:1,exportedAt,persona,personas[],activePersonaId,notes[],emotions{},profiles{},digests{},sessionDomains{}}</code>。`)}
+  </div>
+  <div class="bcell"><h4>导入备份</h4>
+   <div class="desc">选择导出 JSON。合并=按 id 去重补入（本地优先）；覆盖=清库后整包恢复。</div>
+   <input type="file" id="impFile" accept=".json,application/json" style="font-size:12px" onchange="impPick(this)">
+   <div class="radio"><label><input type="radio" name="im" value="merge" ${!IMP||IMP.mode!=='replace'?'checked':''} onchange="impMode('merge')">合并 merge</label><label><input type="radio" name="im" value="replace" ${IMP?.mode==='replace'?'checked':''} onchange="impMode('replace')">覆盖 replace</label></div>
+   <div id="impTyped" style="display:${IMP?.mode==='replace'?'block':'none'}"><input type="text" id="impWord" placeholder="输入「覆盖」二次确认" style="width:100%" oninput="impWordChk(this.value)"></div>
+   <button class="btn" id="impGo" onclick="backupImport()" ${IMP?'':'disabled'}>导入</button>
+   <div class="bstat" id="impStat">${IMP?'已选：'+esc(IMP.name):'尚未选择文件'}</div>
+   ${DN(`<code class="api">POST /api/import?mode=merge|replace</code>，body=备份 JSON 原文（≤10MB）。replace 先写 reset op 再整包回放；merge 按 id 去重（本地优先）；导入条目即时补向量。返回 <code>{notes,skipped,profiles,emotions,persona}</code>。覆盖模式必须二次确认（输入「覆盖」）。`)}
+  </div>
+ </div>
+ <div class="mod"><div class="mh"><span class="no">BK-02</span>维护<em>低频手动操作</em></div>
+  <div style="display:flex;gap:26px;flex-wrap:wrap;align-items:flex-start">
+   <div style="flex:1;min-width:300px"><h4 style="margin:0 0 8px;font-size:13px">近重复记忆合并</h4>
+    <div class="desc" style="font-size:12px;color:var(--ink2);margin-bottom:10px">向量余弦 ≥dedupeEmbedCos(0.9) 的记忆并查集聚类，每簇保留信息量最大者，其余 merge 后删除。三轨/私域边界不互并。</div>
+    <button class="btn" onclick="dedupEstimate()">估算合并量</button>
+    <button class="btn pri" id="dedupGo" onclick="dedupGo()" disabled>合并近重复</button>
+    <div class="bstat" id="dedupStat"></div>
+    ${DN(`<code class="api">POST /api/dedup</code> → <code>{clusters,merged,pairs:[{keep,drop}],released[]}</code>。<b>需后端新增</b> dry-run/preview（现接口直接执行无估算；前端可用 <code>GET /api/state</code> 的 <code>stats.nearDup</code> 或 <code>/api/query?depth=1</code> 近似）。`)}
+   </div>
+   <div style="flex:1;min-width:300px"><h4 style="margin:0 0 8px;font-size:13px">私域放行队列</h4>
+    <div class="desc" style="font-size:12px;color:var(--ink2);margin-bottom:10px">域内疑似良性事实排队人工放行（私密线索词命中的不入队）。</div>
+    <button class="btn" onclick="go('memories');F.scope='release';F.page=1;renderMemBody()">去记忆库筛选「域内待放行」→</button>
+    ${DN(`<code class="api">GET /api/release-candidates?limit=</code>（1–100，默认30）→ <code>{candidates:[{id,kind,sessionId,content,importance,scope}]}</code>；放行 = <code class="api">PATCH /api/notes/:id {private:'public'}</code>。佐证自动放行走 <code class="api">POST /api/absorb-covered</code>。`)}
+   </div>
+  </div>
+ </div>
+ <div class="dangerzone"><h4>危险区 · 不可撤销操作</h4>
+  <div class="desc">以下操作写入事件流水但无法回滚，执行前请先导出备份。</div>
+  <div class="drow"><div><h5>按时段删除记忆</h5><div class="desc">createdAt ∈ [from,to] 闭区间（ms）。op 显式携带 ids，防重放误删后入库记忆。</div>
+   <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input type="datetime-local" id="pf" style="font-size:12px"><span>~</span><input type="datetime-local" id="pt" style="font-size:12px"><button class="btn sm" onclick="purgePreview()">预览数量</button><button class="btn sm danger" id="purgeGo" onclick="purgeGo()" disabled>删除</button></div>
+   <div class="bstat" id="purgeStat"></div></div>
+   <div><h5>按人设删除记忆</h5><div class="desc">删除该人设（版本）形成的全部记忆，事实+态度一起删。</div>
+   <div style="display:flex;gap:8px;align-items:center"><select id="pp" style="font-size:12px">${DB.personas.map(p=>`<option value="${p.id}">${esc(p.name)}（${esc(p.id)}）</option>`).join('')}</select><button class="btn sm" onclick="purgePPreview()">预览数量</button><button class="btn sm danger" id="purgePGo" onclick="purgePGo()" disabled>删除</button></div>
+   <div class="bstat" id="purgePStat"></div></div></div>
+  <div class="drow" style="grid-template-columns:1fr"><div><h5>记忆重置（保留人设）</h5>
+   <div class="desc">清空全部记忆、画像、情绪与摘要；人格内核与人设版本保留。输入「重置」解锁。</div>
+   <div style="display:flex;gap:8px;align-items:center"><input type="text" id="rstWord" placeholder="输入「重置」" style="width:160px" oninput="document.getElementById('rstGo').disabled=this.value.trim()!=='重置'"><button class="btn danger" id="rstGo" onclick="resetGo()" disabled>重置全部记忆</button></div>
+   <div class="bstat" id="rstStat"></div></div></div>
+  ${DN(`<b>POST /api/notes/purge</b> {from,to}（ms 闭区间）或 {personaId} → <code>{ok,deleted}</code>；<b>POST /api/reset</b> → <code>{ok,cleared:{notes,profiles,emotions,digests}}</code>（keepPersona）。会话私域标记 <code class="api">POST /api/sessions/domain {sessionId,domain}</code>（domain 空串=清除，'public' 为保留值禁用）——域管理 UI 可在此区或独立「会话」页，<b>需后端新增</b>仅当要批量域操作界面。`)}
+ </div>
+ <div class="pfoot"><span>备份迁移 · CONCEPT D-ADMIN</span><span>导出/导入为真实可用的 mock 实现</span></div>`;
+}
+function backupExport(){
+ const dump={version:1,exportedAt:NOW,persona:activePersona().text,
+  personas:DB.personas.map(p=>({id:p.id,name:p.name,text:p.text,characterId:p.characterId,moods:p.moods.map(m=>m.name)})),
+  activePersonaId:DB.activeId,
+  notes:DB.notes.map(n=>{const{track,characterId,scope,fading,retention,ageDays,...rest}=n;return rest}),
+  emotions:{},profiles:Object.fromEntries(DB.profiles.map(p=>[p.key,{text:p.text,name:p.name,sessions:p.sessions,updatedAt:p.updatedAt}])),
+  digests:{},sessionDomains:Object.fromEntries(DB.sessions.filter(s=>s.domain).map(s=>[s.id,s.domain]))};
+ const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(dump,null,2)],{type:'application/json'}));
+ a.download='brain-export-'+new Date().toISOString().slice(0,10)+'.json';a.click();URL.revokeObjectURL(a.href);
+ toast('已导出 brain-export-'+new Date().toISOString().slice(0,10)+'.json','ok')}
+function impPick(inp){const f=inp.files[0];if(!f)return;f.text().then(t=>{IMP={name:f.name,text:t,mode:IMP?.mode||'merge'};renderBackupStat()})}
+function impMode(m){if(IMP)IMP.mode=m;const w=$('#impTyped');if(w)w.style.display=m==='replace'?'block':'none';impGoChk()}
+function impWordChk(v){impGoChk()}
+function impGoChk(){const b=$('#impGo');if(b)b.disabled=!(IMP&&(IMP.mode!=='replace'||($('#impWord')?.value||'').trim()==='覆盖'))}
+function renderBackupStat(){const s=$('#impStat');if(s)s.textContent=IMP?'已选：'+esc(IMP.name)+'（'+IMP.text.length+' 字节）':'尚未选择文件';impGoChk()}
+async function backupImport(){
+ if(!IMP)return;if(IMP.mode==='replace'&&($('#impWord')?.value||'').trim()!=='覆盖'){toast('覆盖模式需输入「覆盖」确认','err');return}
+ let data;try{data=JSON.parse(IMP.text)}catch{toast('文件不是有效 JSON','err');return}
+ if(!data||typeof data!=='object'||(data.notes!=null&&!Array.isArray(data.notes))){toast('不是有效备份文件（缺 notes 结构）','err');return}
+ if(IMP.mode==='replace'&&!await askConfirm({title:'覆盖导入',body:'覆盖模式将清空当前全部记忆、画像与人设，再以备份整包恢复。该操作不可撤销。',okText:'覆盖导入',danger:true}))return;
+ // 应用到 DB（模拟 importData）
+ const res={notes:0,skipped:0,profiles:0,persona:false};
+ const bnotes=(data.notes||[]).filter(n=>n&&typeof n.id==='string'&&n.id&&typeof n.content==='string'&&n.content.trim());
+ const bprof=data.profiles&&typeof data.profiles==='object'?data.profiles:{};
+ const bpers=Array.isArray(data.personas)?data.personas:[];
+ if(IMP.mode==='replace'){DB.notes=[];DB.profiles=[];DB.personas=[];DB.activeId='';}
+ const have=new Set(DB.notes.map(n=>n.id));
+ for(const rn of bnotes){
+  if(have.has(rn.id)){res.skipped++;continue}
+  const sess=typeof rn.sessionId==='string'&&rn.sessionId?rn.sessionId:'imported';
+  const imp=Math.min(5,Math.max(1,Math.round(rn.importance??3)));
+  const pid=rn.personaId||DB.activeId||DB.personas[0]?.id;
+  const p=DB.personas.find(x=>x.id===pid);
+  const strength=Math.max(.1,+rn.strength||imp),lastAccess=rn.lastAccessAt||NOW,created=rn.createdAt||NOW;
+  const ret=Math.exp(-Math.max(0,(NOW-lastAccess)/DAY)/Math.max(strength,.5));
+  const kind=['episodic','semantic','attitude'].includes(rn.kind)?rn.kind:'episodic';
+  const self=kind==='attitude'?undefined:(rn.self===true?true:rn.self===false?false:undefined);
+  DB.notes.push({id:rn.id,content:String(rn.content).trim().slice(0,200),kind,sessionId:sess,actor:rn.actor,importance:imp,personaId:pid,
+   self,private:typeof rn.private==='string'?rn.private:undefined,createdAt:created,strength:+strength.toFixed(2),lastAccessAt:lastAccess,
+   hits:Math.max(0,rn.hits|0),retention:+ret.toFixed(3),fading:ret<.2,ageDays:Math.floor((NOW-created)/DAY),
+   emotion:rn.emotion&&typeof rn.emotion==='object'?rn.emotion:undefined,
+   characterId:p?.characterId||(pid||'whale'),scope:(typeof rn.private==='string'?rn.private:undefined)??(sessById[sess]?.domain||undefined),
+   track:(kind==='attitude'||self===true)?'self':'world'});
+  have.add(rn.id);res.notes++;
+ }
+ for(const[key,v]of Object.entries(bprof)){
+  const e=typeof v==='string'?{text:v}:v;if(!e||typeof e.text!=='string'||!e.text)continue;
+  if(DB.profiles.some(p=>p.key===key)){res.skipped++;continue}
+  DB.profiles.push({key,kind:key.startsWith('u:')?'person':'session',name:e.name||'',openid:key.startsWith('u:')?key.slice(2):undefined,text:e.text.slice(0,500),sessions:e.sessions||[],updatedAt:e.updatedAt||NOW});res.profiles++;
+ }
+ if(bpers.length){
+  for(const bp of bpers){
+   if(!bp||typeof bp.id!=='string'||!bp.id||DB.personas.some(p=>p.id===bp.id))continue;
+   const cid=bp.characterId||bp.id;
+   const tpl=DB.personas[0]||PB[0];
+   DB.personas.push({id:bp.id,name:bp.name||bp.id,characterId:cid,version:bp.id,en:'',mono:(bp.name||bp.id)[0],tagline:'',say:'',
+    pal:{...(tpl.pal||{a:'#3d7bff',a2:'#8ec5ff',soft:'#e7f0ff',deep:'#0d2a66'})},traits:[],moods:(bp.moods||[]).map(m=>({name:m,color:'#888888'})),text:bp.text||''});
+  }
+  if(!DB.activeId)DB.activeId=bpers.some(p=>p.id===data.activePersonaId)?data.activePersonaId:DB.personas[0].id;
+  res.persona=true;
+ }
+ if(data.sessionDomains&&typeof data.sessionDomains==='object')for(const[sid,d]of Object.entries(data.sessionDomains)){const s=sessById[sid];if(s&&typeof d==='string'&&d)s.domain=d}
+ if(!DB.personas.length)genPersonas();
+ DB.ops.unshift({t:Date.now(),etype:'import',actor:'管理员',raw:{op:'import',mode:IMP.mode,notes:res.notes,skipped:res.skipped,profiles:res.profiles,persona:res.persona}});
+ DB.profiles.sort((a,b)=>b.updatedAt-a.updatedAt);
+ const st=$('#impStat');if(st){st.textContent=`已导入（${IMP.mode==='merge'?'合并':'覆盖'}）：记忆 ${res.notes} · 跳过 ${res.skipped} · 画像 ${res.profiles}${res.persona?' · 人设已更新':''}`;st.className='bstat ok'}
+ toast(`导入完成：+${res.notes} 记忆 · +${res.profiles} 画像`,'ok');IMP=null;render()}
+/* ── 备份页：近重复 / 危险区 ── */
+let DEDUP_EST=null;
+function bigrams(s){s=s.replace(/[\s，。！？、；：""''（）()\-—…·,.!?;:'"]/g,'');const o=new Set();for(let i=0;i<s.length-1;i++)o.add(s.slice(i,i+2));return o}
+function sim(a,b){const A=bigrams(a),B=bigrams(b);if(!A.size||!B.size)return 0;let n=0;for(const x of A)if(B.has(x))n++;return 2*n/(A.size+B.size)}
+function dedupEstimate(){
+ const notes=DB.notes.filter(n=>!n.absorbedAt);
+ const parent={};const find=x=>{while(parent[x]!==x){parent[x]=parent[parent[x]];x=parent[x]}return x};
+ notes.forEach(n=>parent[n.id]=n.id);
+ for(let i=0;i<notes.length;i++)for(let j=i+1;j<notes.length;j++){
+  const a=notes[i],b=notes[j];
+  if(a.track!==b.track)continue;
+  if(sim(a.content,b.content)>=.72){const ra=find(a.id),rb=find(b.id);if(ra!==rb)parent[ra]=rb}
+ }
+ const cl={};notes.forEach(n=>{const r=find(n.id);(cl[r]??=[]).push(n)});
+ const clusters=Object.values(cl).filter(c=>c.length>1);
+ const merged=clusters.reduce((s,c)=>s+c.length-1,0);
+ DEDUP_EST={clusters,pairs:clusters.flatMap(c=>c.slice(1).map(d=>({keep:c[0].id,drop:d.id})))};
+ const st=$('#dedupStat');if(st){st.textContent=merged?`预计 ${clusters.length} 簇 · 合并 ${merged} 条重复（保留每簇最长文案）`:'未发现近重复（相似度≥0.72）';st.className='bstat'}
+ $('#dedupGo').disabled=!merged}
+async function dedupGo(){
+ if(!DEDUP_EST)return;
+ if(!await askConfirm({title:'合并近重复记忆',body:`将 ${DEDUP_EST.pairs.length} 条近重复并入保留者（hits 求和、importance 取大、strength=max+min×0.5 封顶10），写入 merge op。建议先导出备份。`,okText:'执行合并',danger:true}))return;
+ let done=0;
+ for(const pr of DEDUP_EST.pairs){
+  const keep=noteById(pr.keep),drop=noteById(pr.drop);if(!keep||!drop)continue;
+  keep.hits+=drop.hits;keep.importance=Math.max(keep.importance,drop.importance);
+  keep.strength=Math.min(10,Math.max(keep.strength,drop.strength)+Math.min(keep.strength,drop.strength)*.5);
+  keep.lastAccessAt=Math.max(keep.lastAccessAt,drop.lastAccessAt);keep.createdAt=Math.min(keep.createdAt,drop.createdAt);
+  const i=DB.notes.indexOf(drop);if(i>=0)DB.notes.splice(i,1);
+  DB.ops.unshift({t:Date.now(),etype:'consolidate',noteId:keep.id,actor:'管理员',raw:{op:'merge',keepId:keep.id,dropId:drop.id,patch:{strength:+keep.strength.toFixed(1),hits:keep.hits}}});
+  done++;
+ }
+ DEDUP_EST=null;$('#dedupGo').disabled=true;const st=$('#dedupStat');if(st){st.textContent=`已合并 ${done} 条`;st.className='bstat ok'}
+ toast(`已合并 ${done} 条近重复`,'ok');render()}
+function purgeRange(){const f=$('#pf').value?new Date($('#pf').value).getTime():NaN;const t=$('#pt').value?new Date($('#pt').value).getTime()+59999:NaN;if(!isFinite(f)||!isFinite(t)||f>t)return null;return{from:f,to:t,count:DB.notes.filter(n=>n.createdAt>=f&&n.createdAt<=t).length}}
+function purgePreview(){const r=purgeRange();const b=$('#purgeGo'),s=$('#purgeStat');if(!r){b.disabled=true;s.textContent='请先选择有效起止时间';return}b.disabled=!r.count;s.textContent=r.count?`区间内 ${r.count} 条记忆将被删除`:'区间内无记忆'}
+async function purgeGo(){const r=purgeRange();if(!r||!r.count)return;if(!await askConfirm({title:'按时段删除',body:`永久删除 ${r.count} 条创建于该时段的记忆？写入 del-range op，不可撤销。`,okText:'删除',danger:true}))return;
+ const ids=DB.notes.filter(n=>n.createdAt>=r.from&&n.createdAt<=r.to).map(n=>n.id);
+ DB.notes=DB.notes.filter(n=>!(n.createdAt>=r.from&&n.createdAt<=r.to));
+ DB.ops.unshift({t:Date.now(),etype:'edit',actor:'管理员',raw:{op:'del-range',from:r.from,to:r.to,ids}});
+ const s=$('#purgeStat');if(s){s.textContent=`已删除 ${ids.length} 条`;s.className='bstat ok'}$('#purgeGo').disabled=true;toast(`已删除 ${ids.length} 条`,'ok');render()}
+function purgePCount(){const pid=$('#pp')?.value;return pid?DB.notes.filter(n=>n.personaId===pid).length:0}
+function purgePPreview(){const c=purgePCount(),b=$('#purgePGo'),s=$('#purgePStat');b.disabled=!c;const pid=$('#pp').value;const pn=DB.personas.find(p=>p.id===pid)?.name||pid;s.textContent=c?`「${pn}」形成的 ${c} 条记忆（事实+态度）将被删除`:'该人设暂无记忆'}
+async function purgePGo(){const pid=$('#pp').value,c=purgePCount();if(!c)return;const pn=DB.personas.find(p=>p.id===pid)?.name||pid;
+ if(!await askConfirm({title:'按人设删除',body:`永久删除「${esc(pn)}」形成的 ${c} 条记忆？写入 del-persona op，不可撤销。`,okText:'删除',danger:true}))return;
+ const ids=DB.notes.filter(n=>n.personaId===pid).map(n=>n.id);DB.notes=DB.notes.filter(n=>n.personaId!==pid);
+ DB.ops.unshift({t:Date.now(),etype:'edit',actor:'管理员',raw:{op:'del-persona',personaId:pid,ids}});
+ const s=$('#purgePStat');if(s){s.textContent=`已删除 ${ids.length} 条`;s.className='bstat ok'}$('#purgePGo').disabled=true;toast(`已删除 ${ids.length} 条`,'ok');render()}
+async function resetGo(){
+ if(!await askConfirm({title:'记忆重置',body:`清空全部记忆、画像、情绪与摘要（当前 ${DB.notes.length} 条记忆），人格内核与人设版本保留。不可撤销。`,okText:'重置',danger:true}))return;
+ const cleared={notes:DB.notes.length,profiles:DB.profiles.length,emotions:0,digests:0};
+ DB.notes=[];DB.profiles=[];
+ DB.ops.unshift({t:Date.now(),etype:'edit',actor:'管理员',raw:{op:'reset',keepPersona:true}});
+ const s=$('#rstStat');if(s){s.textContent=`已重置：记忆 ${cleared.notes} · 画像 ${cleared.profiles}`;s.className='bstat ok'}
+ $('#rstWord').value='';$('#rstGo').disabled=true;toast('已重置（POST /api/reset）','ok');render()}
+/* ── 启动 ── */
+$('#notesTgl').checked=document.body.classList.contains('notes-on');
+$('#notesTgl').onchange=e=>{document.body.classList.toggle('notes-on',e.target.checked);e.target.checked?localStorage.setItem('da-notes','1'):localStorage.removeItem('da-notes')};
+$('#dnAll').onclick=()=>{const open=$('#dnAll').dataset.open!=='1';$('#dnAll').dataset.open=open?'1':'0';$('#dnAll').textContent=open?'全部收起':'全部展开';$$('.devnote').forEach(d=>d.classList.toggle('open',open))};
+$('#npsel').onchange=e=>{const id=e.target.value;if(id===DB.activeId)return;if(CUR==='personas'&&personaDirty()&&!confirm('人设编辑器有未保存修改，切换激活人设将丢弃预览，继续？')){renderNav();return}DB.activeId=id;try{localStorage.setItem('da-active',id)}catch(_){}applyTheme(activePersona());toast(`已切换为「${activePersona().name}」（POST /api/personas/activate）`,'ok');renderNav();render()};
+window.addEventListener('hashchange',route);
+window.addEventListener('beforeunload',e=>{if(personaDirty()){e.preventDefault();e.returnValue=''}});
+route();updateRstat();
+/* ── ?selftest=1 自动化自查（写入 #selftest-out，供 dump-dom 验证） ── */
+if(qs.get('selftest')==='1'){
+ setTimeout(async()=>{
+  const out=[];const T=(n,ok)=>out.push((ok?'PASS':'FAIL')+' '+n);
+  const ac=askConfirm;askConfirm=async()=>true;
+  const lv=t=>{const d=new Date(t);return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}T${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`};
+  try{
+   // 排序
+   const a1=memFiltered();T('sort-ret-desc',a1.length>1&&a1[0].retention>=a1[a1.length-1].retention);
+   memSortFlip();const a2=memFiltered();T('sort-ret-asc',a2[0].retention<=a2[a2.length-1].retention);memSortFlip();
+   memSortKey('imp');const a3=memFiltered();T('sort-imp-desc',a3[0].importance>=a3[a3.length-1].importance);memSortKey('ret');
+   // 抽屉新增/编辑/删除
+   openNoteDrawer();T('drawer-new',$('#drawer').classList.contains('on')&&DRAFT.isNew);
+   DRAFT.content='自测新记忆·规格验证';const nb=DB.notes.length;await saveNote();
+   const nid=DB.notes[0].id;T('note-add',DB.notes.length===nb+1&&noteById(nid)?.content.includes('自测'));
+   openNoteDrawer(nid);T('drawer-edit',DRAFT.id===nid&&!DRAFT.isNew);DRAFT.content='自测编辑后';await saveNote();
+   T('note-edit',noteById(nid)?.content==='自测编辑后');
+   await noteDel(nid);T('note-del',!noteById(nid)&&DB.notes.length===nb);
+   // 画像：合并 / 重生成 / 删除
+   const persons=DB.profiles.filter(p=>p.kind==='person');
+   if(persons.length>=2){
+    const keep=persons[0],drop=persons[1],dk=drop.key;
+    P.profiles.merge=keep.key;await profMergeInto(dk);
+    const kp=DB.profiles.find(p=>p.key===keep.key);
+    T('prof-merge',!DB.profiles.some(p=>p.key===dk)&&kp.text.length<=500&&kp.sessions.length>=(keep.sessions||[]).length);
+   }else T('prof-merge',false);
+   const rp=DB.profiles.find(p=>p.kind==='person');if(rp){const rt=rp.text;await profRegen(rp.key);T('prof-regen',DB.profiles.find(p=>p.key===rp.key).text!==rt||rp.text===rt)}
+   const sp=DB.profiles.find(p=>p.kind==='session');if(sp){await profDel(sp.key);T('prof-del',!DB.profiles.some(p=>p.key===sp.key))}else T('prof-del',false);
+   // 关联图：三类均有 + 点选出详情
+   CUR='graph';render();
+   const kinds=new Set(graphNodes().ns.map(n=>n.kind));
+   T('graph-kinds',kinds.size===3&&graphNodes().ns.length===40);
+   const node=document.querySelector('#arc .node');if(node){node.dispatchEvent(new MouseEvent('click',{bubbles:true}));
+    T('graph-select',!!GF.sel&&($('#gside')?.textContent||'').length>50)}else T('graph-select',false);
+   // 备份页控件需先渲染（dedup/purge/reset 的 DOM 只在 backup 页存在）
+   CUR='backup';render();
+   // 近重复
+   dedupEstimate();const est=DEDUP_EST?DEDUP_EST.pairs.length:0;T('dedup-est',est>0);
+   if(est){const dn=DB.notes.length;await dedupGo();T('dedup-go',DB.notes.length===dn-est)}else T('dedup-go',false);
+   // 导入合并 / 时段清理 / 人设清理 / 重置
+   const dump={version:1,notes:[{id:'st-import-1',content:'自测导入记忆',kind:'semantic',importance:4,sessionId:'manual',createdAt:Date.now(),strength:3,lastAccessAt:Date.now(),hits:0}],profiles:{'u:selftest':{text:'自测画像文本',name:'自测',sessions:[],updatedAt:Date.now()}},personas:[],sessionDomains:{}};
+   IMP={name:'selftest.json',text:JSON.stringify(dump),mode:'merge'};
+   const nb2=DB.notes.length,pb2=DB.profiles.length;await backupImport();
+   T('import-merge',noteById('st-import-1')&&DB.profiles.some(p=>p.key==='u:selftest')&&DB.notes.length===nb2+1&&DB.profiles.length===pb2+1);
+   IMP=null;
+   const ts=DB.notes.map(n=>n.createdAt).sort((a,b)=>a-b);
+   if(ts.length>4){const from=ts[0],to=ts[Math.floor(ts.length/2)];const expect=DB.notes.filter(n=>n.createdAt>=from&&n.createdAt<=to).length;
+    $('#pf').value=lv(from);$('#pt').value=lv(to);purgePreview();const nb3=DB.notes.length;await purgeGo();
+    T('purge-range',expect>0&&DB.notes.length===nb3-expect)}else T('purge-range',false);
+   const pid=DB.personas[0].id,pc=DB.notes.filter(n=>n.personaId===pid).length,nb4=DB.notes.length;
+   $('#pp').value=pid;purgePPreview();await purgePGo();
+   T('purge-persona',pc>=0&&DB.notes.length===nb4-pc);
+   const rn=DB.notes.length,rp2=DB.profiles.length;await resetGo();
+   T('reset',DB.notes.length===0&&DB.profiles.length===0&&DB.ops.some(o=>o.raw&&o.raw.op==='reset'));
+  }catch(e){out.push('FAIL exception: '+(e&&e.message))}
+  askConfirm=ac;
+  const d=document.createElement('div');d.id='selftest-out';
+  d.style.cssText='position:fixed;top:8px;left:212px;z-index:99;background:#fff;border:2px solid #000;font:11px/1.6 monospace;padding:8px 10px;max-height:88vh;overflow:auto;white-space:pre';
+  d.textContent=out.join('\n');document.body.appendChild(d);
+  console.log('[selftest]\n'+out.join('\n'));
+  route();
+ },400);
+}
+</script></body></html>
