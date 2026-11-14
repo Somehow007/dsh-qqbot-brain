@@ -93,6 +93,7 @@ export default {
     this._drawn = new Set();
     this._cells = new Map();
     this._cellOf = new Map();
+    this._pinPos = new Map();
     const theme = ctx?.theme ?? {};
     this._brandKey = `${ctx?.persona?.id ?? ''}|${theme.name ?? ''}|${ctx?.charId ?? theme.characterId ?? ''}`;
 
@@ -240,31 +241,45 @@ export default {
       }
     }
 
-    // 3) 「+N」标记落位（先于节点）：带缝单行、按 cellScore 序 x 向让位；同时作节点碰撞障碍
-    const marks = [...cells.values()].filter((c) => c.hidden > 0)
-      .sort((a, b) => cellScoreOf(b) - cellScoreOf(a) || (a.key < b.key ? -1 : 1));
+    // 3) 「+N」标记落位（先于节点）：带缝单行、按 cellScore 序取「净空最大、漂移最小」；
+    //    extra=补位时需额外避让的已落位节点（矩形口径）
     const placedM = [];
-    for (const c of marks) {
+    // 情景带下方空隙最宽（底缘距日标 ~44px）→ 允许第二错峰行；其余带单行
+    const markRows = (bandY) => (bandY === BANDS.episodic ? [MARK_Y, MARK_Y + 12] : [MARK_Y]);
+    const placeMark = (c, extra = []) => {
       const bandY = BANDS[c.kind] ?? BANDS.episodic;
       const hw = `+${c.hidden}`.length * 2.6 + 2; // 9px mono 半宽估
       const bx0 = xOf(Math.min(c.dc + 0.5, DMAX));
-      let bx = bx0, bScore = -Infinity;
-      for (const dx of [0, -6, 6, -12, 12, -18, 18, -24, 24, -36, 36, -48, 48, -60, 60]) {
-        const cx = bx0 + dx;
-        if (cx < 100 || cx > W - 20) continue;
-        let clear = placedM.length ? Infinity : 999;
-        for (const m of placedM) {
-          if (m.bandY !== bandY) continue; // 只同带互让（跨带纵向隔 130px 不冲突）
-          const d = Math.abs(m.x - cx) - m.hw - hw - 3;
-          if (d < clear) clear = d;
+      let bx = bx0, brow = MARK_Y, bScore = -Infinity;
+      for (const row of markRows(bandY)) {
+        for (const dx of [0, -6, 6, -12, 12, -18, 18, -24, 24, -36, 36, -48, 48, -60, 60]) {
+          const cx = bx0 + dx;
+          if (cx < 100 || cx > W - 20) continue;
+          let clear = placedM.length || extra.length ? Infinity : 999;
+          for (const m of placedM) {
+            if (m.bandY !== bandY) continue; // 只同带互让（跨带纵向隔 130px 不冲突）
+            if (Math.abs(m.y - (bandY + row - 2)) > 8) continue; // 只同行互让
+            const d = Math.abs(m.x - cx) - m.hw - hw - 3;
+            if (d < clear) clear = d;
+          }
+          for (const q of extra) {
+            const ox = Math.max(0, Math.abs(q.x - cx) - hw - q.r - 2);
+            const oy = Math.max(0, Math.abs(q.y - (bandY + row - 2)) - 5 - q.r - 2);
+            const d = Math.hypot(ox, oy) - 3;
+            if (d < clear) clear = d;
+          }
+          const score = clear - 0.05 * Math.abs(dx) - 0.03 * (row - MARK_Y);
+          if (score > bScore) { bScore = score; bx = cx; brow = row; }
         }
-        const score = clear - 0.05 * Math.abs(dx);
-        if (score > bScore) { bScore = score; bx = cx; }
       }
       c.markX = bx;
-      c.markY = bandY + MARK_Y;
-      placedM.push({ x: bx, y: bandY + MARK_Y - 2, hw, bandY, box: true });
-    }
+      c.markY = bandY + brow;
+      c.marked = true;
+      placedM.push({ x: bx, y: bandY + brow - 2, hw, bandY, box: true });
+    };
+    const marks = [...cells.values()].filter((c) => c.hidden > 0)
+      .sort((a, b) => cellScoreOf(b) - cellScoreOf(a) || (a.key < b.key ? -1 : 1));
+    for (const c of marks) placeMark(c);
 
     // 4) 槽位坐标：x=连续年龄；格内按分序纵向均布；碰撞 pass（真实半径、带内 clamp、避让标记）
     const units = [];
@@ -282,10 +297,11 @@ export default {
       });
     }
     units.sort((a, b) => b.score - a.score || nTie(a, b));
-    // 碰撞 pass：分数序逐个落位；候选=带内 y 全扫(步6)×小幅 x 挪(±16)，取「最大净空、位移最小」
+    // 碰撞 pass：分数序逐个落位；候选=带内 y 全扫(步4)×小幅 x 挪(±24)，取「最大净空、位移最小」；
+    // 全候选仍重叠（净空<-2）→ 不占位、降级进「+N」（低分者先降级，带宽不足时保版面整洁）
     const done = placedM.slice();
     for (const u of units) {
-      let bx = u.x, by = u.y, bScore = -Infinity;
+      let bx = u.x, by = u.y, bScore = -Infinity, bClear = -Infinity;
       for (let dy = -52; dy <= 52; dy += 4) {
         const cy = Math.min(Math.max(u.bandY + dy, u.bandY - 50), u.bandY + 50);
         for (const dx of [0, -8, 8, -16, 16, -24, 24]) {
@@ -304,8 +320,14 @@ export default {
             if (d < clear) clear = d;
           }
           const score = clear - 0.1 * Math.abs(dx) - 0.03 * Math.abs(cy - u.y);
-          if (score > bScore) { bScore = score; bx = cx; by = cy; }
+          if (score > bScore) { bScore = score; bx = cx; by = cy; bClear = clear; }
         }
+      }
+      const c = cells.get(u.cellKey);
+      if (bClear < -2) { // 无处可放 → 降级进「+N」
+        c.hidden++;
+        c.drawnIds.delete(u.id);
+        continue;
       }
       u.x = bx; u.y = by;
       done.push(u);
@@ -313,8 +335,13 @@ export default {
       this._drawn.add(u.id);
       this._cellOf.set(u.id, u.cellKey);
     }
+    // 碰撞降级后：首次出现 hidden 的 cell 补「+N」标记（同时避让已落位节点）
+    const nodeBoxes = done.filter((q) => q.id);
+    for (const c of cells.values())
+      if (c.hidden > 0 && !c.marked) placeMark(c, nodeBoxes);
 
-    // 4) 常驻标签：分数序候选（每 kind 先保底 3）+ AABB 防叠
+    // 5) 常驻标签：分数序候选（每 kind 先保底 3）；above→below 双锚位，
+    //    对节点/「+N」标记/svg 边界做 AABB 防叠，放不下就不 pin（hover/选中仍显）
     const ranked = [...this._drawn].map((id) => byId[id]).filter(Boolean)
       .sort((a, b) => nScore(b) - nScore(a) || nTie(a, b));
     const cnt = {}, first = [], rest = [];
@@ -323,17 +350,39 @@ export default {
       if ((cnt[k] ?? 0) < 3) { first.push(n); cnt[k] = (cnt[k] ?? 0) + 1; }
       else rest.push(n);
     }
+    this._pinPos = new Map();
     const taken = [];
-    for (const n of [...first, ...rest]) {
-      if (this._pins.size >= LABEL_CAP) break;
+    // b=[x0,y0,x1,y1] 矩形 vs q={x,y,r} 圆盘最近距离；hit 阈值可扣 slack 放宽（第二趟允许文字擦圆边）
+    const circHit = (b, q, rr) => {
+      const ox = Math.max(0, Math.max(q.x - b[2], b[0] - q.x));
+      const oy = Math.max(0, Math.max(q.y - b[3], b[1] - q.y));
+      return Math.hypot(ox, oy) < (rr ?? q.r + 1);
+    };
+    const tryPin = (n, slack) => {
       const p = this._pos[n.id];
-      if (!p) continue;
-      const w = String(n.title ?? '').length * 12 + 8;
-      const b = [p[0] - w / 2, p[1] - nodeR(n) - 20, p[0] + w / 2, p[1] - nodeR(n) - 4];
-      if (taken.some((t) => b[0] < t[2] + 4 && b[2] + 4 > t[0] && b[1] < t[3] + 2 && b[3] + 2 > t[1])) continue;
-      taken.push(b);
-      this._pins.add(n.id);
-    }
+      if (!p || this._pins.has(n.id)) return false;
+      const r = nodeR(n), w = String(n.title ?? '').length * 12 + 8;
+      for (const ldx of [0, -14, 14, -28, 28]) {
+        const lx = p[0] + ldx;
+        for (const { b, a } of [
+          { b: [lx - w / 2, p[1] - r - 20, lx + w / 2, p[1] - r - 3], a: 'above' },
+          { b: [lx - w / 2, p[1] + r + 4, lx + w / 2, p[1] + r + 17], a: 'below' },
+        ]) {
+          if (b[0] < 4 || b[2] > W - 4 || b[1] < 4 || b[3] > 406) continue;
+          if (nodeBoxes.some((q) => circHit(b, q, q.r + 1 - slack))) continue;
+          if (placedM.some((m) => circHit(b, { x: m.x, y: m.y, r: m.hw + 2 }))) continue;
+          if (taken.some((t) => b[0] < t[2] + 4 && b[2] + 4 > t[0] && b[1] < t[3] + 2 && b[3] + 2 > t[1])) continue;
+          taken.push(b);
+          this._pins.add(n.id);
+          this._pinPos.set(n.id, { a, x: ldx });
+          return true;
+        }
+      }
+      return false;
+    };
+    const order = [...first, ...rest];
+    for (const n of order) { if (this._pins.size >= LABEL_CAP) break; tryPin(n, 1); }
+    for (const n of order) { if (this._pins.size >= LABEL_CAP) break; tryPin(n, 7); }
   },
 
   _drawMap() {
@@ -355,12 +404,26 @@ export default {
     if (!vm) return;
     const byId = vm.byId ?? {};
     const ge = svg('g', {}, s), gm = svg('g', {}, s), gn = svg('g', {}, s);
+    const ETYPE_CAP = { consolidate: 48, session: 16, similar: 20 };
     const rels = (vm.relations ?? [])
       .filter((r) => this._pos[r.a] && this._pos[r.b])
-      .sort((a, b) => b.score - a.score)
-      .slice(0, EDGE_CAP);
+      .sort((a, b) => b.score - a.score);
+    const ecnt = { consolidate: 0, session: 0, similar: 0 };
+    const relDrawn = [];
     for (const r of rels) {
-      const [x1, y1] = this._pos[r.a], [x2, y2] = this._pos[r.b];
+      if (relDrawn.length >= EDGE_CAP) break;
+      const t = edgeKind(r);
+      if (ecnt[t] >= ETYPE_CAP[t]) continue;
+      ecnt[t]++;
+      relDrawn.push(r);
+    }
+    for (const r of relDrawn) {
+      const [ax, ay] = this._pos[r.a], [bx, by] = this._pos[r.b];
+      const dx = bx - ax, dy = by - ay, len = Math.hypot(dx, dy) || 1;
+      // 端点收束到圆边外 2px——线不穿节点
+      const ra = nodeR(byId[r.a]) + 2, rb = nodeR(byId[r.b]) + 2;
+      const x1 = ax + (dx / len) * ra, y1 = ay + (dy / len) * ra;
+      const x2 = bx - (dx / len) * rb, y2 = by - (dy / len) * rb;
       const tk = edgeKind(r);
       let d;
       if (tk === 'consolidate') {
@@ -402,7 +465,11 @@ export default {
         'stroke-dasharray': fading ? '2 2' : '',
       }, g);
       if (n.track === 'self') svg('circle', { r: r + 3.5, fill: 'none', stroke: 'var(--a)', 'stroke-width': .8 }, g);
-      const t = svg('text', { class: 'lab', y: -r - 7, 'text-anchor': 'middle' }, g);
+      const anch = this._pinPos?.get(id);
+      const t = svg('text', {
+        class: 'lab', x: anch?.x ?? 0,
+        y: anch?.a === 'below' ? r + 14 : -r - 7, 'text-anchor': 'middle',
+      }, g);
       t.textContent = n.title;
       if (this._pins.has(id)) g.classList.add('pin');
       g.onclick = () => this._select(id);
@@ -526,7 +593,7 @@ export default {
     side.append(kick);
     side.append(el('h2', '', `同格 ${c.list.length} 条`));
     side.append(el('p', 'dek',
-      `这一格共有 ${c.list.length} 条记忆，图上单独成点 ${c.drawn.length} 条${c.hidden ? `，其余 ${c.hidden} 条聚合在「+${c.hidden}」里` : ''}。点条目看专栏。`));
+      `这一格共有 ${c.list.length} 条记忆，图上单独成点 ${c.drawnIds.size} 条${c.hidden ? `，其余 ${c.hidden} 条聚合在「+${c.hidden}」里` : ''}。点条目看专栏。`));
     const ul = el('ul', 'rel');
     for (const n of c.list.slice(0, CELL_ROSTER_CAP)) {
       const li = el('li');
@@ -682,6 +749,6 @@ export default {
     this._vm = null; this._ctx = null;
     this._sel = null; this._selCell = null; this._qhit = new Set();
     this._pos = {}; this._drawn = new Set(); this._pins = new Set();
-    this._cells = new Map(); this._cellOf = new Map();
+    this._cells = new Map(); this._cellOf = new Map(); this._pinPos = new Map();
   },
 };
