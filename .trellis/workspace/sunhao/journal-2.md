@@ -538,3 +538,25 @@ P2(S5+S6)：nocturne 星盘（150星/24标/彗星流星/补间/still零rAF/hidde
 ### Status
 
 [OK] **Completed**
+
+
+## Session 119: 墨刊三轮交互打磨（索引分页/focus蓝边/强制滚动）
+<!-- trellis-session: v=2 fp=4c31be6020f3c40f -->
+
+**Date**: 2026-11-14
+**Task**: 墨刊三轮交互打磨（索引分页/focus蓝边/强制滚动）
+**Branch**: `main`
+
+### Summary
+
+用户实测反馈三处：索引表50行堆叠无翻页、点节点出浏览器默认蓝色focus outline、点节点强制scrollIntoView拖到底部索引。修法：PAGE_SIZE=30页脚翻页（第x/n页·共M条，_page随vm保留clamp）；.node:focus outline:none+halo环补sel/near可见态；删scrollIntoView留行sel高亮。headless实测分页DOM正确，274tests绿。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `6df9ed3` | fix(brain): 墨刊交互打磨——索引分页、杀focus蓝边、去强制滚动 |
+
+### Status
+
+[OK] **Completed**
