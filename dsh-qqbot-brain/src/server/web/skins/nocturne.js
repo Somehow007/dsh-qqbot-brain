@@ -785,16 +785,30 @@ export default {
     const L = Math.hypot(W, H) * .7, bw = H * .12;
     for (let i = 0; i < 400; i++) {
       const s = (rnd() * 2 - 1) * L * .6, dd = (rnd() + rnd() + rnd() - 1.5) * bw;
-      this._skyStars.push({ x: cx + ux * s + vx * dd, y: cy + uy * s + vy * dd, r: .4 + rnd(), a: .1 + rnd() * .5, ph: rnd() * 6.28, sp: .3 + rnd() * 1.1 });
+      this._skyStars.push({ x: cx + ux * s + vx * dd, y: cy + uy * s + vy * dd, r: .4 + rnd(), a: .1 + rnd() * .5, ph: rnd() * 6.28, sp: .3 + rnd() * 1.1, tw: rnd() > .72 });
     }
-    for (let i = 0; i < 80; i++) this._skyStars.push({ x: rnd() * W, y: rnd() * H, r: .3 + rnd() * .8, a: .05 + rnd() * .22, ph: rnd() * 6.28, sp: .25 + rnd() * .8 });
+    for (let i = 0; i < 80; i++) this._skyStars.push({ x: rnd() * W, y: rnd() * H, r: .3 + rnd() * .8, a: .05 + rnd() * .22, ph: rnd() * 6.28, sp: .25 + rnd() * .8, tw: rnd() > .5 });
+    // 静态层烘焙一次：每帧只 drawImage + 画 ~28% 闪烁星，省 ~70% arc 填充
+    const off = document.createElement('canvas');
+    off.width = cv.width; off.height = cv.height;
+    const oc = off.getContext('2d');
+    oc.setTransform(d, 0, 0, d, 0, 0);
+    for (const s of this._skyStars) {
+      if (s.tw) continue;
+      oc.globalAlpha = s.a; oc.fillStyle = '#ebe2cb';
+      oc.beginPath(); oc.arc(s.x, s.y, s.r, 0, 6.283); oc.fill();
+    }
+    oc.globalAlpha = 1;
+    this._skyStatic = off;
     this._drawSky(performance.now(), !this._motion);
   },
   _drawSky(now, still) {
     const ctx = this._c2d, d = Math.min(2, devicePixelRatio || 1);
     const W = this._canvas.width / d, H = this._canvas.height / d;
     ctx.clearRect(0, 0, W, H);
+    if (this._skyStatic) ctx.drawImage(this._skyStatic, 0, 0, W, H);
     for (const s of this._skyStars) {
+      if (!s.tw) continue;
       const tw = still ? 1 : .55 + .45 * Math.sin(now * .001 * s.sp + s.ph);
       ctx.globalAlpha = s.a * tw; ctx.fillStyle = '#ebe2cb';
       ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, 6.283); ctx.fill();
@@ -828,8 +842,12 @@ export default {
       let dd = ha - st.a; dd = Math.atan2(Math.sin(dd), Math.cos(dd));
       if (dd > 0 && dd < .05 && now - st.hit > 2000) st.hit = now;
       const k = Math.max(0, 1 - (now - st.hit) / 1400);
-      st.fl.setAttribute('opacity', (k * .55).toFixed(3));
-      st.fl.setAttribute('r', st.r + 2 + (1 - k) * 9 * (k > 0));
+      // 仅在辉光亮/熄瞬间写 DOM：稳态 k=0 时 150 星×2 属性写全省掉
+      if (k > .001 || st.w) {
+        st.fl.setAttribute('opacity', (k * .55).toFixed(3));
+        st.fl.setAttribute('r', st.r + 2 + (1 - k) * 9 * (k > 0));
+        st.w = k > .001;
+      }
     }
     if (now > this._nextMeteor) { this._nextMeteor = now + 6000 + Math.random() * 6000; this._spawnMeteor(); }
     for (let i = this._meteors.length - 1; i >= 0; i--) {
@@ -846,6 +864,15 @@ export default {
     if (!es.length || !this._comets) return;
     const e = es[Math.floor(Math.random() * es.length)], L = e.el.getTotalLength();
     const fromA = this._vm?.byId?.[e.a]?.kind === 'episodic';
+    // 路径预采样：每帧 getPointAtLength×11 太贵，改查 160 点折线
+    const NS = 160, pts = [];
+    for (let i = 0; i <= NS; i++) pts.push(e.el.getPointAtLength(L * i / NS));
+    const atRaw = (d0) => {
+      const u = Math.max(0, Math.min(1, d0 / L)) * NS, i0 = Math.min(NS - 1, Math.floor(u)), f = u - i0;
+      const p0 = pts[i0], p1 = pts[i0 + 1];
+      return { x: p0.x + (p1.x - p0.x) * f, y: p0.y + (p1.y - p0.y) * f };
+    };
+    const at = (l) => atRaw(fromA ? Math.max(0, l) : Math.max(0, L - l));
     const head = svg('circle', { r: 2, fill: '#fff', filter: 'url(#nsoft)' }, this._comets);
     const segs = [];
     for (let k = 0; k < 5; k++) segs.push(svg('path', { fill: 'none', stroke: 'var(--a2)', 'stroke-linecap': 'round' }, this._comets));
@@ -854,7 +881,6 @@ export default {
     const step = (now) => {
       if (!this._root || !head.isConnected) { this._cometN--; return; }
       const u = Math.min(1, (now - t0) / dur), ease = u * u * (3 - 2 * u);
-      const at = (l) => e.el.getPointAtLength(fromA ? Math.max(0, l) : Math.max(0, L - l));
       const p = at(ease * L), o = Math.sin(Math.PI * u);
       head.setAttribute('cx', p.x); head.setAttribute('cy', p.y); head.setAttribute('opacity', o);
       for (let k = 0; k < 5; k++) {
@@ -981,6 +1007,7 @@ export default {
     this._vm = null;
     this._sel = null;
     this._cometN = 0;
+    this._skyStatic = null;
     this._starEls?.clear();
     this._edgeEls = [];
     this._stars = [];

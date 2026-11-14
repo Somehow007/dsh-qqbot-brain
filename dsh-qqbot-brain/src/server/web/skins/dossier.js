@@ -44,6 +44,7 @@ export default {
     this._pos = {};
     this._drawn = new Set();
     const theme = ctx?.theme ?? {};
+    this._brandKey = `${ctx?.persona?.id ?? ''}|${theme.name ?? ''}|${ctx?.charId ?? theme.characterId ?? ''}`;
 
     elm.replaceChildren();
     const root = el('div', 'dsr');
@@ -384,7 +385,12 @@ export default {
 
   // ── 皮肤接口 ──
   update(vm, ctx) {
-    this._ctx = ctx ?? this._ctx;
+    if (ctx) {
+      const t = ctx.theme ?? {};
+      const bk = `${ctx.persona?.id ?? ''}|${t.name ?? ''}|${ctx.charId ?? t.characterId ?? ''}`;
+      if (bk !== this._brandKey) { const elm = this._root; this.mount(elm, { ...ctx, vm }); return; }
+      this._ctx = ctx;
+    }
     if (vm && vm === this._vm) return; // 同 vm 跳过整绘（保留选中/滚动）
     this._vm = vm;
     if (this._root) this._paint();

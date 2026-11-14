@@ -24,6 +24,7 @@ export const store = {
   rev: 0,             // 每次成功刷新 +1，视图可据此判断数据是否变化
   error: '',          // 最近一次刷新错误（顶栏可提示）
   mapVM: null,        // buildMapVM 产物；查看人设/数据变化时重建
+  _sig: '',           // 上次 payload 指纹：内容未变则跳过 rebuildVM（皮肤 vm 引用不变 → 不整层重绘）
 
   _listeners: new Set(),
   _timer: 0,
@@ -51,6 +52,30 @@ export const store = {
         api.get('/profiles'),
         api.get('/personas'),
       ]);
+      // payload 指纹：五份响应 + 当日桶（跨天时 week/recalls 口径会变，至少每日重建一次）。
+      // 两处服务端连续漂移要量化，否则指纹永不命中、15s 轮询照旧整层重绘：
+      //  - emotion.v/a/d/updatedAt：PAD 衰减每请求都变 → 量化 .2f（=展示精度）并剔除 updatedAt
+      //  - notes[].retention：逐秒衰减 → 量化到整数百分比（=UI 展示精度），亚百分比漂移不触发重建
+      const emo = state?.emotion;
+      const stateSig = state && {
+        ...state,
+        notes: (state.notes ?? []).map((n) => n && typeof n === 'object'
+          ? { ...n, retention: Math.round((n.retention ?? 0) * 100) / 100 } : n),
+        emotion: emo && typeof emo === 'object' ? {
+          mood: emo.mood, label: emo.label, personaId: emo.personaId,
+          v: Math.round((emo.v ?? 0) * 100) / 100,
+          a: Math.round((emo.a ?? 0) * 100) / 100,
+          d: Math.round((emo.d ?? 0) * 100) / 100,
+        } : emo,
+      };
+      const sig = JSON.stringify([stateSig, ops, sessions, profiles, personas])
+        + '|' + Math.floor(Date.now() / 86400e3);
+      if (sig === this._sig) {
+        this.rev++;
+        this._emit('data');
+        return;
+      }
+      this._sig = sig;
       this.state = state;
       this.ops = ops.ops ?? [];
       this.sessions = sessions.sessions ?? [];

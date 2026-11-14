@@ -15,7 +15,7 @@
 .noc .wrap{position:relative;z-index:1;max-width:1320px;margin:0 auto;padding:26px 40px 56px}
 /* ── 背景层：星云 / 银河带 / 星点 canvas（fixed 在顶栏之下，不随内容滚动）── */
 .noc .bg{position:fixed;inset:52px 0 0 0;z-index:0;pointer-events:none;overflow:hidden}
-.noc .bgp{position:absolute;inset:-24px}
+.noc .bgp{position:absolute;inset:-24px;will-change:transform}
 .noc .neb{position:absolute;border-radius:50%;filter:blur(60px)}
 .noc .n1{width:56vmax;height:56vmax;left:-9vmax;top:-15vmax;background:radial-gradient(circle,var(--a) 0%,transparent 68%);opacity:.26;animation:noc-nebA 52s ease-in-out infinite alternate}
 .noc .n2{width:48vmax;height:48vmax;right:-11vmax;top:36%;background:radial-gradient(circle,var(--a2) 0%,transparent 70%);opacity:.22;animation:noc-nebB 44s ease-in-out infinite alternate}
