@@ -1,17 +1,22 @@
 // 墨刊（dossier）皮肤：概念图 a-dossier 还原。
-// 刊头（双细线刊名/刊期/栏线副栏）→ 时间轴地层图（x=时间平方根刻度，三层 情景→语义→态度，
-// 巩固画弧）→ 侧栏总览/专栏详情 → 底部记忆索引表（前 50 + 「查看全部」→ #/admin/memories）。
+// 刊头（双细线刊名/刊期/栏线副栏）→ 时间轴地层图（x=连续年龄 sqrt 刻度，三层 情景→语义→态度，
+// 巩固画弧）→ 侧栏总览/专栏详情/同格记忆 → 底部记忆索引表（前 50 + 「查看全部」→ #/admin/memories）。
 // 数据一律消费 ctx.vm（core/vm.js buildMapVM）；皮肤自身不 fetch。无 rAF（纯静态版式）。
-// LOD：地层点 ≤60（quotaPick 三 kind 按比例）、常驻标签 ≤24（labelPick）、连线 ≤80。
+// LOD：absorbed 存档条退出绘制集；活记忆按 (kind×天) 分 cell，每 cell ≤CELL_K 点成点、
+// 余量折成带缝「+N」计数标（点击看全格 roster）；节点预算 NODE_CAP 按 kind→时间桶→cell
+// 三级比例分配保底；常驻标签 ≤LABEL_CAP（分数序+AABB 防叠）；连线 ≤EDGE_CAP。
 
 import { el } from '../core/ui.js';
 import { hashColor } from '../core/theme.js';
-import { kindLabel, quotaPick, labelPick, relationWhy, previewText } from '../core/vm.js';
+import { kindLabel, relationWhy, previewText } from '../core/vm.js';
 
 const SVGNS = 'http://www.w3.org/2000/svg';
 const W = 860, X0 = 110, X1 = 830, DMAX = 32;
 const BANDS = { attitude: 70, semantic: 200, episodic: 330 };
 const NODE_CAP = 60, LABEL_CAP = 24, EDGE_CAP = 80, ROW_CAP = 50;
+const CELL_K = 4;          // 单格最多单独成点的条数
+const CELL_ROSTER_CAP = 40;// 同格侧栏名单上限
+const MARK_Y = 66;         // 「+N」标记基线：带底缝内（带界 ±58，下一带顶 -72）
 
 const svg = (t, attrs = {}, parent) => {
   const e = document.createElementNS(SVGNS, t);
@@ -23,6 +28,48 @@ const xOf = (d) => X1 - Math.sqrt(Math.min(Math.max(0, d), DMAX) / DMAX) * (X1 -
 // 关系类型 → 图上线型：derived=沉淀弧；semantic/topic=虚线；session/actor=细线
 const edgeKind = (r) => r.primary === 'derived' ? 'consolidate'
   : (r.primary === 'session' || r.primary === 'actor') ? 'session' : 'similar';
+// 连续年龄（天，浮点）：createdAt 优先，缺失退回整数 day + 半天居中
+const ageDaysF = (n, now) => n.createdAt ? (now - n.createdAt) / 864e5 : (n.day ?? 0) + 0.5;
+const nScore = (n) => (n.imp ?? n.importance ?? 0) * (n.ret ?? n.retention ?? 0);
+const nTie = (a, b) => String(a.id) < String(b.id) ? -1 : String(a.id) > String(b.id) ? 1 : 0;
+const nodeR = (n) => 4 + (n.imp ?? n.importance ?? 0) * 2.2;
+const cellScoreOf = (c) => c.list.slice(0, CELL_K).reduce((s, n) => s + nScore(n), 0);
+// 时间桶（dayCell 0..32 → 6 桶，近密远疏）：保底分配保证地层覆盖全轴
+const bucketOf = (dc) => dc < 2 ? 0 : dc < 5 ? 1 : dc < 9 ? 2 : dc < 15 ? 3 : dc < 22 ? 4 : 5;
+
+/**
+ * 比例配额分配器：先按 prioKeys 顺序给每组 floorCap 保底（装不下则跳过），
+ * 剩余预算按 alloc/demand 最小者优先逐个 +1 填满——确定性、与 quotaPick 同思路但按权重。
+ * @param demand Map<key, number> 各组满载需求（>0）
+ * @param cap    总预算
+ * @param floorCap 每组保底上限
+ * @param prioKeys 保底优先级序（先到先得）
+ * @returns Map<key, number> 各组预算
+ */
+function allocBudget(demand, cap, floorCap, prioKeys) {
+  const out = new Map();
+  let sum = 0;
+  for (const k of prioKeys) {
+    const d = demand.get(k) ?? 0;
+    if (!d) continue;
+    const f = Math.min(d, floorCap);
+    if (sum + f <= cap) { out.set(k, f); sum += f; }
+  }
+  const keys = [...demand.keys()];
+  while (sum < cap) {
+    let best = null, bestKey = null;
+    for (const k of keys) {
+      const d = demand.get(k), a = out.get(k) ?? 0;
+      if (a >= d) continue;
+      const ratio = a / d;
+      if (best === null || ratio < best || (ratio === best && k < bestKey)) { best = ratio; bestKey = k; }
+    }
+    if (bestKey === null) break;
+    out.set(bestKey, (out.get(bestKey) ?? 0) + 1);
+    sum++;
+  }
+  return out;
+}
 
 export default {
   id: 'dossier',
@@ -40,9 +87,12 @@ export default {
     this._ctx = ctx;
     this._vm = ctx?.vm ?? null;
     this._sel = null;
+    this._selCell = null;
     this._qhit = new Set();
     this._pos = {};
     this._drawn = new Set();
+    this._cells = new Map();
+    this._cellOf = new Map();
     const theme = ctx?.theme ?? {};
     this._brandKey = `${ctx?.persona?.id ?? ''}|${theme.name ?? ''}|${ctx?.charId ?? theme.characterId ?? ''}`;
 
@@ -104,11 +154,13 @@ export default {
     q('#dTag').textContent = `「${theme.tagline || '……'}」 · 人设版本 ${this._ctx?.persona?.id ?? '—'}`;
     const notes = vm?.notes ?? [];
     const self = notes.filter((n) => n.track === 'self').length;
+    const archived = notes.filter((n) => n.absorbed).length;
     q('#dSt').textContent = vm
-      ? `记忆 ${notes.length} · 自我 ${self} · 世界 ${notes.length - self} · 关联 ${vm.links?.length ?? 0}`
+      ? `记忆 ${notes.length} · 自我 ${self} · 世界 ${notes.length - self} · 关联 ${vm.links?.length ?? 0} · 存档 ${archived}`
       : '档案加载中……';
     q('#dFootName').textContent = `${theme.en || 'DOSSIER'}`;
 
+    this._selCell = null;
     this._layout();
     this._drawMap();
     this._rows();
@@ -117,26 +169,171 @@ export default {
     if (this._qhit.size) this._applyHi([...this._qhit]);
   },
 
-  // ── 布局：kind 分带 + 时间 sqrt 横轴 + 带内碰撞上下让位 ──
+  // ── 布局：absorbed 退出 → (kind×天) cell 聚合 → kind→时间桶→cell 三级配额 → 槽位+碰撞 ──
   _layout() {
     this._pos = {};
     this._drawn = new Set();
-    const notes = this._vm?.notes ?? [];
-    const used = {};
-    for (const n of quotaPick(notes, NODE_CAP)) {
-      this._drawn.add(n.id);
-      const key = n.kind ?? 'episodic';
-      let x = xOf(n.day), y = BANDS[key] ?? BANDS.episodic, k = 0;
-      (used[key] ??= []);
-      while (used[key].some((p) => Math.hypot(p[0] - x, p[1] - y) < 30) && k < 14) {
-        k++;
-        y = (BANDS[key] ?? BANDS.episodic) + (k % 2 ? -1 : 1) * Math.ceil(k / 2) * 20;
-      }
-      used[key].push([x, y]);
-      this._pos[n.id] = [x, y];
+    this._cells = new Map();
+    this._cellOf = new Map();
+    this._pins = new Set();
+    const vm = this._vm, now = vm?.now ?? Date.now();
+    const notes = vm?.notes ?? [];
+    const byId = vm?.byId ?? {};
+
+    // 1) 聚合：absorbed 存档退出绘制集；活记忆按 (kind, dayCell) 分格，格内按分降序
+    const cells = new Map();
+    for (const n of notes) {
+      if (n.absorbed) continue;
+      const dc = Math.min(Math.max(0, Math.floor(ageDaysF(n, now))), 32);
+      const kind = n.kind ?? 'episodic';
+      const key = `${kind}|${dc}`;
+      let c = cells.get(key);
+      if (!c) cells.set(key, c = { key, kind, dc, list: [], drawn: [], drawnIds: new Set(), hidden: 0, markX: 0, markY: 0 });
+      c.list.push(n);
     }
-    // 常驻标签：保持率×重要度 top24，每 kind 保底 3
-    this._pins = labelPick([...this._drawn].map((id) => this._vm.byId[id]).filter(Boolean), LABEL_CAP, 3);
+    this._cells = cells;
+    for (const c of cells.values()) {
+      c.list.sort((a, b) => nScore(b) - nScore(a) || nTie(a, b));
+      for (const n of c.list) this._cellOf.set(n.id, c.key);
+    }
+
+    // 2) 三级配额：kind 间按满载需求比例（保底 6）；kind 内按时间桶比例（保底一格 CELL_K）
+    const cellDemand = (c) => Math.min(c.list.length, CELL_K);
+    const kinds = [...new Set([...cells.values()].map((c) => c.kind))];
+    const kindDemand = new Map(), kindBest = new Map();
+    for (const k of kinds) {
+      const cs = [...cells.values()].filter((c) => c.kind === k);
+      kindDemand.set(k, cs.reduce((s, c) => s + cellDemand(c), 0));
+      kindBest.set(k, Math.max(...cs.map(cellScoreOf)));
+    }
+    const kindPrio = [...kinds].sort((a, b) => kindBest.get(b) - kindBest.get(a) || (a < b ? -1 : 1));
+    const kindBudget = allocBudget(kindDemand, NODE_CAP, 6, kindPrio);
+
+    for (const k of kinds) {
+      const budget = kindBudget.get(k) ?? 0;
+      const buckets = new Map();
+      for (const c of cells.values()) {
+        if (c.kind !== k) continue;
+        const b = bucketOf(c.dc);
+        let arr = buckets.get(b);
+        if (!arr) buckets.set(b, arr = []);
+        arr.push(c);
+      }
+      const bucketDemand = new Map(), bucketBest = new Map();
+      for (const [b, cs] of buckets) {
+        bucketDemand.set(b, cs.reduce((s, c) => s + cellDemand(c), 0));
+        bucketBest.set(b, Math.max(...cs.map(cellScoreOf)));
+      }
+      const bucketPrio = [...buckets.keys()].sort((a, b) => bucketBest.get(b) - bucketBest.get(a) || a - b);
+      const bucketBudget = allocBudget(bucketDemand, budget, CELL_K, bucketPrio);
+      // 桶内 cell 按 cellScore 降序花预算；预算见底时按分取前 d 个（余量全进「+N」）
+      for (const [b, cs] of buckets) {
+        let remain = bucketBudget.get(b) ?? 0;
+        cs.sort((a, b) => cellScoreOf(b) - cellScoreOf(a) || (a.key < b.key ? -1 : 1));
+        for (const c of cs) {
+          const d = Math.min(c.list.length, CELL_K, remain);
+          c.drawn = d > 0 ? c.list.slice(0, d) : [];
+          c.drawnIds = new Set(c.drawn.map((n) => n.id));
+          c.hidden = c.list.length - c.drawn.length;
+          remain -= d;
+        }
+      }
+    }
+
+    // 3) 「+N」标记落位（先于节点）：带缝单行、按 cellScore 序 x 向让位；同时作节点碰撞障碍
+    const marks = [...cells.values()].filter((c) => c.hidden > 0)
+      .sort((a, b) => cellScoreOf(b) - cellScoreOf(a) || (a.key < b.key ? -1 : 1));
+    const placedM = [];
+    for (const c of marks) {
+      const bandY = BANDS[c.kind] ?? BANDS.episodic;
+      const hw = `+${c.hidden}`.length * 2.6 + 2; // 9px mono 半宽估
+      const bx0 = xOf(Math.min(c.dc + 0.5, DMAX));
+      let bx = bx0, bScore = -Infinity;
+      for (const dx of [0, -6, 6, -12, 12, -18, 18, -24, 24, -36, 36, -48, 48, -60, 60]) {
+        const cx = bx0 + dx;
+        if (cx < 100 || cx > W - 20) continue;
+        let clear = placedM.length ? Infinity : 999;
+        for (const m of placedM) {
+          if (m.bandY !== bandY) continue; // 只同带互让（跨带纵向隔 130px 不冲突）
+          const d = Math.abs(m.x - cx) - m.hw - hw - 3;
+          if (d < clear) clear = d;
+        }
+        const score = clear - 0.05 * Math.abs(dx);
+        if (score > bScore) { bScore = score; bx = cx; }
+      }
+      c.markX = bx;
+      c.markY = bandY + MARK_Y;
+      placedM.push({ x: bx, y: bandY + MARK_Y - 2, hw, bandY, box: true });
+    }
+
+    // 4) 槽位坐标：x=连续年龄；格内按分序纵向均布；碰撞 pass（真实半径、带内 clamp、避让标记）
+    const units = [];
+    for (const c of cells.values()) {
+      const bandY = BANDS[c.kind] ?? BANDS.episodic;
+      const D = c.drawn.length;
+      c.drawn.forEach((n, i) => {
+        const spacing = D > 1 ? Math.min(24, 68 / (D - 1)) : 0;
+        units.push({
+          id: n.id, cellKey: c.key, score: nScore(n),
+          x: xOf(ageDaysF(n, now)),
+          y: bandY + (i - (D - 1) / 2) * spacing,
+          r: nodeR(n), bandY,
+        });
+      });
+    }
+    units.sort((a, b) => b.score - a.score || nTie(a, b));
+    // 碰撞 pass：分数序逐个落位；候选=带内 y 全扫(步6)×小幅 x 挪(±16)，取「最大净空、位移最小」
+    const done = placedM.slice();
+    for (const u of units) {
+      let bx = u.x, by = u.y, bScore = -Infinity;
+      for (let dy = -52; dy <= 52; dy += 4) {
+        const cy = Math.min(Math.max(u.bandY + dy, u.bandY - 50), u.bandY + 50);
+        for (const dx of [0, -8, 8, -16, 16, -24, 24]) {
+          const cx = u.x + dx;
+          if (cx < 96 || cx > W - 16) continue;
+          let clear = done.length ? Infinity : 999;
+          for (const q of done) {
+            let d;
+            if (q.box) { // 「+N」标记按矩形避让：半宽 hw、半高 5
+              const ox = Math.max(0, Math.abs(q.x - cx) - q.hw - u.r - 2);
+              const oy = Math.max(0, Math.abs(q.y - cy) - 5 - u.r - 2);
+              d = Math.hypot(ox, oy) - 3;
+            } else {
+              d = Math.hypot(q.x - cx, q.y - cy) - q.r - u.r - 3;
+            }
+            if (d < clear) clear = d;
+          }
+          const score = clear - 0.1 * Math.abs(dx) - 0.03 * Math.abs(cy - u.y);
+          if (score > bScore) { bScore = score; bx = cx; by = cy; }
+        }
+      }
+      u.x = bx; u.y = by;
+      done.push(u);
+      this._pos[u.id] = [u.x, u.y];
+      this._drawn.add(u.id);
+      this._cellOf.set(u.id, u.cellKey);
+    }
+
+    // 4) 常驻标签：分数序候选（每 kind 先保底 3）+ AABB 防叠
+    const ranked = [...this._drawn].map((id) => byId[id]).filter(Boolean)
+      .sort((a, b) => nScore(b) - nScore(a) || nTie(a, b));
+    const cnt = {}, first = [], rest = [];
+    for (const n of ranked) {
+      const k = n.kind ?? 'episodic';
+      if ((cnt[k] ?? 0) < 3) { first.push(n); cnt[k] = (cnt[k] ?? 0) + 1; }
+      else rest.push(n);
+    }
+    const taken = [];
+    for (const n of [...first, ...rest]) {
+      if (this._pins.size >= LABEL_CAP) break;
+      const p = this._pos[n.id];
+      if (!p) continue;
+      const w = String(n.title ?? '').length * 12 + 8;
+      const b = [p[0] - w / 2, p[1] - nodeR(n) - 20, p[0] + w / 2, p[1] - nodeR(n) - 4];
+      if (taken.some((t) => b[0] < t[2] + 4 && b[2] + 4 > t[0] && b[1] < t[3] + 2 && b[3] + 2 > t[1])) continue;
+      taken.push(b);
+      this._pins.add(n.id);
+    }
   },
 
   _drawMap() {
@@ -157,7 +354,7 @@ export default {
     }
     if (!vm) return;
     const byId = vm.byId ?? {};
-    const ge = svg('g', {}, s), gn = svg('g', {}, s);
+    const ge = svg('g', {}, s), gm = svg('g', {}, s), gn = svg('g', {}, s);
     const rels = (vm.relations ?? [])
       .filter((r) => this._pos[r.a] && this._pos[r.b])
       .sort((a, b) => b.score - a.score)
@@ -178,10 +375,22 @@ export default {
         'stroke-dasharray': tk === 'similar' ? '1 4' : '', opacity: .7,
       }, ge);
     }
+    // 同格「+N」计数标记：带缝内、点击看全格 roster（hidden=0 不标）
+    for (const c of this._cells.values()) {
+      if (!c.hidden) continue;
+      const g = svg('g', {
+        class: 'cellmark', 'data-cell': c.key,
+        transform: `translate(${c.markX} ${c.markY})`,
+        tabindex: 0, role: 'button', 'aria-label': `同格另有 ${c.hidden} 条记忆`,
+      }, gm);
+      svg('text', { 'text-anchor': 'middle', class: 'cm' }, g).textContent = `+${c.hidden}`;
+      g.onclick = () => this._selectCell(c.key);
+      g.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this._selectCell(c.key); } };
+    }
     for (const id of this._drawn) {
       const n = byId[id];
       if (!n) continue;
-      const [x, y] = this._pos[id], r = 4 + n.imp * 2.2;
+      const [x, y] = this._pos[id], r = nodeR(n);
       const g = svg('g', { class: 'node', 'data-id': id, transform: `translate(${x} ${y})`, tabindex: 0, role: 'button' }, gn);
       const fill = n.track === 'self' ? 'var(--a)' : 'var(--ink)', fading = n.ret < .4;
       svg('circle', { r: r + 8, class: 'halo', fill: 'none', stroke: 'var(--a)', 'stroke-width': 2, opacity: 0 }, g);
@@ -264,7 +473,9 @@ export default {
     const h2 = el('h2', '', n.title); h2.style.fontSize = '30px';
     side.append(h2);
     side.append(el('p', 'body', n.content || '')); // 全文，textContent 安全
-    if (!this._pos[n.id]) side.append(el('div', 'nodraw', '该条目不在当前地层图 LOD（前 60 点）内，仅在索引与专栏呈现。'));
+    if (!this._pos[n.id]) side.append(el('div', 'nodraw',
+      n.absorbed ? '该条目已沉淀为语义存档，不在地层图绘制集内。'
+        : '该条目未单独上图（同格聚合或超出 LOD），可在索引表与管理端查看。'));
 
     const dl = el('dl', 'meta');
     const put = (dt, dd) => { dl.append(el('dt', '', dt), dd); };
@@ -298,6 +509,36 @@ export default {
       ul.append(li);
     }
     if (rel.length > 14) ul.append(el('li', '', `…… 另 ${rel.length - 14} 条`));
+    side.append(ul);
+  },
+
+  // ── 侧栏：同格记忆名单（cell 聚合标记的全量成员，含未上图条目）──
+  _sideCell(c) {
+    const side = this._root.querySelector('#dSide');
+    side.replaceChildren();
+    const back = el('button', 'back', '← 返回总览');
+    back.type = 'button';
+    back.onclick = () => this._select(null);
+    side.append(back);
+    const dcTxt = c.dc >= 32 ? '32 天前及以前' : `${c.dc} 天前`;
+    const kick = el('div', 'kicker', `${kindLabel(c.kind)} · ${dcTxt}`);
+    kick.style.marginTop = '16px';
+    side.append(kick);
+    side.append(el('h2', '', `同格 ${c.list.length} 条`));
+    side.append(el('p', 'dek',
+      `这一格共有 ${c.list.length} 条记忆，图上单独成点 ${c.drawn.length} 条${c.hidden ? `，其余 ${c.hidden} 条聚合在「+${c.hidden}」里` : ''}。点条目看专栏。`));
+    const ul = el('ul', 'rel');
+    for (const n of c.list.slice(0, CELL_ROSTER_CAP)) {
+      const li = el('li');
+      li.append(el('b', '', n.title));
+      const meta = [`保持 ${Math.round(n.ret * 100)}%`, `重要 ${n.imp}`, `${n.day ?? '—'} 天前`];
+      if (c.drawnIds.has(n.id)) meta.push('上图');
+      li.append(el('span', '', meta.join(' · ')));
+      li.onclick = () => this._select(n.id);
+      ul.append(li);
+    }
+    if (c.list.length > CELL_ROSTER_CAP)
+      ul.append(el('li', '', `…… 另 ${c.list.length - CELL_ROSTER_CAP} 条，索引表与管理端可全量查看`));
     side.append(ul);
   },
 
@@ -347,7 +588,9 @@ export default {
 
   // ── 选中（内部 + 皮肤接口共用）──
   _select(id) {
+    this._selCell = null;
     this._sel = id;
+    this._root.querySelectorAll('.cellmark').forEach((m) => m.classList.remove('sel', 'dim', 'near'));
     const n = id && this._vm?.byId?.[id];
     if (n) this._sideDetail(n); else this._sideOverview();
     const near = new Set();
@@ -366,6 +609,10 @@ export default {
     this._root.querySelectorAll('.edge').forEach((e) => {
       e.classList.toggle('dim', !!id && e.dataset.a !== id && e.dataset.b !== id);
     });
+    if (n) {
+      const ck = this._cellOf.get(id);
+      if (ck) this._root.querySelector(`[data-cell="${ck}"]`)?.classList.add('near');
+    }
     let selRow = null;
     this._root.querySelectorAll('#dRows tr.row').forEach((r) => {
       const on = r.dataset.id === id;
@@ -373,6 +620,35 @@ export default {
       if (on) selRow = r;
     });
     selRow?.scrollIntoView({ block: 'nearest', behavior: 'instant' });
+  },
+
+  // ── 同格聚焦：点「+N」标记 → 侧栏全格名单 + 地图只留该格高亮 ──
+  _selectCell(key) {
+    const c = this._cells?.get(key);
+    if (!c) return;
+    this._selCell = key;
+    this._sel = null;
+    const memberIds = new Set(c.list.map((n) => n.id));
+    const drawnIds = c.drawnIds ?? new Set();
+    this._sideCell(c);
+    this._root.querySelectorAll('.node').forEach((g) => {
+      const id = g.dataset.id;
+      g.classList.toggle('sel', false);
+      g.classList.toggle('near', drawnIds.has(id));
+      g.classList.toggle('dim', !memberIds.has(id));
+    });
+    this._root.querySelectorAll('.edge').forEach((e) => {
+      e.classList.toggle('dim', !(memberIds.has(e.dataset.a) && memberIds.has(e.dataset.b)));
+    });
+    this._root.querySelectorAll('.cellmark').forEach((m) => {
+      const on = m.dataset.cell === key;
+      m.classList.toggle('sel', on);
+      m.classList.toggle('dim', !on);
+    });
+    this._root.querySelectorAll('#dRows tr.row').forEach((r) => {
+      r.classList.toggle('near', memberIds.has(r.dataset.id));
+      r.classList.toggle('sel', false);
+    });
   },
 
   // ── 搜索高亮 ──
@@ -404,7 +680,8 @@ export default {
     this._root?.replaceChildren();
     this._root = this._dsr = null;
     this._vm = null; this._ctx = null;
-    this._sel = null; this._qhit = new Set();
+    this._sel = null; this._selCell = null; this._qhit = new Set();
     this._pos = {}; this._drawn = new Set(); this._pins = new Set();
+    this._cells = new Map(); this._cellOf = new Map();
   },
 };

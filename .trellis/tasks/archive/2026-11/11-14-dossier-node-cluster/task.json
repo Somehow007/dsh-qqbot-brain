@@ -1,0 +1,30 @@
+{
+  "id": "dossier-node-cluster",
+  "name": "dossier-node-cluster",
+  "title": "墨刊地层图节点富集（同日同 kind 挤一列）",
+  "description": "dossier 皮肤时间地层图在数据密集日出现节点纵向堆叠、标签互压、边束打结；定位为布局缺陷组合（整数天 x + 单向碰撞 + recency 偏置 LOD），产出优化方案",
+  "status": "completed",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "sunhao",
+  "assignee": "sunhao",
+  "createdAt": "2026-11-14",
+  "completedAt": "2026-11-14",
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": "brain-ui-redesign",
+  "relatedFiles": [
+    "dsh-qqbot-brain/src/server/web/skins/dossier.js",
+    "dsh-qqbot-brain/src/server/web/core/vm.js",
+    "dsh-qqbot-brain/src/brain/index.ts"
+  ],
+  "notes": "",
+  "meta": {}
+}

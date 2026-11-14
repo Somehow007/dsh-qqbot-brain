@@ -39,6 +39,12 @@
 .dsr .node.hit .halo { opacity: .55; }
 .dsr .dim { opacity: .18 !important; }
 .dsr .edge { fill: none; transition: .2s; }
+/* 同格「+N」计数标记：带缝内聚合密度，点击看全格名单 */
+.dsr .cellmark { cursor: pointer; }
+.dsr .cellmark .cm { font-size: 9px; fill: var(--ink3); }
+.dsr .cellmark:hover .cm, .dsr .cellmark.near .cm, .dsr .cellmark:focus .cm { fill: var(--a); }
+.dsr .cellmark.sel .cm { fill: var(--ink); font-weight: 700; }
+.dsr .cellmark:focus { outline: none; }
 .dsr .legend { display: flex; gap: 22px; flex-wrap: wrap; font: 11px var(--mono); color: var(--ink2); border-top: 1px solid var(--rule); padding-top: 10px; margin-top: 4px; }
 .dsr .legend span { display: flex; align-items: center; gap: 6px; }
 
@@ -86,6 +92,7 @@
 .dsr tr.row { cursor: pointer; }
 .dsr tr.row:hover td { background: rgba(0, 0, 0, .025); }
 .dsr tr.row.sel td { background: var(--soft); }
+.dsr tr.row.near td { background: rgba(62, 123, 255, .06); }
 .dsr .ret { display: inline-block; width: 60px; height: 6px; border: 1px solid var(--ink); vertical-align: middle; margin-right: 6px; }
 .dsr .ret i { display: block; height: 100%; background: var(--ink); }
 .dsr .foot { margin-top: 28px; font: 11px var(--mono); color: var(--ink3); display: flex; justify-content: space-between; letter-spacing: .08em; }
