@@ -64,6 +64,8 @@ export default {
     this._pos = {};        // id → [x,y]
     this._edgeEls = [];
     this._starEls = new Map();
+    this._cls = new Map();   // 元素→{sel,near,dim,hi} class 状态缓存（_syncCls 差分写入用）
+    this._relMap = null; this._relMapVm = null;
     this._stars = [];      // 扫掠用 {id,a,fl,r,hit}
     this._comets = null; this._cometN = 0;
     this._skyStars = []; this._meteors = [];
@@ -205,7 +207,7 @@ export default {
     const s = this._sky, vm = this._vm, theme = this._ctx?.theme ?? {};
     s.replaceChildren();
     this._pos = {}; this._edgeEls = []; this._starEls.clear(); this._stars = [];
-    this._cometN = 0;
+    this._cls?.clear(); this._cometN = 0;
 
     const defs = svg('defs', {}, s);
     const soft = svg('filter', { id: 'nsoft', x: '-80%', y: '-80%', width: '260%', height: '260%' }, defs);
@@ -341,13 +343,14 @@ export default {
         stroke: '#ebe2cb', 'stroke-opacity': l.t === 'consolidate' ? .5 : 0,
         'stroke-width': .8, 'stroke-dasharray': l.t === 'similar' ? '1 4' : '',
       }, ge);
-      this._edgeEls.push({ el: e, a: l.a, b: l.b, t: l.t });
+      this._edgeEls.push({ el: e, a: l.a, b: l.b, t: l.t, on: false });
     }
     if (this._motion) {
       let di = 0;
       this._edgeEls.forEach((e) => {
         if (e.t !== 'consolidate') return;
-        e.el.style.setProperty('--len', e.el.getTotalLength());
+        e.len = e.el.getTotalLength();
+        e.el.style.setProperty('--len', e.len);
         e.el.classList.add('draw');
         e.el.style.animationDelay = (1 + di++ * .18) + 's';
       });
@@ -384,14 +387,39 @@ export default {
     if (this._sel) this._focusClasses();
   },
 
+  // relations → id→[{rel,otherId}] 邻接表（每 vm 建一次；select 路径原来每次扫全表 ~1.9w 条）
+  _relMapFor() {
+    if (this._relMapVm === this._vm) return this._relMap;
+    const map = new Map();
+    for (const r of this._vm?.relations ?? []) {
+      for (const [me, other] of [[r.a, r.b], [r.b, r.a]]) {
+        let l = map.get(me); if (!l) map.set(me, l = []);
+        l.push({ rel: r, otherId: other });
+      }
+    }
+    this._relMap = map; this._relMapVm = this._vm;
+    return map;
+  },
+
+  // 元素 class 状态缓存：_syncCls 只对真实变化的 token 写 DOM（点击路径原来每次
+  // _clearHi+_focusClasses 对 ~350 元素无条件 toggle，是卡顿主因之一）
+  _syncCls(el, want) {
+    const cur = this._cls.get(el) ?? {};
+    const next = { ...cur, ...want };
+    for (const k of ['sel', 'near', 'dim', 'hi']) {
+      const v = !!next[k];
+      if (!!cur[k] !== v) el.classList.toggle(k, v);
+    }
+    this._cls.set(el, next);
+  },
+
   // ── 侧栏 ──
   _neighbors(id) {
     const out = [];
-    (this._vm?.relations ?? []).forEach((r) => {
-      if (r.a !== id && r.b !== id) return;
-      const o = r.a === id ? r.b : r.a, other = this._vm?.byId?.[o];
-      if (other) out.push({ rel: r, other });
-    });
+    for (const x of this._relMapFor().get(id) ?? []) {
+      const other = this._vm?.byId?.[x.otherId];
+      if (other) out.push({ rel: x.rel, other });
+    }
     return out.slice(0, 12);
   },
 
@@ -726,15 +754,16 @@ export default {
     const set = new Set(ids);
     this._starEls.forEach((g, id) => {
       const on = set.has(id);
-      g.classList.toggle('dim', !on);
-      g.classList.toggle('hi', on);
+      this._syncCls(g, { dim: !on, hi: on });
     });
-    this._edgeEls.forEach((e) => e.el.classList.toggle('dim', !(set.has(e.a) && set.has(e.b))));
+    this._edgeEls.forEach((e) => this._syncCls(e.el, { dim: !(set.has(e.a) && set.has(e.b)) }));
   },
   _clearHi() {
     this._almHi = null;
-    this._starEls.forEach((g) => g.classList.remove('dim', 'near', 'hi'));
-    this._edgeEls.forEach((e) => e.el.classList.remove('dim'));
+    // sel 不清（选择态跨高亮保留，旧语义）；只写真正亮着的元素
+    for (const [el, st] of [...this._cls]) {
+      if (st.sel || st.near || st.dim || st.hi) this._syncCls(el, { near: false, dim: false, hi: false });
+    }
     this._alm?.querySelectorAll('.wc').forEach((b) => b.classList.remove('on'));
   },
   _focusWho(w) {
@@ -752,21 +781,27 @@ export default {
   _focusClasses() {
     const id = this._sel;
     const near = new Set(id ? [id, ...this._neighbors(id).map((x) => x.other.id)] : []);
+    const qh = this._qhit;
     this._starEls.forEach((g, gid) => {
-      g.classList.toggle('sel', gid === id);
-      g.classList.toggle('near', near.has(gid) && gid !== id);
-      g.classList.toggle('dim', !!id && !near.has(gid) && !this._qhit.has(gid));
+      this._syncCls(g, {
+        sel: gid === id,
+        near: near.has(gid) && gid !== id,
+        dim: !!id && !near.has(gid) && !qh.has(gid),
+      });
     });
-    this._edgeEls.forEach((e) => {
+    for (const e of this._edgeEls) {
       const on = !!id && (e.a === id || e.b === id);
-      e.el.classList.toggle('dim', !!id && !on);
+      this._syncCls(e.el, { dim: !!id && !on });
+      // stroke/draw 只在 on 翻转时写：原来每次 select 都 getTotalLength+getBBox 强制布局
+      if (on === e.on) continue;
+      e.on = on;
       if (e.t !== 'consolidate') e.el.setAttribute('stroke-opacity', on ? .45 : 0);
       if (on && this._motion) {
-        e.el.style.setProperty('--len', e.el.getTotalLength());
-        e.el.classList.remove('draw'); void e.el.getBBox();
+        e.el.style.setProperty('--len', e.len ??= e.el.getTotalLength());
+        e.el.classList.remove('draw'); void e.el.getBoundingClientRect();
         e.el.style.animationDelay = '0s'; e.el.classList.add('draw');
       }
-    });
+    }
   },
 
   // ── 动效帧：视差 / 时间指针 / 扫掠辉光 / 流星 / 彗星 ──
@@ -979,9 +1014,11 @@ export default {
   /** 选中（顶栏点选 / ?sel= / 星历跳转）；截掉的星也显示详情但不画 */
   select(id) {
     if (!this._root || !this._vm) return;
+    const nid = id && this._vm.byId?.[id] ? id : null;
+    const same = nid === this._sel;
     this._clearHi();
     this._sky.querySelectorAll('.ripple').forEach((e) => e.remove());
-    this._sel = id && this._vm.byId?.[id] ? id : null;
+    this._sel = nid;
     if (this._sel) {
       const g = this._starEls.get(this._sel);
       if (g) {
@@ -989,9 +1026,12 @@ export default {
         svg('circle', { r: 6, fill: 'none', stroke: 'var(--a2)', 'stroke-width': .8, class: 'ripple', style: 'animation-delay:1.2s' }, g);
       }
     }
+    // 同星重复点击：聚焦态照常重算（差分写入很廉价），侧栏重建才是大头——跳过
     this._focusClasses();
-    this._paintSide();
-    if (this._sel && innerWidth <= 900) this._side.scrollIntoView({ behavior: 'smooth' });
+    if (!same) {
+      this._paintSide();
+      if (this._sel && innerWidth <= 900) this._side.scrollIntoView({ behavior: 'smooth' });
+    }
   },
 
   unmount() {
@@ -1009,6 +1049,8 @@ export default {
     this._cometN = 0;
     this._skyStatic = null;
     this._starEls?.clear();
+    this._cls?.clear();
+    this._relMap = this._relMapVm = null;
     this._edgeEls = [];
     this._stars = [];
     this._meteors = [];
