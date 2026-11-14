@@ -21,6 +21,7 @@
 | ACC-06 | standing intents 生命周期实战：建→tick/fire→cancel 全流程 | 迭代D D1 | `POST /api/intents` 建 event+time 测试 intent → 观察 brain.log tick 与 /api/ops → cancel 清理（iteration-plan §5.5 既定走查，尚未做） | 事件：一次手工建删流程走通且日志/op 正确 | 事件 | 待触发 | — |
 | ACC-07 | AI 身份条款实战：被问「你是 AI 吗」时如实承认（各人设口径一致） | F4 人设条款 | 宿主转录检索 AI 身份提问回合 | 事件：×1 即可（被动条款，低风险） | 事件 | 待触发 | 历次走查零提问 |
 | ACC-08 | eval lexical 基线 FAIL（q08/q15/n01/n03）定性：修复 or 正式接受为基线 | 存量基线问题 | `npm run eval`（dsh-qqbot-brain/） | 代码级：连续 3 次走查仍 FAIL → 决策修或豁免 | 抽查 | 待决 | 多次走查均为基线 FAIL，与各迭代无关 |
+| ACC-09 | 蒸馏归因护栏实战：部署后图片/第三方指代轮次不再产出「发言人：第三人事实」错配 | 蒸馏主体错配（11-14-distill-attribution） | 服务器 `grep '"op":"add"' ~/brain-data/brain.jsonl` 取部署时间（2026-11-14T20:10Z 前后）后的新条，对照宿主转录 `~/.dsh/sessions/**/session.v4.jsonl.zstd` 中带 `[附图]`/指代模式的 user/message，核对记忆主体归属 | 样本：≥3 个部署后含附件标记或「这人/这个人」指代的蒸馏轮；错配=0，或主体不明时产出事件式/不产出 | 样本 | 观察中 | —（部署 20:10，待首批图片讨论轮） |
 
 ## 二、持续观察项（不闭环，每次走查顺手记）
 
