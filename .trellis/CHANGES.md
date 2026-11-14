@@ -91,3 +91,4 @@
 - 2026-11-14 | 星图修复归档：absorbed星尘层+环容配额114+ang()渐近饱和+_place有界落位（max dev 154.7°→11.5°）两轮验证全绿，commits 9ae132e/a3b6c4f，未部署待其他会话同批上线 → `tasks/archive/2026-11/11-14-nocturne-star-layout` + journal #116
 - 2026-11-14 | 墨刊 cell 聚合重构落地（未部署）：absorbed 退出绘制集+刊头存档计数、(kind×天)cell≤4点+'+N'带缝标记侧栏roster、三级配额 allocBudget 保60cap全轴覆盖、连续年龄x+碰撞pass零重叠、标签AABB；headless 实测 60节点/46标记零重叠零互压，274tests+build 绿 → commit 3ef7b8a，`tasks/archive/2026-11/11-14-dossier-node-cluster`
 - 2026-11-14 | 墨刊二轮复查修复（未部署）：无处可放节点降级进「+N」（解饱和压叠）、pin标签双锚位+x微移+圆-矩形真距防叠救回24满额、情景带「+N」错峰双行、边端点收束到圆边+similar配额20；headless实测 60节点0重叠/45标记0互叠/24标签0越界0压面，274tests绿 | → `tasks/archive/2026-11/11-14-dossier-node-cluster`
+- 2026-11-14 | 墨刊三轮交互打磨（未部署）：索引表50行直出改30/页页脚翻页、杀.node focus蓝边框改用halo环做sel/near可见态、删_select的scrollIntoView强制滚底；实测30行/页·第1/10页·286条，274tests绿 → commit 6df9ed3，`tasks/archive/2026-11/11-14-dossier-node-cluster`
