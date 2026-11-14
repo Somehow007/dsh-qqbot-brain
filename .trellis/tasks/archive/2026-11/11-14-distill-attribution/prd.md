@@ -39,10 +39,27 @@
 - **P0 prompt 护栏**（distill.ts `distillPrompt`）：✅ 已落地（2026-11-14）——actor 规则后新增「归属铁律」段：事实主体须能在本轮对话（含角色回复）明确对应；「这人/TA/图里的人/博主/UP主」等指代或省略主语描述无法确定所指时不得默认归发言人；带「[附图]」「[附件]」标记的消息里「这个人」优先指附件中人物；主体不明宁可不记或写「群友/对方讨论某事：…」事件式表述（actor 写讨论发言人）。成本：prompt +~150 字/轮。
 - **P1 capture 保真**（events.ts `parseSenderTag`）：✅ 已落地（2026-11-14）——`extractAttachments` 从 raw 剥出 `[Reference attachments]` 块（条目 `- Type: path`），折算标记入 text：含 Image→`[附图]`、含其他类型或不可解析→`[附件]`、混合→`[附图][附件]`；引用块内 `[image: x]`/`[video: x]` 等媒体占位（QUOTED_MEDIA_RE）剥除不再当噪声 `[引用]`；附件块不再漏进 history 伪装成 `[Chat history]`（原实现会把它包进假 Chat history 标记进 contextText，且只在当轮/500 字尾段内偶然可见）。无标签裸文本路径同样折算。线上实测格式：Image/File/Video 三类、单条最多 12 图、附件消息必带 `[Quoted message]` 媒体占位。
 - **P2 指代上下文**（可选，成本需评估）：蒸馏时附最近 1-3 轮的 `[时间] 发言人：摘要` 作指代锚点（不进记忆提取，只供消解），或扩大 contextText 覆盖。注意成本一线。**暂缓**——先观察 P0+P1 效果。
-- **数据修复**：2 条错配 note 删除或改写为事件化表述（如「群友讨论一位 coser（琳汐汐吖o）：211研究生、上海程序员、28岁、兼职百万粉coser」）。删除走既有 op 可重放；改写用 update op。画像暂不受影响，处理越早越好。**待授权**（生产写入）。
+- **数据修复**：✅ 已执行（2026-11-14 晚）——经 `/api/notes/<uuid>` DELETE 删除两条错记（`bc091a78-74db-4d01-b472-056fd608093f`、`436c508f-0674-4728-b35b-83c9270c6f5d`），落 `del` op 可重放；事后扫描确认无 profile/update op 引用 211/coser/百万粉等关键词，画像未被污染、无扩散。
 - **验证**：单测 ✅——parseSenderTag 5 例（附图标记/视频文件/混合/引用并存/history 共存/无标签）+ buildDistillPrompt 护栏断言；typecheck+274 tests+build 全绿。线上走查待部署后观察后续图片讨论轮的蒸馏产物。
 
 ## 相关
 
 - 蒸馏链路：`capture/events.ts parseSenderTag` → `brain/index.ts ingest/endOfTurn`（distillEveryTurns=1）→ `brain/distill.ts buildDistillPrompt/convoLines` → store addNote。
 - 同类历史问题：F5 世界轨错批（`11-13-consolidate-view-mismatch`）、sess:dbf7162a 画像混写——均已修，本案是**蒸馏归因**层的新问题。
+
+## Resolution（2026-11-14）
+
+**遇到了什么问题**：群聊中发言人讨论图片里 coser（琳汐汐吖o）的身份（「这人是某211研究生…」「兼职百万粉coser…」），情景蒸馏把第三方事实错记成发言人花咲蝶舞本人的 world 轨记忆两条（`bc091a78`/`436c508f`），已注入池、画像暂未污染。根因三层叠加：`distillEveryTurns=1` 单轮窗口内「这人」无可解析先行词默认归发言人；`[Reference attachments]` 块在 `parseSenderTag` 中漏进 history 伪装成 `[Chat history]`（蒸馏器看不到消息带图，且仅当轮/500 字尾段偶然可见）；distill prompt 无指代/第三方兜底规则。
+
+**怎么解决的**：P0+P1 同批修复并部署生产（commit `1d3a763`，20:10 随顶栏批上线）——
+- P0：`distillPrompt` actor 规则后新增「归属铁律」段——事实主体须能在本轮对话（含角色回复）明确对应；「这人/TA/图里的人/博主/UP主」等指代或省略主语无法确定所指不得默认归发言人；带 `[附图]`/`[附件]` 标记的消息里「这个人」优先指附件中人物；主体不明宁可不记或写「群友/对方讨论某事：…」事件式表述（actor 写讨论发言人）。每轮蒸馏 +~150 字成本。
+- P1：`parseSenderTag` 新增 `extractAttachments`——`[Reference attachments]` 块（宿主实测格式：条目 `- Image/File/Video: /path`，单条最多 12 图）折算成 `[附图]`/`[附件]` 标记置于正文最前（逐条 pending 各自携带，蒸馏/摘要/检索可见）；引用块内 `[image:x]` 类媒体占位剥除不再当噪声 `[引用]`；附件块不再漏进 history 占 500 字预算；无标签裸文本路径同样折算。
+- 数据修复：两条错记经 `DELETE /api/notes/<uuid>` 删除（del op 落盘可重放），事后扫描确认画像与其他记忆无扩散污染。
+
+**后续优化方向**：P2 指代上下文锚点（蒸馏附最近 1-3 轮摘要供消解）暂缓——先观察 P0+P1 实战效果，实证验收登记 ACC-09（≥3 个部署后附件/指代轮次错配=0）；旁证遗留 ~46 条 content 主语与 actor 不一致的 episodic 属相关风险未逐条确认；「赵子翔=花咲蝶舞」别名分裂另案。
+
+**什么时候干的**：2026-11-14——上午线上排查实证，下午 P0+P1 实现+单测+提交（`1d3a763`），20:10 部署生产，同日夜删 2 条错记并归档。
+
+**Key Decisions**：标记入 `text` 而非 `history`/独立字段（逐条携带、零类型变更、检索摘要同见）；媒体占位剥除只限 `[image|video|file|voice|audio:…]` token 不动其他引用；删除优于改写（事件式改写价值低且二次 LLM 成本）；P2 缓行防过度设计。
+
+**验证结论**：单测 +6 例（真实线上 raw 格式回放：附图标记/视频文件/混合双标记/引用并存/history 共存/无标签裸文本）+ buildDistillPrompt 护栏断言；typecheck + 274 tests + build 全绿；线上 del op 落盘、API 复查零残留、传播扫描零命中。实证验收待 ACC-09 走查。
