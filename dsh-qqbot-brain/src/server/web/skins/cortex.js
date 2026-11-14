@@ -86,6 +86,14 @@ export default {
   id: 'cortex',
   label: '鲸脑',
 
+  // §4.3 管理端 token 集（P3 消费）：深海暗色；accent 由消费方按当前人设 a/a2 覆盖
+  tokens: {
+    '--bg': '#030b17', '--panel': '#061528', '--ink': '#d8ecff',
+    '--ink2': '#7f9dbb', '--line': '#163350',
+    '--accent': '#5fe0ff', '--accent2': '#a8ecff', '--danger': '#ff8a7a',
+    '--font-head': '-apple-system,"PingFang SC","Microsoft YaHei",sans-serif', '--font-body': '-apple-system,"PingFang SC","Microsoft YaHei",sans-serif',
+  },
+
   // ── 挂载：DOM 骨架 + 解剖层 + 手势/动效绑定（数据由 update 驱动）──
   mount(root, ctx) {
     this.unmount(); // 防御：上次未净时先清

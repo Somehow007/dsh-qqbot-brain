@@ -92,9 +92,9 @@ WantedBy=multi-user.target
 - 只带状态：`GET /brain/api/export` → `POST /brain/api/import?mode=replace`
 - 完整备份/恢复/新 profile 换 sessionId 的操作手册见 [docs/brain-backup-restore.md](../docs/brain-backup-restore.md)
 
-### 数据管理（脑图页）
+### 数据管理（脑图页 · 管理端）
 
-`/brain` 画像卡与「备份迁移 → 危险区」直接操作，全部经 token 校验：
+`/brain` 新前端自带七页管理端（`#/admin`：概览/记忆库/人设/画像/流水/关联图/备份迁移），旧单页仍可用 `?ui=legacy` 访问。以下 API 全部经 token 校验，管理端与脚本通用：
 
 - `PATCH /brain/api/profiles` `{key,name?,text}` 编辑画像（人工修改即已审，不锁定后续蒸馏）；`DELETE /brain/api/profiles?id=<key>` 删除
 - `POST /brain/api/profiles/regenerate` `{key}` 按该对象记忆重生成（蒸馏起草 + 审核；蒸馏 off / 无记忆 / 审核判空均不改数据）

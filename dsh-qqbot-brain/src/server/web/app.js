@@ -1,22 +1,22 @@
 // 壳层引导：store 拉数 → 顶栏渲染 → 路由分发。
 // 顶栏：品牌（查看人设）/ 脑图·管理导航 / 皮肤按钮 / 搜索 / 查看人设下拉 / 统计条。
 
-import { api, legacyUrl } from './core/api.js';
+import { api } from './core/api.js';
 import { store } from './core/store.js';
 import { register, start as routerStart, navigate, refresh as routerRefresh, section } from './core/router.js';
 import { SKIN_LABELS, SKIN_IDS, setSkinPref } from './core/theme.js';
 import { el, toast, debounce } from './core/ui.js';
 import { skinById } from './skins/index.js';
 import { mapCtx, mapView, implementedSkin } from './views/map.js';
+import { adminView } from './admin/shell.js';
+import { runLeaveGuards } from './admin/common.js';
 
 const $ = (id) => document.getElementById(id);
 
 // ── 路由 ──
 register('#/map', mapView);
-// 管理端 P3 才有页面；迁移期所有 #/admin/* 与顶栏「管理」都跳旧页
-const adminRedirect = { mount() { location.href = legacyUrl(); } };
-register('#/admin', adminRedirect);
-register('#/admin/:page', adminRedirect);
+register('#/admin', adminView);
+register('#/admin/:page', adminView);
 
 // ── 顶栏：品牌/导航 ──
 function paintBrand() {
@@ -159,10 +159,11 @@ function bindSearch() {
 
 // ── 顶栏事件 ──
 function bindTopbar() {
-  $('tbBrand').onclick = () => { mapView.select?.(null); navigate('#/map'); };
+  $('tbBrand').onclick = () => { if (!runLeaveGuards()) return; mapView.select?.(null); navigate('#/map'); };
   document.querySelectorAll('.tb-link[data-nav]').forEach((b) => {
     b.onclick = () => {
-      if (b.dataset.nav === 'admin') location.href = legacyUrl();
+      if (!runLeaveGuards()) return;
+      if (b.dataset.nav === 'admin') navigate('#/admin');
       else navigate('#/map');
     };
   });
@@ -183,6 +184,8 @@ function boot() {
   routerStart($('view'));
   paintNav();
   paintBrand();
+  // 路由切换（含浏览器前进/后退）→ 顶栏分区高亮即时跟随
+  window.addEventListener('hashchange', paintNav);
 
   let selApplied = false;
   store.on((what) => {

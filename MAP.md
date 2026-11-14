@@ -26,7 +26,7 @@ dsh-qqbot-brain/            ▶ 代码层：插件本体（TypeScript ESM，零�
   src/brain/                  类脑内核，宿主无关可独立测——store/distill/retrieval/decay/emotion/embed/identity/time；Brain.search 主动召回原语 + assemble 深挖门控（迭代C）+ standing intents 前瞻记忆与 via/source 出处（迭代D）
   src/inject/prompt.ts        读路径：system-prompt 九段注入组装（稳定段保前缀缓存；brain:style 渠道表达口径压宿主 markdown 引用指令）
   src/capture/events.ts       写路径入口：会话事件捕获 + 发言人归因
-  src/server/                 /brain 脑图页：http.ts（API）+ page.html（单文件前端）
+  src/server/                 /brain 前端：http.ts（API）+ web/（ES modules 新前端：三皮肤脑图 + 七页管理端）+ page.html（旧单文件页，?ui=legacy 兼容中）
   src/setup/                  persona.md 装载 + 内置人设 + 文件日志
   src/index.ts · config.ts    Cordis 插件装配入口 + 全部配置旋钮
   test/                       node --test 四件套（brain/filelog/http/page）+ eval/ 检索评测集
@@ -58,7 +58,7 @@ brain-data/                 线上记忆导出的本地备份（gitignored）
 4. **读路径 `src/inject/prompt.ts`**（~160 行）——八段注入；两段排序为什么保 DeepSeek 前缀缓存（README 有图）。
 5. **写路径 `src/capture/events.ts`（~180 行）→ `src/brain/distill.ts`（~430 行）**——发言人归因 → 蒸馏 prompt/解析/画像二审。
 6. **记忆三件套** `retrieval.ts`（n-gram TF-IDF + embedding 混合 + 评分公式）· `decay.ts`（R=e^(−t/S)）· `embed.ts`（向量召回）。
-7. **`src/server/http.ts` + `page.html`**——/brain 脑图页 API 契约与前端实现。
+7. **`src/server/http.ts` + `web/`**——/brain API 契约；`web/` 为浏览器原生 ES modules（core=store/router/theme/vm/api/ui，skins=cortex/dossier/nocturne，admin=七页管理端壳），`page.html` 为迁移期旧页（`?ui=legacy`）。
 8. **`src/index.ts` + `src/config.ts`**——Cordis 插件怎么把上面一切装配起来；全部可调旋钮。
 
 配套读法：`test/` 单测当规格看（204 个用例覆盖了大部分边界）；`test/eval/` 是「评测先行」方法论的落地（44 条真实记忆 + 22 条标注 query + 5 条深挖召回子集）。
