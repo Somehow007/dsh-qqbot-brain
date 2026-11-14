@@ -352,14 +352,10 @@ export default {
     };
     const taken = [];
     for (const m of [...drawn].sort((a, b) => a.day - b.day)) {
-      let a = ang(m.day), r = R[m.kind] ?? R.episodic, k = 0;
-      while (taken.some(([x, y]) => Math.hypot(x - pt(r, a)[0], y - pt(r, a)[1]) < 30) && k < 60) { k++; a += .045; }
-      this._pos[m.id] = pt(r, a); taken.push(this._pos[m.id]);
+      this._place(m, R[m.kind] ?? R.episodic, 30, taken);
     }
     for (const m of [...arch].sort((a, b) => a.day - b.day)) {
-      let a = ang(m.day), r = (R[m.kind] ?? R.episodic) + ARCHIVE_DY, k = 0;
-      while (taken.some(([x, y]) => Math.hypot(x - pt(r, a)[0], y - pt(r, a)[1]) < 10) && k < 20) { k++; a += .08; }
-      this._pos[m.id] = pt(r, a); taken.push(this._pos[m.id]);
+      this._place(m, (R[m.kind] ?? R.episodic) + ARCHIVE_DY, 10, taken);
     }
 
     // 时间指针（楔形扫掠）
@@ -434,6 +430,26 @@ export default {
     }
     if (this._qhit.size) this._applyHi([...this._qhit]);
     if (this._sel) this._focusClasses();
+  },
+
+  // 落位：真实角优先 → 双向小角度（±~12°）→ 径向让位（±8/15，不出 kind 环带）；
+  // 取首个净空≥thr，全撞取净空最大者。旧单向 +0.045×60 无界推挤会把中老星甩出 ~155°、
+  // 落进「今夜」区（实测 day14 语义星被推出到 geo≈275°≈正上方）。
+  _place(m, r0, thr, taken) {
+    const a0 = ang(m.day);
+    const cand = [];
+    for (let i = 0; i <= 10; i++) cand.push([a0 + (i === 0 ? 0 : (i % 2 ? 1 : -1) * Math.ceil(i / 2) * .04), r0]);
+    for (const dr of [8, -8, 15, -15])
+      for (let i = 0; i <= 5; i++) cand.push([a0 + (i === 0 ? 0 : (i % 2 ? 1 : -1) * Math.ceil(i / 2) * .05), r0 + dr]);
+    let fb = null, fbD = -1;
+    for (const [aa, rr] of cand) {
+      const [x, y] = pt(rr, aa);
+      let dmin = Infinity;
+      for (const [tx, ty] of taken) { const dd = Math.hypot(tx - x, ty - y); if (dd < dmin) dmin = dd; }
+      if (dmin >= thr) { this._pos[m.id] = [x, y]; taken.push([x, y]); return; }
+      if (dmin > fbD) { fbD = dmin; fb = [x, y]; }
+    }
+    this._pos[m.id] = fb; taken.push(fb);
   },
 
   // relations → id→[{rel,otherId}] 邻接表（每 vm 建一次；select 路径原来每次扫全表 ~1.9w 条）
