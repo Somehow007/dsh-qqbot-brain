@@ -582,3 +582,25 @@ P2(S5+S6)：nocturne 星盘（150星/24标/彗星流星/补间/still零rAF/hidde
 ### Status
 
 [OK] **Completed**
+
+
+## Session 121: 顶栏主题适配部署生产（同批4项）
+<!-- trellis-session: v=2 fp=baaf29c3d8825ff5 -->
+
+**Date**: 2026-11-14
+**Task**: 顶栏主题适配部署生产（同批4项）
+**Branch**: `main`
+
+### Summary
+
+部署：备份 pre-topbar-{plugin,data}-20261114T120617Z.tgz（~/backups 成对），npm run build 后 rsync dist+package.json 到 ubuntu@124.222.65.169:~/dsh-qqbot-brain（dist不带尾斜杠、不动远端cordis.patch.yml），sudo systemctl restart dsh-qqbot → active。验证：brain.log 启动行全特性 on+脑图监听 0.0.0.0:4099、/api/state?token 200、/brain 无 token 401（口令前置正常）、远端 dist app.js 含 paintChrome×5/app.css 含 data-skin×24。同批上线：顶栏主题适配 ad97a79、星图星尘+有界落位 9ae132e·a3b6c4f、墨刊 cell 聚合三轮 3ef7b8a·59c1fb0·6df9ed3、蒸馏归因护栏+附件标记 1d3a763。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `ad97a79` | feat(brain): 顶栏随皮肤+人设换色——壳层 token 化与三皮肤差异化版式 |
+
+### Status
+
+[OK] **Completed**
