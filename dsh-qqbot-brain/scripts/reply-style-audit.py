@@ -80,11 +80,11 @@ def turns(stream):
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument('--export', required=True, help='brain /api/export 落盘的 JSON')
-    ap.add_argument('--since', help='YYYY-MM-DD（本地时区），只统计此后的回合')
+    ap.add_argument('--since', help='YYYY-MM-DD 或 YYYY-MM-DDTHH:MM（本地时区），只统计此后的回合')
     ap.add_argument('--samples', type=int, default=0, help='每组打印最近 N 条搜索回合样本')
     a = ap.parse_args()
     pid_at = load_timeline(a.export)
-    since = datetime.datetime.strptime(a.since, '%Y-%m-%d').timestamp() * 1000 if a.since else 0
+    since = (datetime.datetime.fromisoformat(a.since).timestamp() * 1000) if a.since else 0
     rows = defaultdict(list)
     for x in turns(sys.stdin):
         r = ' '.join(x['reply']).strip()
