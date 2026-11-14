@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-2.md`
-- **Total Sessions**: 114
+- **Total Sessions**: 115
 - **Last Active**: 2026-11-14
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-2.md` | ~453 | Active |
+| `journal-2.md` | ~475 | Active |
 | `journal-1.md` | ~1988 | Archived |
 <!-- @@@/auto:active-documents -->
 
@@ -30,6 +30,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 115 | 2026-11-14 | 蒸馏归因缺陷 P0+P1 修复 | `1d3a763` | `main` |
 | 114 | 2026-11-14 | 验收登记处机制设计与落地 | `ff3a2ae` | `main` |
 | 113 | 2026-11-14 | F5+活人感验收归档；迭代D+UI重构整体部署生产 | - | `main` |
 | 112 | 2026-11-14 | brain-ui-redesign P2 性能走查：帧循环减负+轮询指纹 | `232f9e2` | `main` |

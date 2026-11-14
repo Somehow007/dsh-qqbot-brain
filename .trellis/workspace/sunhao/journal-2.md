@@ -451,3 +451,25 @@ P2(S5+S6)：nocturne 星盘（150星/24标/彗星流星/补间/still零rAF/hidde
 ### Status
 
 [OK] **Completed**
+
+
+## Session 115: 蒸馏归因缺陷 P0+P1 修复
+<!-- trellis-session: v=2 fp=4dc77643e7ebae55 -->
+
+**Date**: 2026-11-14
+**Task**: 蒸馏归因缺陷 P0+P1 修复
+**Branch**: `main`
+
+### Summary
+
+排查确认群聊讨论图片中第三人（coser 琳汐汐吖o）身份时，蒸馏把事实错记到发言人花咲蝶舞名下（bc091a78/436c508f 两条 world 轨 episodic）。根因三层：distillEveryTurns=1 单轮窗口指代无解默认归发言人；[Reference attachments] 块在 parseSenderTag 中漏进 history 伪装成 Chat history（蒸馏器看不到消息带图）；prompt 无第三方/指代兜底。修复：P0 distill prompt 新增「归属铁律」段（主体须可明确对应、指代不明不得默认归发言人、[附图][附件]标记提示、主体不明宁可不记或事件式表述）；P1 parseSenderTag 新增 extractAttachments 把附件块折算成标记入 text、剥除引用块媒体占位。验证：线上拉真实消息格式确认 Image/File/Video 三类，单测+6 例，274 tests+typecheck+build 全绿。后续：P2 指代锚点暂缓观察；线上 2 条错记待授权改事件式；未部署。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1d3a763` | fix(brain): 蒸馏归因护栏 + 附件标记保真——第三方指代不再默认归发言人 |
+
+### Status
+
+[OK] **Completed**
