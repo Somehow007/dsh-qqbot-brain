@@ -46,27 +46,62 @@ function textOf(message: unknown): string {
 const CURRENT_MSG_MARK = '[Current message]';
 const SENDER_TAG_RE = /^\s*\[([^\[\]\n]{1,64}) \(([0-9A-Fa-f-]{8,64})\)\]\s*/;
 const QUOTED_RE = /\[Quoted message begins\]([\s\S]*?)\[Quoted message ends\]/g;
+/** 引用块里的附件占位（[image: x.jpg]/[video: x.mp4]…）：文件名哈希无语义，由 [附图]/[附件] 标记承载 */
+const QUOTED_MEDIA_RE = /\[(?:image|video|file|voice|audio):[^\]\n]*\]/gi;
+/**
+ * 宿主在 [Current message] 前注入的附件清单：
+ * 「[Reference attachments]\n  - Image: /path\n  - File: /path\n…」（条目行以 - 开头，块终于下一 [ 段或文末）
+ */
+const ATTACH_BLOCK_RE = /\[Reference attachments\][ \t]*\n(?:[ \t]*-[^\n]*\n?)*/g;
+const ATTACH_LINE_RE = /^[ \t]*-\s*([A-Za-z]+)\s*:/;
 /** 群聊环境上下文进 Turn 的上限：界内取末段（最近的消息对当前轮最有语境价值） */
 const HISTORY_CTX_CAP = 500;
 
 /**
+ * 剥出 [Reference attachments] 块并折算成正文标记：含 Image→[附图]，含其他类型（File/Video…）或
+ * 条目不可解析→[附件]。标记挂进 text 而非 history——它属于「这条消息」，逐条 pending 各自携带，
+ * 蒸馏/摘要/检索都能在正文里看到「这条消息附了图」，「这个人」类指代才有锚点。
+ */
+function extractAttachments(raw: string): { marker: string; text: string } {
+  const types = new Set<string>();
+  let found = false;
+  const text = raw.replace(ATTACH_BLOCK_RE, (block) => {
+    found = true;
+    for (const line of block.split('\n')) {
+      const t = line.match(ATTACH_LINE_RE);
+      if (t) types.add(t[1]!.toLowerCase());
+    }
+    return '';
+  });
+  if (!found) return { marker: '', text: raw };
+  const marker = (types.has('image') ? '[附图]' : '')
+    + (types.size === 0 || [...types].some((t) => t !== 'image') ? '[附件]' : '');
+  return { marker, text };
+}
+
+/**
  * 解析宿主打在群聊消息上的发送者标签 `[昵称 (openid)]`，并把消息拆成三路：
- * - text：当前正文（剥离 tag；引用块提出并入正文，保住「回复的是什么」）
+ * - text：当前正文（剥离 tag；引用块提出并入正文，保住「回复的是什么」；
+ *   [Reference attachments] 块折算成 [附图]/[附件] 标记置于正文最前——
+ *   蒸馏器据此知道这条消息带图，「这个人」类指代才有锚点；引用块内的
+ *   [image: x] 类媒体占位剥除，不再当噪声引用进正文）
  * - history：[Chat history] 环境消息末段（≤500 字，保留起止标记）——
  *   只进 Turn.contextText 供蒸馏读背景；检索 query / digest / embedding 不读它，
  *   否则同一批环境消息在 digest 40 轮窗口里被重复计费近 10 次。
  * 取最后一个 [Current message] 锚点后的首个 tag；无锚点时只认行首 tag（防误吃历史行）。
- * 单聊无 tag 时 actor 为空且原文整体当正文。
+ * 单聊无 tag 时 actor 为空且原文整体当正文（附件块同样折算标记）。
  */
 export function parseSenderTag(raw: string): { actor?: string; text: string; history?: string } {
-  const idx = raw.lastIndexOf(CURRENT_MSG_MARK);
-  const headRaw = idx >= 0 ? raw.slice(0, idx) : '';
-  const tail = idx >= 0 ? raw.slice(idx + CURRENT_MSG_MARK.length) : raw;
+  const { marker, text: cleaned } = extractAttachments(raw);
+  const idx = cleaned.lastIndexOf(CURRENT_MSG_MARK);
+  const headRaw = idx >= 0 ? cleaned.slice(0, idx) : '';
+  const tail = idx >= 0 ? cleaned.slice(idx + CURRENT_MSG_MARK.length) : cleaned;
   const m = tail.match(SENDER_TAG_RE);
-  if (!m) return { text: raw };
+  if (!m) return { text: marker ? `${marker}\n${cleaned}` : cleaned };
   const quotes: string[] = [];
   const head = headRaw.replace(QUOTED_RE, (_q, inner: string) => {
-    if (inner.trim()) quotes.push(inner.trim());
+    const kept = inner.replace(QUOTED_MEDIA_RE, '').trim();
+    if (kept) quotes.push(kept);
     return '\n';
   });
   const inner = head.replace(/\[Chat history begins\]|\[Chat history ends\]/g, '').trim();
@@ -78,7 +113,9 @@ export function parseSenderTag(raw: string): { actor?: string; text: string; his
   }
   const history = tailInner ? `[Chat history begins]\n${tailInner}\n[Chat history ends]` : undefined;
   const body = tail.slice(m[0].length);
-  const text = (quotes.length ? `[引用]${quotes.join('；')}\n` : '') + body;
+  const text = (marker ? `${marker}\n` : '')
+    + (quotes.length ? `[引用]${quotes.join('；')}\n` : '')
+    + body;
   return { actor: `${m[1]} (${m[2]})`, text, history };
 }
 

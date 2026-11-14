@@ -949,6 +949,96 @@ test('parseSenderTag: 单聊裸文本 / 引用块提出并入正文', () => {
   assert.equal(quoted.history, undefined);
 });
 
+// ── 附件标记（[Reference attachments] → [附图]/[附件]） ──
+// 线上原样（群聊发图）：附件块在 [Current message] 前，[image: hash] 只剩文件名占位
+test('parseSenderTag: 附图消息 → [附图] 标记入正文，附件块不再漏进 history', () => {
+  const raw = [
+    '[Reference attachments]',
+    '  - Image: /home/ubuntu/.dsh-qqbot/media/34692B8D922AE41B30FE1B409A77781D_1794643218525_d00e62d1.jpg',
+    '',
+    '[Quoted message begins]',
+    '[image: 34692B8D922AE41B30FE1B409A77781D.jpg]',
+    '[Quoted message ends]',
+    '[Current message]',
+    '[花咲蝶舞（五笑） (5AD865031B2ACA346B9C9B5D5881EBDC)] 这个人cos的很好看对不对 (@you)',
+  ].join('\n');
+  const r = parseSenderTag(raw);
+  assert.equal(r.actor, '花咲蝶舞（五笑） (5AD865031B2ACA346B9C9B5D5881EBDC)');
+  assert.equal(r.text, '[附图]\n这个人cos的很好看对不对 (@you)');
+  // [image: hash] 媒体占位剥除；无 Chat history → history 为空，附件路径不再伪装成环境消息
+  assert.equal(r.history, undefined);
+});
+
+test('parseSenderTag: 视频/文件附件 → [附件] 标记；图+文件混合 → 双标记', () => {
+  const video = parseSenderTag([
+    '[Reference attachments]',
+    '  - Video: /home/ubuntu/.dsh-qqbot/media/abc_1.mp4',
+    '',
+    '[Quoted message begins]',
+    '[video: abc.mp4]',
+    '[Quoted message ends]',
+    '[Current message]',
+    '[张三 (ABCDEF1234567890)] 评价一下 (@you)',
+  ].join('\n'));
+  assert.equal(video.text, '[附件]\n评价一下 (@you)');
+
+  const mixed = parseSenderTag([
+    '[Reference attachments]',
+    '  - Image: /p/a.jpg',
+    '  - Image: /p/b.jpg',
+    '  - File: /p/c.pdf',
+    '',
+    '[Current message]',
+    '[张三 (ABCDEF1234567890)] 看附件 (@you)',
+  ].join('\n'));
+  assert.equal(mixed.text, '[附图][附件]\n看附件 (@you)');
+});
+
+test('parseSenderTag: 附图+真实引用并存 → 标记与引用都保留', () => {
+  const r = parseSenderTag([
+    '[Reference attachments]',
+    '  - Image: /p/a.jpg',
+    '',
+    '[Quoted message begins]',
+    '昨天说好的饭局',
+    '[Quoted message ends]',
+    '[Current message]',
+    '[张三 (ABCDEF1234567890)] 如图 (@you)',
+  ].join('\n'));
+  assert.equal(r.text, '[附图]\n[引用]昨天说好的饭局\n如图 (@you)');
+});
+
+test('parseSenderTag: 附件块与 Chat history 共存 → history 只留环境消息', () => {
+  const r = parseSenderTag([
+    '[Chat history begins]',
+    '[李四 (11111111AAAA)] 早点睡',
+    '[Chat history ends]',
+    '[Reference attachments]',
+    '  - Image: /p/a.jpg',
+    '',
+    '[Current message]',
+    '[张三 (ABCDEF1234567890)] 看这个 (@you)',
+  ].join('\n'));
+  assert.equal(r.text, '[附图]\n看这个 (@you)');
+  assert.match(r.history!, /早点睡/);
+  assert.ok(!r.history!.includes('Reference attachments'));
+  assert.ok(!r.history!.includes('Image:'));
+});
+
+test('parseSenderTag: 无标签裸文本带附件 → 标记保留、附件块剥除', () => {
+  const r = parseSenderTag([
+    '[Reference attachments]',
+    '  - Image: /p/a.jpg',
+    '',
+    '[Current message]',
+    '看图说话',
+  ].join('\n'));
+  assert.equal(r.actor, undefined);
+  assert.equal(r.text, '[附图]\n\n[Current message]\n看图说话');
+  assert.ok(!r.text.includes('Reference attachments'));
+  assert.ok(!r.text.includes('/p/a.jpg'));
+});
+
 test('capture: 群聊事件把 actor 接进 Turn，检索 query 用剥标签正文', async () => {
   const { store } = tmpStore();
   const ingested: Array<{ userText: string; actor?: string }> = [];
@@ -1009,6 +1099,19 @@ test('buildDistillPrompt: actor 作为发言人标签渲染', () => {
     5,
   );
   assert.match(p, /张三 \(ABCDEF1234567890\)：今晚吃鱼/);
+});
+
+test('buildDistillPrompt: 指代/第三方归属护栏——不明主体不得默认归发言人', () => {
+  const p = buildDistillPrompt(
+    [{ userText: '[附图]\n这个人cos的很好看对不对', assistantText: '确实好看', at: NOW }],
+    '花咲蝶舞',
+    5,
+  );
+  assert.match(p, /归属铁律/);
+  assert.match(p, /不得默认归到发言人/);
+  assert.match(p, /第三方.*不是发言人本人/s);
+  assert.match(p, /\[附图\].*\[附件\]/);
+  assert.match(p, /事件式表述/);
 });
 
 test('assemble: 记忆行带发言人前缀', () => {
