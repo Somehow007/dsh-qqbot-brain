@@ -2,6 +2,7 @@
 // 视图经 on() 订阅刷新。editing>0 时暂停拉取（管理表单编辑中不打断）。
 
 import { api } from './api.js';
+import { buildMapVM } from './vm.js';
 
 export const POLL_MS = 15000;
 
@@ -22,6 +23,7 @@ export const store = {
   editing: 0,         // 编辑中计数：>0 暂停自动刷新
   rev: 0,             // 每次成功刷新 +1，视图可据此判断数据是否变化
   error: '',          // 最近一次刷新错误（顶栏可提示）
+  mapVM: null,        // buildMapVM 产物；查看人设/数据变化时重建
 
   _listeners: new Set(),
   _timer: 0,
@@ -60,6 +62,7 @@ export const store = {
         this.viewPersonaId = personas.activeId && ids.includes(personas.activeId)
           ? personas.activeId : (ids[0] ?? '');
       }
+      this.rebuildVM();
       this.error = '';
       this.rev++;
       this._emit('data');
@@ -67,6 +70,12 @@ export const store = {
       this.error = e instanceof Error ? e.message : String(e);
       this._emit('error');
     }
+  },
+
+  /** 用缓存的原始数据重建 MapVM（查看人设切换等不触发拉取的场景） */
+  rebuildVM() {
+    if (!this.state) { this.mapVM = null; return; }
+    this.mapVM = buildMapVM(this.state, this.ops, this.personas, this.profiles, this.viewPersonaId, Date.now(), this.sessions);
   },
 
   /** 编辑开始/结束：管理表单 mount 时 begin，unmount/提交后 end */

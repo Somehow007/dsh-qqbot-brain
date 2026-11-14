@@ -168,6 +168,7 @@ function bindTopbar() {
   });
   $('tbPersonaSel').addEventListener('change', (e) => {
     store.viewPersonaId = e.target.value;
+    store.rebuildVM(); // 三轨过滤/人设词表随查看人设变
     paintBrand();
     paintSkins();
     routerRefresh(); // 主题/皮肤可能随角色变化，重挂视图
