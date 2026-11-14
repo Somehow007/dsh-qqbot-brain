@@ -46,19 +46,19 @@ const PRESETS = {
     pal: { a: '#3d7bff', a2: '#8ec5ff', soft: '#e7f0ff', deep: '#0d2a66' },
     traits: [['傲娇', .92], ['嘴硬心软', .84], ['贪吃 token', .76], ['认真靠谱', .68], ['怕被冷落', .55]],
     moodColors: { ...EMO9 },
-    mono: '鱼', en: 'DAFEIYU', tagline: '傲娇的蓝色鲸鱼女仆',
+    mono: '鱼', en: 'DAFEIYU', tagline: '傲娇的蓝色鲸鱼女仆', title: '大肥鱼',
   },
   ye: {
     pal: { a: '#c8892a', a2: '#f1cf8a', soft: '#fbf2e2', deep: '#4a2f08' },
     traits: [['严厉', .88], ['护短', .81], ['好为人师', .74], ['不擅表达', .63], ['爱逞强', .52]],
     moodColors: { ...YE_FIREFLY_MOOD_COLORS },
-    mono: '光', en: 'YE SHUNGUANG', tagline: '严厉又护短的师姐',
+    mono: '光', en: 'YE SHUNGUANG', tagline: '严厉又护短的师姐', title: '叶瞬光',
   },
   firefly: {
     pal: { a: '#1fae8c', a2: '#9be8d2', soft: '#e4f7f1', deep: '#073d32' },
     traits: [['温柔', .9], ['珍惜当下', .86], ['坚韧', .78], ['羞涩', .66], ['偶尔逞强', .5]],
     moodColors: { ...YE_FIREFLY_MOOD_COLORS },
-    mono: '萤', en: 'FIREFLY', tagline: '想看一次真正日出的少女',
+    mono: '萤', en: 'FIREFLY', tagline: '想看一次真正日出的少女', title: '流萤',
   },
 };
 
@@ -107,7 +107,8 @@ function validTraits(t) {
  * 解析人设主题。
  * @param persona {id,name,text,characterId?,moods?,meta?} 人设条目（可为 null → 派生兜底）
  * @param personas 全部人设（characterOfId 需要查表；缺省只用 persona 自身）
- * @returns {characterId,name,a,a2,soft,deep,moods,moodColors,traits,mono,en,tagline}
+ * @returns {characterId,name,title,a,a2,soft,deep,moods,moodColors,traits,mono,en,tagline}
+ *   title=角色级显示名（whale→大肥鱼）：皮肤标题/气泡用它，人设版本名（鲸鱼娘·温柔）只进顶栏
  */
 export function resolveTheme(persona, personas) {
   const all = Array.isArray(personas) ? personas : (persona ? [persona] : []);
@@ -139,6 +140,7 @@ export function resolveTheme(persona, personas) {
   return {
     characterId: charId,
     name,
+    title: preset?.title ?? name,
     a: pick('a'), a2: pick('a2'), soft: pick('soft'), deep: pick('deep'),
     moods: moodWords,
     moodColors,

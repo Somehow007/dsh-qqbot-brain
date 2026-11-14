@@ -1,9 +1,30 @@
 // #/map 视图：解析当前皮肤并挂载；store 数据刷新转发给皮肤 update()。
 // vm 由 core/vm.js 提供（S3 接入）；当前为 null，皮肤需容忍。
 
+import { api } from '../core/api.js';
 import { store } from '../core/store.js';
 import { skinById } from '../skins/index.js';
 import { characterOfId, resolveSkin, resolveTheme, getPref, SKIN_IDS } from '../core/theme.js';
+
+const reducedMotion = () => {
+  try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; }
+};
+
+/** 皮肤可用的写操作：调 API 后触发 store.refresh()（皮肤自身不 fetch） */
+export const mapActions = {
+  patchNote: async (id, patch) => {
+    await api.patch(`/notes/${encodeURIComponent(id)}`, patch);
+    store.refresh();
+  },
+  deleteNote: async (id) => {
+    await api.del(`/notes/${encodeURIComponent(id)}`);
+    store.refresh();
+  },
+  reinforceNote: async (id) => {
+    await api.post(`/notes/${encodeURIComponent(id)}/reinforce`);
+    store.refresh();
+  },
+};
 
 /** 当前查看人设 + 全部人设 → 主题对象（顶栏/皮肤共用） */
 export function mapCtx() {
@@ -11,6 +32,8 @@ export function mapCtx() {
   const all = store.personas?.personas ?? [];
   const theme = resolveTheme(persona, all);
   const charId = characterOfId(persona?.id, all);
+  const reduced = reducedMotion();
+  const params = new URLSearchParams(location.search);
   return {
     vm: store.mapVM ?? null,
     persona,
@@ -18,10 +41,15 @@ export function mapCtx() {
     charId,
     skinId: resolveSkin(charId),
     motion: {
-      still: getPref('motion') === false || new URLSearchParams(location.search).has('still'),
-      signal: getPref('signal') !== false,
-      particles: getPref('particles') !== false,
+      // still=静态终态（?still=1 / 系统减动效 / brain-motion 显式关）→ 皮肤强制关全部动效
+      still: reduced || params.has('still') || getPref('motion') === false,
+      // 未显式设置时跟随系统减动效偏好（与旧页 REDUCED 默认一致）
+      signal: getPref('signal') ?? !reduced,
+      particles: getPref('particles') ?? !reduced,
     },
+    ops: store.ops,
+    sessions: store.sessions,
+    actions: mapActions,
   };
 }
 

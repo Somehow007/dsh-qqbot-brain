@@ -159,7 +159,7 @@ function bindSearch() {
 
 // ── 顶栏事件 ──
 function bindTopbar() {
-  $('tbBrand').onclick = () => navigate('#/map');
+  $('tbBrand').onclick = () => { mapView.select?.(null); navigate('#/map'); };
   document.querySelectorAll('.tb-link[data-nav]').forEach((b) => {
     b.onclick = () => {
       if (b.dataset.nav === 'admin') location.href = legacyUrl();

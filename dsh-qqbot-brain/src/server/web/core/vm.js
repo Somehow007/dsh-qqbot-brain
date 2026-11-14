@@ -325,9 +325,9 @@ export function buildMapVM(state, ops, personas, profiles, viewPersonaId, now = 
     return word || e.state.label ? { word: word ?? null, label: e.state.label || '', t: e.t } : null;
   };
   const stateEmo = (st) => {
-    if (!st || typeof st !== 'object') return { word: null, label: '', v: 0, a: 0 };
+    if (!st || typeof st !== 'object') return { word: null, label: '', v: 0, a: 0, d: 0 };
     const word = (st.mood || '').trim() || (defaultScale ? EMO_NAME[emotionBucket(st)] : null);
-    return { word: word ?? null, label: st.label || '', v: +(st.v) || 0, a: +(st.a) || 0 };
+    return { word: word ?? null, label: st.label || '', v: +(st.v) || 0, a: +(st.a) || 0, d: +(st.d) || 0 };
   };
 
   // 富化全部记忆（byId 供「画面外定位」），visible = 三轨过滤后的绘制集
@@ -422,6 +422,7 @@ export function buildMapVM(state, ops, personas, profiles, viewPersonaId, now = 
     persona: viewEntry ?? null,
     characterId: viewChar,
     moodWords,
+    emotionSession: state?.emotionSession ?? null,
     stats: state?.stats ?? {},
     config: state?.config ?? {},
     now,
