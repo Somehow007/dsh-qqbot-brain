@@ -560,3 +560,25 @@ P2(S5+S6)：nocturne 星盘（150星/24标/彗星流星/补间/still零rAF/hidde
 ### Status
 
 [OK] **Completed**
+
+
+## Session 120: 顶栏主题适配与版式迭代
+<!-- trellis-session: v=2 fp=3420fbe4298b628b -->
+
+**Date**: 2026-11-14
+**Task**: 顶栏主题适配与版式迭代
+**Branch**: `main`
+
+### Summary
+
+用户反馈 /brain 顶栏死板且与其他皮肤格格不入。排查：app.css 顶栏写死 :root 深蓝 token，管理端 applyTokens 机制（skin.tokens+人设 accent→容器）从未用到壳层。方案：app.js 加 paintChrome() 写 tokens+data-skin 到 body（boot/data/切人设/切皮肤四处接入），app.css 顶栏全 token 化+尾部 [data-skin] 三皮肤差异化（墨刊双线墨规方角宋体、星图衬线金线宽字距、鲸脑深海保留），:root 别名转发让 toast/modal/控件自动跟随。验证：typecheck+274test+build 绿，headless 三皮肤+admin 截图实证 tokens 正确下发。未部署随 P4 批。commit ad97a79。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `ad97a79` | feat(brain): 顶栏随皮肤+人设换色——壳层 token 化与三皮肤差异化版式 |
+
+### Status
+
+[OK] **Completed**

@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-2.md`
-- **Total Sessions**: 119
+- **Total Sessions**: 120
 - **Last Active**: 2026-11-14
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-2.md` | ~562 | Active |
+| `journal-2.md` | ~584 | Active |
 | `journal-1.md` | ~1988 | Archived |
 <!-- @@@/auto:active-documents -->
 
@@ -30,6 +30,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 120 | 2026-11-14 | 顶栏主题适配与版式迭代 | `ad97a79` | `main` |
 | 119 | 2026-11-14 | 墨刊三轮交互打磨（索引分页/focus蓝边/强制滚动） | `6df9ed3` | `main` |
 | 118 | 2026-11-14 | 墨刊二轮防叠修复（降级+N/标签真距/双行错峰/边收束） | `59c1fb0` | `main` |
 | 117 | 2026-11-14 | 墨刊地层图 cell 聚合重构 | - | `main` |
