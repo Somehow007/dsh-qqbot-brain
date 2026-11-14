@@ -604,3 +604,23 @@ P2(S5+S6)：nocturne 星盘（150星/24标/彗星流星/补间/still零rAF/hidde
 ### Status
 
 [OK] **Completed**
+
+
+## Session 122: 蒸馏归因错记删除+任务归档
+<!-- trellis-session: v=2 fp=9e269549137b4f03 -->
+
+**Date**: 2026-11-14
+**Task**: 蒸馏归因错记删除+任务归档
+**Branch**: `main`
+
+### Summary
+
+P0+P1（commit 1d3a763）已由并行会话随 20:10 部署批上线。执行数据修复：经 DELETE /api/notes/<uuid> 删除两条错配记忆 bc091a78-74db-4d01-b472-056fd608093f（花咲蝶舞=211研究生/程序员）与 436c508f-0674-4728-b35b-83c9270c6f5d（兼职百万粉coser），del op 落 brain.jsonl 可重放，API 复查零残留；扫描 add 时间之后的 profile/update op 无 211/coser/百万粉等关键词引用，画像未污染无扩散。实证验收登记 ACC-09（≥3 个部署后附件/指代轮次错配=0，观察中）；任务 11-14-distill-attribution 归档 archive/2026-11/，P2 指代锚点暂缓待观察。
+
+### Git Commits
+
+(No commits - planning session)
+
+### Status
+
+[OK] **Completed**

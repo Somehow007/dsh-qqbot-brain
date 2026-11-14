@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-2.md`
-- **Total Sessions**: 121
+- **Total Sessions**: 122
 - **Last Active**: 2026-11-14
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-2.md` | ~606 | Active |
+| `journal-2.md` | ~626 | Active |
 | `journal-1.md` | ~1988 | Archived |
 <!-- @@@/auto:active-documents -->
 
@@ -30,6 +30,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 122 | 2026-11-14 | 蒸馏归因错记删除+任务归档 | - | `main` |
 | 121 | 2026-11-14 | 顶栏主题适配部署生产（同批4项） | `ad97a79` | `main` |
 | 120 | 2026-11-14 | 顶栏主题适配与版式迭代 | `ad97a79` | `main` |
 | 119 | 2026-11-14 | 墨刊三轮交互打磨（索引分页/focus蓝边/强制滚动） | `6df9ed3` | `main` |
