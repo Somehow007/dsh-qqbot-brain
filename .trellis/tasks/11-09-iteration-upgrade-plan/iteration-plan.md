@@ -241,6 +241,8 @@ ssh ubuntu@124.222.65.169 "curl -X POST 'http://127.0.0.1:4099/brain/api/import?
 | E5 | **USER.md 式指令用户模型**：「Always/Never/Prefer」指令抽取进画像/attitude，supersede-in-place | OpenClaw | 蒸馏产出「旧偏好残留」类问题被走查发现 | 小-中（先评估与 attitude 重叠度） |
 | E6 | **关系事实角色隔离**：画像（世界轨共享）中的「X 与 persona Y 是恋人/亲属」类关系事实是 persona-relative 的，跨角色注入=噪声甚至锚定干扰（实证：流萤激活时画像仍在讲 demo 与鲸鱼娘恋情，`11-15-private-chat-persona-voice`）；候选=蒸馏写画像时给关系事实打 characterId/拆 persona 作用域，assemble 按激活角色过滤 | 本项目三轨模型延伸 | 多角色并存走查发现「A 角色读到 B 角色关系状况」干扰；或私聊人设走查复现 | 中（distill prompt + profile schema + assemble 过滤） |
 
+> **E6 状态**：已落地并部署（2026-11-15，`11-16-iteration-e6-profile-relations`，句级 `〔角·角色名〕` 标记制）；同日完成存量画像回填（3 画像 14 处标记，`11-15-iteration-e-backfill-signals`）。E1–E5 于 2026-11-15 完成首轮信号取证：五项触发信号均未触发，继续储备（证据见该任务 prd）。
+
 ---
 
 ## 7. 迭代 F：companion 壳层 MVP（另立任务，本方案只标依赖）
