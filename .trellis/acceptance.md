@@ -19,7 +19,6 @@
 | ACC-04 | 深挖召回实战：真实「还记得…」类提问触发 brain:deeprecall 注入 | 迭代C 主动召回 | brain.log / 宿主转录找 recall-intent 回合；eval 已 100%/0% | 事件：真实召回意图提问 ×1 | 事件 | 待触发 | 11-15：部署后窗口零召回意图提问 |
 | ACC-05 | provenance 标注正确性：新蒸馏条 source 字段正确；agent/system 轮次不产用户事实 | 迭代D D2 | export 查部署后新条 `source`；构造 via=agent/system ingest 观察蒸馏跳过 | 样本：≥20 条部署后新蒸馏条目 source 分类正确 | 样本 | 观察中 | 11-15：N=1/20（0b2c1776 src=user ✓）；流量低积累慢 |
 | ACC-07 | AI 身份条款实战：被问「你是 AI 吗」时如实承认（各人设口径一致） | F4 人设条款 | 宿主转录检索 AI 身份提问回合 | 事件：×1 即可（被动条款，低风险） | 事件 | 待触发 | 11-15：部署后窗口零提问 |
-| ACC-08 | eval lexical 基线 FAIL（q08/q15/n01/n03）定性：修复 or 正式接受为基线 | 存量基线问题 | `npm run eval`（dsh-qqbot-brain/） | 代码级：连续 3 次走查仍 FAIL → 决策修或豁免 | 抽查 | 待决 | 11-15：仍 4 FAIL（recall 88.2%/noiseFP 40%），基线未变 |
 | ACC-09 | 蒸馏归因护栏实战：部署后图片/第三方指代轮次不再产出「发言人：第三人事实」错配 | 蒸馏主体错配（11-14-distill-attribution） | 服务器 `grep '"op":"add"' ~/brain-data/brain.jsonl` 取部署时间（2026-11-14T20:10Z 前后）后的新条，对照宿主转录 `~/.dsh/sessions/**/session.v4.jsonl.zstd` 中带 `[附图]`/指代模式的 user/message，核对记忆主体归属 | 样本：≥3 个部署后含附件标记或「这人/这个人」指代的蒸馏轮；错配=0，或主体不明时产出事件式/不产出 | 样本 | 观察中 | 11-15：部署后(12:10Z起)窗口 9 回合零附件/指代轮；唯一命中是修复前 4h 的已知事故轮 |
 
 ## 二、持续观察项（不闭环，每次走查顺手记）
@@ -38,6 +37,7 @@
 - 迭代C 深挖代码面（Brain.search/eval 子集）：`archive/2026-11/11-12-iteration-c-proactive-recall`
 - F5a/F5b 机制面 + L1–L3 部署面：`archive/2026-11/11-13-consolidate-view-mismatch`、`11-13-search-reply-liveliness`（实证项见上表 ACC-01/02/03）
 - 迭代D 代码面（220 测试）：`archive/2026-11/11-13-iteration-d-intents-provenance`（实证项 ACC-05 观察中；**ACC-06 已通过** 11-15——CRUD/校验/cancel/tick/手动+定时器双路径 fire/op 审计/清理全通，event 型真实命中待自然触发）
+- **ACC-08 eval 基线（11-15 豁免通过，留痕待议）**：lexical 路径 q08/q15/n01/n03 四 FAIL = char-ngram 固有盲区（语义无交集/单字 IDF 巧合过阈），非缺陷；生产 embedding（dashscope text-embedding-v3，embedMinCos=0.47）实测 **recall=100%/noiseFP=20%**，四例全修。emb 唯一 FP n02「微积分作业写不完了」系话题相邻注入（噪声带 0.46-0.56 与真目标 0.48-0.49 重叠，阈值不可分；companion 语境边际有用）。**遗留问题**：话题相似≠情景相关的分离信号 / embedding 模型选型——属后续迭代级工作量，复盘入口 `tasks/11-15-eval-baseline-fails/prd.md`。eval 使用注意：`npm run eval` 无 key 跑 lexical 回退路径（4 FAIL 为预期基线）；评估生产行为需 `BRAIN_EMBED_API_KEY/BASE_URL/MODEL` 三件套（值在服务器 `~/.dsh/brain.env`）
 
 ## 四、走查协议
 
