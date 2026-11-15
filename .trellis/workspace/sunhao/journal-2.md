@@ -624,3 +624,23 @@ P0+P1（commit 1d3a763）已由并行会话随 20:10 部署批上线。执行数
 ### Status
 
 [OK] **Completed**
+
+
+## Session 123: 11-15走查+ACC-08豁免定性
+<!-- trellis-session: v=2 fp=df12eb401331af33 -->
+
+**Date**: 2026-11-15
+**Task**: 11-15走查+ACC-08豁免定性
+**Branch**: `main`
+
+### Summary
+
+走查验收登记处：ACC-06 intents生命周期首个实证通过（CRUD/校验/cancel/tick/手动+60s定时器双路径fire/op审计/清理全通）；其余实证项受周日低流量卡样本（部署后27h仅9回合）。随后决ACC-08：诊断eval四FAIL根因——lexical路径q08/q15系char-ngram语义盲区（rel 0.017-0.025<0.04）、n01/n03系单字/高频bigram IDF巧合过阈（0.051-0.053）；用生产embedding配置（dashscope text-embedding-v3）实测recall100%/noiseFP20%四例全修，新暴露n02话题相邻注入（噪声带与真目标重叠阈值不可分）；混合门原型因中文单字稀疏失效。用户拍板豁免但留痕：ACC-08移已通过，遗留话题/情景分离信号或换模型为后续迭代级，spec补eval两路径口径（无key跑lexical的4FAIL为预期基线、emb缺key静默退化勿误判）。文档：acceptance.md/spec/CHANGES.md/任务档案归档。
+
+### Git Commits
+
+(No commits - planning session)
+
+### Status
+
+[OK] **Completed**

@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-2.md`
-- **Total Sessions**: 122
-- **Last Active**: 2026-11-14
+- **Total Sessions**: 123
+- **Last Active**: 2026-11-15
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-2.md` | ~626 | Active |
+| `journal-2.md` | ~646 | Active |
 | `journal-1.md` | ~1988 | Archived |
 <!-- @@@/auto:active-documents -->
 
@@ -30,6 +30,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 123 | 2026-11-15 | 11-15走查+ACC-08豁免定性 | - | `main` |
 | 122 | 2026-11-14 | 蒸馏归因错记删除+任务归档 | - | `main` |
 | 121 | 2026-11-14 | 顶栏主题适配部署生产（同批4项） | `ad97a79` | `main` |
 | 120 | 2026-11-14 | 顶栏主题适配与版式迭代 | `ad97a79` | `main` |
