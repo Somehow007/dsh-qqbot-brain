@@ -666,3 +666,23 @@ P0+P1（commit 1d3a763）已由并行会话随 20:10 部署批上线。执行数
 ### Status
 
 [OK] **Completed**
+
+
+## Session 125: 迭代E：E6画像标记存量回填 + E1–E5信号评估
+<!-- trellis-session: v=2 fp=006447181a248004 -->
+
+**Date**: 2026-11-15
+**Task**: 迭代E：E6画像标记存量回填 + E1–E5信号评估
+**Branch**: `main`
+
+### Summary
+
+开迭代E本轮：E6〔角·〕标记存量回填——生产 export 实测 8 画像零标记、存量关系句仍按世界共享注入（私聊声口排查同一泄漏的存量面）。PATCH /api/profiles 手工补标 3 画像 14 处（u:FEFE5282×5 私域鲸鱼娘句、sess:dbf7162a×6 含混合角色句拆分、sess:manual×3 叶瞬光句），零 LLM、op 可重放。验证：真实 scopeProfileChars+真实人设集逐角色模拟（firefly/ye 剥鲸鱼娘句、whale 系全保留、ye 保留叶瞬光句）、export 逐字 diff、op 审计。插曲：u:FEFE5282 标记后 518 字超 PROFILE_TEXT_CAP=500 被截去「约定」末句，瘦身至 497 重 PATCH 修复——标记制与 500 字上限的固有张力，画像高频重写下存量回填是桥梁非终态。E1–E5 首轮信号取证：五项触发信号均未触发继续储备（eval 无同实体不同话题用例/扩散激活无走查实证/无时序对比用例与矛盾对/池 408 条不大/无旧偏好残留证据）；顺带发现 whale-devotion 与 firefly 各一条同头异尾世界事实 semantic 重复（巩固分批口径缺口，E4 候选素材）、LLM 标记遵从率部署后 N=1 未遵从。ACC-11 改按「标记存活率」判定。文档：acceptance.md/iteration-plan E6 状态注/CHANGES.md/任务归档。
+
+### Git Commits
+
+(No commits - planning session)
+
+### Status
+
+[OK] **Completed**
