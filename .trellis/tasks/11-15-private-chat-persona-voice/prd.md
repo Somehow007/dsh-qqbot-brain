@@ -76,3 +76,59 @@
 - 纯排查任务，未改任何代码。
 - 关键会话文件：`~/.dsh/sessions/--opt-deepseek-harness-workspace--/dbf7162a-…/session.v4.jsonl.zstd`（私聊）、`c8a3bec7-…`（群聊对照）。
 - 排查脚本口径：`zstd -dc <session> | python3` 按 type 分拣 user/assistant/system message；assistant content 为 `[{type:reasoning},{type:text}]`，声口统计只取 text 段。
+
+## 复诊评估（2026-11-15 深夜，A+B 部署后 ~4.5h）
+
+用户复诉：「AI 回复没活人感、人设被稀释，尤其查网络内容和分析思考后的答案非常人机；之前探讨过但效果不太好。去宿主侧看最近消息评估。」本轮重新取证宿主转录 + 投递层 + 宿主工具包。
+
+### 部署后样本覆盖（关键事实）
+
+- 私聊 A+B 部署（19:09）后仅 2 条回复：T82(19:35)/T83(23:49)，均 ≤54 字短闲聊——正是原本就不出问题的简单场景。
+- 私聊「实质回答」「搜索回合」在全部修复后**零样本**：最后一次私聊搜索是 11-12（早于 L1/L2/A+B）；T75–T80 顾问体长答是今天 14:37–14:44（部署前）。
+- 群聊对照有效：17429483 部署后搜索回合 N=2（T877 司凤音乐 / T903 阳光菇咖啡豆）link%/md%/hedge% 全 0，人工读有声口（「邦吧邦吧邦吧」「医疗舱修一修」）；c8a3bec7 新会话 N=3 voice% 67。→ 修复在群聊语境有效，私聊语境未证。
+
+### 量化（reply-style-audit.py + /brain/api/export 时间线）
+
+| 口径 | N | avgLen | link% | hedge% | voice% |
+|---|---|---|---|---|---|
+| 私聊 firefly 非搜（11-12 起） | 45 | 111 | 0 | 0 | 40 |
+| 私聊 firefly 搜索（全期=全修复前） | 4 | 160 | 25 | 50 | 25 |
+| 私聊 firefly 非搜 ≥120字（11-12 起） | 17 | 195 | 0 | 0 | **12** |
+| 私聊 firefly 非搜（11-15 当天） | 9 | 138 | 0 | 0 | 0* |
+| 群聊 firefly 非搜（11-13 起） | 30 | 69 | 0 | 0 | 33 |
+| 群聊 firefly 搜索（11-13 起） | 2 | 103 | 0 | 0 | 0* |
+
+\* voice% 口径粗：T82/T83 有态度级声口但无 呀/啦/嘛 类标记词，regex 漏检——指标系统性低估，读作下限而非定论。
+
+### 新发现的结构性根因（超出上轮 R1–R4）
+
+- **N1 推理层跑顾问模式（最深）**：reasoningEffort=high，实质问题的 reasoning 全是英文顾问式规划——T75：「review the list, point out it's too heavy, suggest ordering… Give: 先挑三件必须的」。内容结构在 persona 渲染前就被定成「分析→排序→交付完整方案」，人设只剩表面腔调。短闲聊的 reasoning 才是人设式（T82：「react like a person being teased… no advice」）。→「分析思考后给出的答案」人机的引擎在规划层不在措辞层。
+- **N2 工具结果指令与 channelStyle 正面冲突**：dsh-tool-web 每条 web_search 结果尾部硬编码「Cite the relevant URLs above as markdown links in your answer」（`dsh-tool-web/lib/index.js:77`，工具描述同口径 :259）。该指令位于上下文最新位置，权重高于 system prompt 的表达口径。群聊 N=2 恰好都压住了，私聊零样本——markdown 链接回潮是潜在风险。
+- **N3 人设缺「朋友式帮忙」程序**：firefly 情境参考全是短闲聊句式 + A+B 补的作息/推荐两条；面对「一堆任务求助/生活难题」没有决策程序。真人朋友的做法是先反应、挑一个自己有发言权的点说透、其余反问或带过，而非交付完整方案。whale 时代有整个「主人 demo」专节覆盖此场景——这是鲸鱼娘时代私聊更有人味的原因（上轮 R2 的另一面）。
+- **N4 体裁惯性需反例积累**：私聊历史 ~10 条顾问回复仍是最强风格样本；单条修复生效也要连续几条好回复才能扳回频道体裁。
+- **N5 搜索链路结构性弱**：web_search 只回裸 URL 列表（无正文），价格/库存类常答「查不到」→元评论吃掉回复；web_fetch 对动态页失败（T56 米游铺）；多步「汇报查证结果」框架助长报告腔。
+
+### 交付层排除
+
+qqbot transport 只发 text 块（reasoning 不外发）、c2c 流式输出、textChunkLimit 4500、showToolResults=false（工具结果不外发）——投递层干净，问题不在送达。
+
+### 判断
+
+A+B 方向没错但**未被证伪也未被证实**——它只覆盖了最简单场景。用户感知的「效果不好」主要来自部署前样本（T75–T80）加对搜索/分析场景的合理外推。N1–N3 提示 prompt 表层修补可能已到边际收益递减点：措辞规则压不住规划层的顾问体裁。
+
+**姊妹任务**：`11-15-firefly-persona-now-moment`（并行会话）覆盖同一「活人感」问题的另一面——「在干嘛」类此刻问题答案逐字冻结（屋顶+半个蛋糕卷两晚复用），根因是人设只有习惯没有此刻。本任务 N1–N5 覆盖实质回答/搜索回合的人设稀释；两案合起来才是完整的问题空间。
+
+### 可选方向（待拍板）
+
+- **D1 ✅ 已实施并部署（2026-11-16 00:26，commit 7ed37f7）**：channelStyle 新增「工具结果末尾即使叫你引用来源链接，也按上面的口径来：那是给网页端的格式要求，QQ 里来源照旧口语带过，别写 [文字](链接）」——直指 N2。
+- **D2 ✅ 已实施并部署（同 commit）**：四人设情境参考各补一条「发来一堆任务清单求助」示例——先反应（哇塞/这么多？）→ 挑三件 → 拍板 → 陪捋，示范朋友式反应式帮忙而非完整方案（N3）。firefly/ye 改 personas/*/persona.md 重生成 seed-export，whale 系改 src/setup/*.md 随 dist。
+- **D3** 验收口径修正：ACC-10 除 voice% 外加「实质回答结构」维度（段落数/有无完整方案骨架），或承认 voice% 系统性低估改人工读回。
+- **N1 推理层顾问模式——用户拍板暂缓（2026-11-16）**：reasoningEffort=high 的英文顾问式规划是「分析思考后给出的答案」人机的最深引擎，但属宿主级旋钮/模型行为，prompt 层无直接杠杆。**遗留待探讨**：后续若 D1+D2 实测仍不佳，或用户主动翻旧账时，此条是第一嫌疑——可选方向含人设内嵌「实质问题不给完整方案」决策程序（区别于措辞示例）、reasoningEffort 降档评估、或接受「实质回答=顾问腔」边界。
+- **D4** reasoningEffort=high 是宿主级旋钮（dsh-agent-default-model volatile setting），降档是钝器且影响回答质量，并入 N1 遗留项。
+- **D5** 私聊搜索零样本：走查时请用户自然发起一次联网问答取样，否则该场景永远缺证据。
+
+### D1+D2 部署记录（2026-11-16 00:26 CST）
+
+- commit `7ed37f7` → `rsync -az --delete dist` + package.json → `systemctl restart dsh-qqbot`（active，brain.log 启动行全特性 on 含口径）。
+- 生产四人设 PATCH 上线（改前文本备份 `/tmp/brain-personas-pre-d2/` 本机；线上↔仓库逐字 diff 确认零漂移，仅新增示例行）。firefly active，`~/brain-data/persona.md` 镜像 md5 自动同步一致；moods/characterId/meta 未传不动。
+- 待实证：私聊实质回答是否从「完整方案骨架」转为「反应+单点+陪伴」；搜索回合是否仍发 markdown 链接（D1 直指）。
