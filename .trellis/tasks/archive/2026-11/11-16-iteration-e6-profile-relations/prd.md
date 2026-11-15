@@ -36,3 +36,25 @@
 
 - 代码：`npm run typecheck && npm test && npm run build && npm run eval` 全绿；单测覆盖 外角色剥除/本角色保留去标记/未知名保留/〔私〕复合/多句混合。
 - 实证（登记 acceptance）：流萤私聊走查，注入画像不再含鲸鱼娘关系句；鲸鱼娘侧不受影响（标记句保留）。
+
+## Resolution (2026-11-15)
+
+**遇到了什么问题**：画像按人共享对所有角色注入，「demo 与鲸鱼娘是恋人关系」类 persona-relative 事实在流萤/叶瞬光激活时把 demo 锚到鲸鱼娘身上，私聊声口漂移（11-15-private-chat-persona-voice 实证 R2/R4）。
+
+**怎么解决的**：句级标记制（仿〔私〕先例），零 schema 变更——
+- 蒸馏/巩固/撰稿三路经 `PROFILE_RELATION_RULE` 把关系句写成 `〔角·角色名〕` 开头；审核路保标记与角色名；
+- `store.scopeProfileChars(text, isForeignChar)` 纯函数按句界（。/\n/文末，同 stripPrivateSegments）过滤；
+- `Brain.profileCharScope()` 由 listPersonas+characterOf 构造判定器：标记名命中本角色人设（name 归一化互相包含/短边≥2字，或人设正文含该名）→保留去标记；只命中他角色→整句剥除；多角色/无人设命中→保留去标记（未知不误删）；
+- assemble 对 personProfile/sessProfile 各过滤一次；与〔私〕复合兼容（私域剥离先行，外角色连私域关系句也看不到）。
+
+**什么时候干的**：2026-11-15 19:31 CST 部署生产（备份 pre-e6-{plugin,data}-20261115T113053Z.tgz，rsync dist+package.json，restart active，启动日志全特性 on，/brain 401=存活需 token）。
+
+**Key Decisions**：
+- 选标记制而非 ProfileEntry schema 拆分：复用〔私〕成熟模式，存量无标记画像天然兼容=零迁移；
+- 未知标记名默认保留（等价标记前行为）而非剥除——关系事实非隐私数据，宁可漏过滤不可误删；
+- 标记名匹配用「人设 name 包含 + 人设正文 includes」双通道，兼容人设显示名≠ fiction 角色名的情况；
+- page.html 管理端展示保留原始标记（透明可见），未做展示层美化。
+
+**验证**：typecheck+276 test+build+eval 绿（eval 4 FAIL=ACC-08 豁免基线）；新增 scopeProfileChars 单测（外角色剥除/本角色去标记/未知名保留/〔私〕双序复合）+ assemble 级双角色过滤测试。实证验收登记 ACC-11（待触发）：新蒸馏画像出现〔角·〕标记 + 他角色注入核对。
+
+**后续方向**：ACC-11 走查；若 LLM 标记遵从率低，考虑 review 路强化或 fallback 启发式；管理端可选标记可视化。
