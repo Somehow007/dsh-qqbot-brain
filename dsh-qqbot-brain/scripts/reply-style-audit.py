@@ -82,13 +82,14 @@ def main() -> None:
     ap.add_argument('--export', required=True, help='brain /api/export 落盘的 JSON')
     ap.add_argument('--since', help='YYYY-MM-DD 或 YYYY-MM-DDTHH:MM（本地时区），只统计此后的回合')
     ap.add_argument('--samples', type=int, default=0, help='每组打印最近 N 条搜索回合样本')
+    ap.add_argument('--min-len', type=int, default=0, help='只统计回复长度 ≥N 字的回合（实质回答声口口径）')
     a = ap.parse_args()
     pid_at = load_timeline(a.export)
     since = (datetime.datetime.fromisoformat(a.since).timestamp() * 1000) if a.since else 0
     rows = defaultdict(list)
     for x in turns(sys.stdin):
         r = ' '.join(x['reply']).strip()
-        if not r or x['time'] < since:
+        if not r or x['time'] < since or len(r) < a.min_len:
             continue
         rows[(pid_at(x['time']), x['web'])].append((x, r))
 

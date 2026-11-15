@@ -239,6 +239,7 @@ ssh ubuntu@124.222.65.169 "curl -X POST 'http://127.0.0.1:4099/brain/api/import?
 | E3 | **双时态 valid 区间**：semantic/attitude 加 validFrom/To，「以前…现在…」问答 | Zep | 出现「他以前住X现在住Y」类 query eval 失败 | 中（schema+prompt+page） |
 | E4 | **dreaming 回顾重组 pass**：低频全池审视（合并漂移画像/重写过时 semantic/清孤儿 attitude），规则信号门禁+有界 LLM+pre-image 评审面 | Letta/OpenClaw | 记忆池膨胀导致检索噪声上升；画像漂移被走查发现 | 中-大（最慎重，最后做） |
 | E5 | **USER.md 式指令用户模型**：「Always/Never/Prefer」指令抽取进画像/attitude，supersede-in-place | OpenClaw | 蒸馏产出「旧偏好残留」类问题被走查发现 | 小-中（先评估与 attitude 重叠度） |
+| E6 | **关系事实角色隔离**：画像（世界轨共享）中的「X 与 persona Y 是恋人/亲属」类关系事实是 persona-relative 的，跨角色注入=噪声甚至锚定干扰（实证：流萤激活时画像仍在讲 demo 与鲸鱼娘恋情，`11-15-private-chat-persona-voice`）；候选=蒸馏写画像时给关系事实打 characterId/拆 persona 作用域，assemble 按激活角色过滤 | 本项目三轨模型延伸 | 多角色并存走查发现「A 角色读到 B 角色关系状况」干扰；或私聊人设走查复现 | 中（distill prompt + profile schema + assemble 过滤） |
 
 ---
 

@@ -20,6 +20,7 @@
 | ACC-05 | provenance 标注正确性：新蒸馏条 source 字段正确；agent/system 轮次不产用户事实 | 迭代D D2 | export 查部署后新条 `source`；构造 via=agent/system ingest 观察蒸馏跳过 | 样本：≥20 条部署后新蒸馏条目 source 分类正确 | 样本 | 观察中 | 11-15：N=1/20（0b2c1776 src=user ✓）；流量低积累慢 |
 | ACC-07 | AI 身份条款实战：被问「你是 AI 吗」时如实承认（各人设口径一致） | F4 人设条款 | 宿主转录检索 AI 身份提问回合 | 事件：×1 即可（被动条款，低风险） | 事件 | 待触发 | 11-15：部署后窗口零提问 |
 | ACC-09 | 蒸馏归因护栏实战：部署后图片/第三方指代轮次不再产出「发言人：第三人事实」错配 | 蒸馏主体错配（11-14-distill-attribution） | 服务器 `grep '"op":"add"' ~/brain-data/brain.jsonl` 取部署时间（2026-11-14T20:10Z 前后）后的新条，对照宿主转录 `~/.dsh/sessions/**/session.v4.jsonl.zstd` 中带 `[附图]`/指代模式的 user/message，核对记忆主体归属 | 样本：≥3 个部署后含附件标记或「这人/这个人」指代的蒸馏轮；错配=0，或主体不明时产出事件式/不产出 | 样本 | 观察中 | 11-15：部署后(12:10Z起)窗口 9 回合零附件/指代轮；唯一命中是修复前 4h 的已知事故轮 |
+| ACC-10 | 私聊实质回答声口保持：长回复不退化成顾问说明文腔（语气词不系统性丢失） | 11-15-private-chat-persona-voice A+B | 服务器：先 `curl /api/export` 落盘新 export，再 `zstd -dc ~/.dsh/sessions/--opt-deepseek-harness-workspace--/dbf7162a-e07d-d5cf-e6df-bd2915f54ab3/session.v4.jsonl.zstd \| python3 /tmp/reply-style-audit.py --export <export> --since 2026-11-15T19:09 --min-len 120`（voice% 对比部署前同口径≈0%），辅以人工抽查长回复有无「首先/其次」式结构 | 样本：部署后私聊 ≥5 条 ≥120 字实质回答；voice% 显著回升（部署前长回复语气词≈系统性缺失）且无说明文腔 | 样本 | 待触发 | —（11-15 19:09 CST 部署） |
 
 ## 二、持续观察项（不闭环，每次走查顺手记）
 
