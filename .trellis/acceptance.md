@@ -14,31 +14,30 @@
 | ID | 验收项 | 来源 | 验证方法 | 证据阈值 | 触发 | 状态 | 最近走查 |
 |---|---|---|---|---|---|---|---|
 | ACC-01 | F5 混合世界轨分批实战正确性：世界轨 ep 按源角色分批、产出 personaId=源角色、无跨角色 self 产出 | F5 巩固视角错配 | `/api/export` 拉快照，按 absorbedAt 找巩固批，核对批内源角色构成与产出归属 | 事件：≥1 个世界源含 ≥2 角色且各够 minNotes 的巩固批 | 事件 | 待触发 | —（11-14 首批仅单角色源，机制待实战） |
-| ACC-02 | 活人感·搜索回合指标：link%≈0、hedge%≤15、avgLen≤非搜 1.5×、voice% 不塌 | brain:style + 人设信息模式节 | `zstd -dc <session> \| python3 scripts/reply-style-audit.py --export <导出> --since 2026-11-14T16:15`（服务器 /tmp 已有脚本与导出） | 样本：部署后 ≥10 条搜索回合（跨人设更佳） | 样本 | 观察中 | 11-14：N=1，link 38→0、hedge 50→0、无 md，方向符合 |
-| ACC-03 | 活人感·非搜回合不退化：口径段不把日常回复变干 | 同上 | 同脚本非搜行对比上线前基线（prd 内有表） | 样本：同窗口非搜 ≥30 条；avgLen/voice% 不低于基线 ~20% | 样本 | 观察中 | 11-14：N=18，avgLen 63（基线84）、voice 33%（基线47%）——小样本待续 |
-| ACC-04 | 深挖召回实战：真实「还记得…」类提问触发 brain:deeprecall 注入 | 迭代C 主动召回 | brain.log / 宿主转录找 recall-intent 回合；eval 已 100%/0% | 事件：真实召回意图提问 ×1 | 事件 | 待触发 | 上线 ~2 天零真实提问（非漏检，转录核对过） |
-| ACC-05 | provenance 标注正确性：新蒸馏条 source 字段正确；agent/system 轮次不产用户事实 | 迭代D D2 | export 查部署后新条 `source`；构造 via=agent/system ingest 观察蒸馏跳过 | 样本：≥20 条部署后新蒸馏条目 source 分类正确 | 样本 | 观察中 | —（via 三态待 companion 壳层真实流量） |
-| ACC-06 | standing intents 生命周期实战：建→tick/fire→cancel 全流程 | 迭代D D1 | `POST /api/intents` 建 event+time 测试 intent → 观察 brain.log tick 与 /api/ops → cancel 清理（iteration-plan §5.5 既定走查，尚未做） | 事件：一次手工建删流程走通且日志/op 正确 | 事件 | 待触发 | — |
-| ACC-07 | AI 身份条款实战：被问「你是 AI 吗」时如实承认（各人设口径一致） | F4 人设条款 | 宿主转录检索 AI 身份提问回合 | 事件：×1 即可（被动条款，低风险） | 事件 | 待触发 | 历次走查零提问 |
-| ACC-08 | eval lexical 基线 FAIL（q08/q15/n01/n03）定性：修复 or 正式接受为基线 | 存量基线问题 | `npm run eval`（dsh-qqbot-brain/） | 代码级：连续 3 次走查仍 FAIL → 决策修或豁免 | 抽查 | 待决 | 多次走查均为基线 FAIL，与各迭代无关 |
-| ACC-09 | 蒸馏归因护栏实战：部署后图片/第三方指代轮次不再产出「发言人：第三人事实」错配 | 蒸馏主体错配（11-14-distill-attribution） | 服务器 `grep '"op":"add"' ~/brain-data/brain.jsonl` 取部署时间（2026-11-14T20:10Z 前后）后的新条，对照宿主转录 `~/.dsh/sessions/**/session.v4.jsonl.zstd` 中带 `[附图]`/指代模式的 user/message，核对记忆主体归属 | 样本：≥3 个部署后含附件标记或「这人/这个人」指代的蒸馏轮；错配=0，或主体不明时产出事件式/不产出 | 样本 | 观察中 | —（部署 20:10，待首批图片讨论轮） |
+| ACC-02 | 活人感·搜索回合指标：link%≈0、hedge%≤15、avgLen≤非搜 1.5×、voice% 不塌 | brain:style + 人设信息模式节 | `zstd -dc <session> \| python3 scripts/reply-style-audit.py --export <导出> --since 2026-11-14T16:15`（服务器 /tmp 已有脚本与导出） | 样本：部署后 ≥10 条搜索回合（跨人设更佳） | 样本 | 观察中 | 11-15：N=1/10（link/md/hedge 全 0）；周日流量低 |
+| ACC-03 | 活人感·非搜回合不退化：口径段不把日常回复变干 | 同上 | 同脚本非搜行对比上线前基线（prd 内有表） | 样本：同窗口非搜 ≥30 条；avgLen/voice% 不低于基线 ~20% | 样本 | 观察中 | 11-15：N=25/30，link/md/hedge 全 0；avgLen 偏长 voice 群53%私聊0%——待续 |
+| ACC-04 | 深挖召回实战：真实「还记得…」类提问触发 brain:deeprecall 注入 | 迭代C 主动召回 | brain.log / 宿主转录找 recall-intent 回合；eval 已 100%/0% | 事件：真实召回意图提问 ×1 | 事件 | 待触发 | 11-15：部署后窗口零召回意图提问 |
+| ACC-05 | provenance 标注正确性：新蒸馏条 source 字段正确；agent/system 轮次不产用户事实 | 迭代D D2 | export 查部署后新条 `source`；构造 via=agent/system ingest 观察蒸馏跳过 | 样本：≥20 条部署后新蒸馏条目 source 分类正确 | 样本 | 观察中 | 11-15：N=1/20（0b2c1776 src=user ✓）；流量低积累慢 |
+| ACC-07 | AI 身份条款实战：被问「你是 AI 吗」时如实承认（各人设口径一致） | F4 人设条款 | 宿主转录检索 AI 身份提问回合 | 事件：×1 即可（被动条款，低风险） | 事件 | 待触发 | 11-15：部署后窗口零提问 |
+| ACC-08 | eval lexical 基线 FAIL（q08/q15/n01/n03）定性：修复 or 正式接受为基线 | 存量基线问题 | `npm run eval`（dsh-qqbot-brain/） | 代码级：连续 3 次走查仍 FAIL → 决策修或豁免 | 抽查 | 待决 | 11-15：仍 4 FAIL（recall 88.2%/noiseFP 40%），基线未变 |
+| ACC-09 | 蒸馏归因护栏实战：部署后图片/第三方指代轮次不再产出「发言人：第三人事实」错配 | 蒸馏主体错配（11-14-distill-attribution） | 服务器 `grep '"op":"add"' ~/brain-data/brain.jsonl` 取部署时间（2026-11-14T20:10Z 前后）后的新条，对照宿主转录 `~/.dsh/sessions/**/session.v4.jsonl.zstd` 中带 `[附图]`/指代模式的 user/message，核对记忆主体归属 | 样本：≥3 个部署后含附件标记或「这人/这个人」指代的蒸馏轮；错配=0，或主体不明时产出事件式/不产出 | 样本 | 观察中 | 11-15：部署后(12:10Z起)窗口 9 回合零附件/指代轮；唯一命中是修复前 4h 的已知事故轮 |
 
 ## 二、持续观察项（不闭环，每次走查顺手记）
 
 | 项 | 来源 | 观察点 | 最近记录 |
 |---|---|---|---|
-| 画像关系泛指残留 | F5b | `sess:`/`u:` 画像 grep「角色的/与角色」类关系句；关系陈述应带角色名 | 11-14：sess:dbf7162a 清零；u: 域互动风格类用例可接受 |
-| firefly attitude 堆积→说教化 | E 储备观察 | firefly 自我轨 attitude 条数与【当前立场】注入体量；回复是否越来越说教 | — |
+| 画像关系泛指残留 | F5b | `sess:`/`u:` 画像 grep「角色的/与角色」类关系句；关系陈述应带角色名 | 11-15：全量扫描零泛指残留；sess:dbf7162a 清零维持 |
+| firefly attitude 堆积→说教化 | E 储备观察 | firefly 自我轨 attitude 条数与【当前立场】注入体量；回复是否越来越说教 | 11-15：firefly attitude 27 条（attitude 恒自我轨不看 self 标志），量级可控继续观察 |
 | whale 系（legacy/whale-*）人设口径漂移 | F4 遗留决策 | legacy 仍含旧式「不自称 AI」条款，与新包「如实承认」冲突——激活 whale 系时「你是AI吗」应答不同 | 待用户决策是否对齐 |
-| 向量覆盖 | F3 常驻回填 | export 检查 missing embedding（重启/导入后短暂缺口属正常，回填应清盘） | 11-14：407/407 零缺口 |
-| brain.log 错误 | 全量 | `grep -iE 'error|fail' brain.log` 自上次部署以来 | 11-14：零错误 |
+| 向量覆盖 | F3 常驻回填 | export 检查 missing embedding（重启/导入后短暂缺口属正常，回填应清盘） | 11-15：407/407 零缺口 |
+| brain.log 错误 | 全量 | `grep -iE 'error|fail' brain.log` 自上次部署以来 | 11-15：零错误零 intent 异常 |
 
 ## 三、已通过项（档案索引，不逐条展开）
 
 - F1–F4（巩固轨道继承/分批/向量回填/AI 条款机制面）：`archive/2026-11/11-10-consolidate-track-gaps` prd 验收节
 - 迭代C 深挖代码面（Brain.search/eval 子集）：`archive/2026-11/11-12-iteration-c-proactive-recall`
 - F5a/F5b 机制面 + L1–L3 部署面：`archive/2026-11/11-13-consolidate-view-mismatch`、`11-13-search-reply-liveliness`（实证项见上表 ACC-01/02/03）
-- 迭代D 代码面（220 测试）：`archive/2026-11/11-13-iteration-d-intents-provenance`（实证项见 ACC-05/06）
+- 迭代D 代码面（220 测试）：`archive/2026-11/11-13-iteration-d-intents-provenance`（实证项 ACC-05 观察中；**ACC-06 已通过** 11-15——CRUD/校验/cancel/tick/手动+定时器双路径 fire/op 审计/清理全通，event 型真实命中待自然触发）
 
 ## 四、走查协议
 
