@@ -644,3 +644,25 @@ P0+P1（commit 1d3a763）已由并行会话随 20:10 部署批上线。执行数
 ### Status
 
 [OK] **Completed**
+
+
+## Session 124: 迭代E6 画像角色域标记〔角·〕实施+部署
+<!-- trellis-session: v=2 fp=ba21a46203f2e08c -->
+
+**Date**: 2026-11-15
+**Task**: 迭代E6 画像角色域标记〔角·〕实施+部署
+**Branch**: `main`
+
+### Summary
+
+问题：画像共享致「demo与鲸鱼娘是恋人」类 persona-relative 事实在流萤/叶瞬光激活时锚定干扰（私聊声口排查实证）。方案：句级标记制仿〔私〕先例——蒸馏三路 PROFILE_RELATION_RULE 要求关系句〔角·角色名〕开头、审核路保标记；store.scopeProfileChars 纯函数+Brain.profileCharScope 按激活 characterId 过滤（本角色 name 包含/正文 includes 命中→保留去标记，他角色→剥句，未知→保留不误删），assemble 对个人/会话画像各过滤一次，与〔私〕复合兼容。排查插曲：CHAR_SEG_RE 的〔私〕?误作可选尾括号改 (?:〔私〕)?；prompt 措辞丢「必须点名角色」致既有测试挂，已改回。验证：typecheck+276test+build+eval 绿（4 FAIL=ACC-08 豁免基线），新增单测+assemble 双角色测试。部署：备份+rsync+restart 19:31 active，ACC-11 登记待触发。后续：走查标记遵从率，管理端标记可视化可选。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `37cbd1c` | feat(brain): 画像角色域标记〔角·〕——关系事实按 characterId 过滤注入（迭代E6） |
+
+### Status
+
+[OK] **Completed**
