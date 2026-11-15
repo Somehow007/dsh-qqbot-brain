@@ -305,6 +305,22 @@ export function stripPrivateMarks(text: string): string {
 }
 
 /**
+ * 画像角色域标记（迭代E6）：句首〔角·角色名〕到句末（。/换行/文末）为该角色专属关系事实。
+ * 可与〔私〕复合（〔私〕〔角·X〕… / 〔角·X〕〔私〕… 均整句处理）。句界口径同 stripPrivateSegments。
+ */
+const CHAR_SEG_RE = /(?:〔私〕)?〔角·([^〕\n]+)〕[^。\n]*(。|\n|$)/g;
+
+/**
+ * 按激活角色过滤画像角色域句：isForeignChar(标记名)=true 的句整句剥除；
+ * 其余（本角色/多角色命中/未知名）保留并去标记——未知不误删，等价标记前行为。
+ * 无标记句不受影响（世界共享事实）。
+ */
+export function scopeProfileChars(text: string, isForeignChar: (name: string) => boolean): string {
+  const kept = text.replace(CHAR_SEG_RE, (m, name: string) => (isForeignChar(name) ? '' : m));
+  return kept.replace(/〔角·[^〕\n]+〕/g, '').replace(/ {2,}/g, ' ').trim();
+}
+
+/**
  * 画像文本截断：超出上限时优先在上限内最后一个句末标点处收束，
  * 避免从句子中间切断；句末标点太靠前（<40%）或没有时退到分句标点，
  * 分句标点也没有才硬切——线上出过画像以半句残文落盘。

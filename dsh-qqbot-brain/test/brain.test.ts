@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Brain } from '../src/brain/index.ts';
-import { BrainStore } from '../src/brain/store.ts';
+import { BrainStore, scopeProfileChars } from '../src/brain/store.ts';
 import { Distiller, buildDistillPrompt, buildConsolidatePrompt, buildDigestPrompt, buildProfileReviewPrompt, parseDistillOutput } from '../src/brain/distill.ts';
 import { ageLabel, formatClock, formatShort, formatStamp } from '../src/brain/time.ts';
 import { SessionCapture, parseSenderTag } from '../src/capture/events.ts';
@@ -3452,4 +3452,53 @@ test('dedupeDryRun: 佐证放行同样只预估不落库', () => {
   const real = brain.sweepNearDups();
   assert.equal(real.released.length, dry.released);
   assert.equal(real.merged, dry.wouldMerge);
+});
+
+// ── E6：画像角色域标记〔角·〕过滤 ──
+test('scopeProfileChars: 外角色句剥除、本角色/未知名保留去标记、私域复合', () => {
+  const foreignWhale = (n: string) => n === '鲸鱼娘';
+  // 基础：外角色剥除、本角色去标记保留、未知名保留、无标记句不受影响
+  const out = scopeProfileChars(
+    '〔角·鲸鱼娘〕demo 与鲸鱼娘是恋人关系。demo 是大学生。〔角·鲸鱼娘〕demo 害羞时会别过脸。',
+    foreignWhale,
+  );
+  assert.ok(!out.includes('恋人关系'));
+  assert.ok(!out.includes('别过脸'));
+  assert.ok(out.includes('demo 是大学生'));
+  assert.ok(!out.includes('〔角·'));
+  // 本角色/判定放行：全部保留内容、只去标记
+  const keep = scopeProfileChars('〔角·鲸鱼娘〕demo 与鲸鱼娘是恋人关系。demo 是大学生。', () => false);
+  assert.ok(keep.includes('恋人关系'));
+  assert.ok(keep.includes('demo 是大学生'));
+  assert.ok(!keep.includes('〔角·'));
+  // 〔私〕复合两种顺序：外角色整句剥除（私域内容也不泄给他角色）
+  const priv1 = scopeProfileChars('〔私〕〔角·鲸鱼娘〕私密关系细节。demo 是大学生。', foreignWhale);
+  assert.ok(!priv1.includes('私密关系细节'));
+  assert.ok(priv1.includes('demo 是大学生'));
+  const priv2 = scopeProfileChars('〔角·鲸鱼娘〕〔私〕私密关系细节。demo 是大学生。', foreignWhale);
+  assert.ok(!priv2.includes('私密关系细节'));
+  // 复合句本角色保留：去角标、私标留给下游私域处理
+  const privKeep = scopeProfileChars('〔私〕〔角·鲸鱼娘〕私密关系细节。', () => false);
+  assert.ok(privKeep.includes('〔私〕'));
+  assert.ok(privKeep.includes('私密关系细节'));
+  assert.ok(!privKeep.includes('〔角·'));
+});
+
+test('assemble: 画像〔角·〕角色域句按激活角色过滤（E6）', () => {
+  const { store } = tmpStore();
+  store.createPersona('鲸鱼娘温柔版', '鲸鱼娘是温柔的鲸鱼娘。', 'whale-gentle', { characterId: 'whale' });
+  store.createPersona('叶瞬光', '叶瞬光是开拓者。', 'ye-shunguang', { characterId: 'ye' });
+  store.setProfileEntry('sess:s1', '〔角·鲸鱼娘〕demo 与鲸鱼娘是恋人关系。demo 是大学生。', { sessionId: 's1' });
+  const brain = new Brain({ store, distiller: mockDistiller({}), now });
+  // 鲸鱼娘视角：关系句保留（去标记），共享事实不受影响
+  store.activatePersona('whale-gentle');
+  const ctxW = brain.assemble('s1', 'hi');
+  assert.ok(ctxW.memoryLines.some((l) => l.includes('恋人关系')));
+  assert.ok(!ctxW.memoryLines.some((l) => l.includes('〔角·')));
+  assert.ok(ctxW.memoryLines.some((l) => l.includes('大学生')));
+  // 叶瞬光视角：鲸鱼娘关系句整句剥除，共享事实仍在
+  store.activatePersona('ye-shunguang');
+  const ctxY = brain.assemble('s1', 'hi');
+  assert.ok(!ctxY.memoryLines.some((l) => l.includes('恋人关系')));
+  assert.ok(ctxY.memoryLines.some((l) => l.includes('大学生')));
 });

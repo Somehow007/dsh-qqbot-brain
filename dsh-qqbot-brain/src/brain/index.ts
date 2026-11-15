@@ -6,7 +6,7 @@ import { ageLabel, dailyOccurrenceMs, formatClock } from './time.ts';
 import { Retriever } from './retrieval.ts';
 import type { ScoredNote } from './retrieval.ts';
 import { EmotionEngine, NEUTRAL_EMOTION } from './emotion.ts';
-import { BrainStore, PRIVATE_MARK, PROFILE_TEXT_CAP, stripPrivateMarks, stripPrivateSegments, truncateProfileText } from './store.ts';
+import { BrainStore, PRIVATE_MARK, PROFILE_TEXT_CAP, scopeProfileChars, stripPrivateMarks, stripPrivateSegments, truncateProfileText } from './store.ts';
 import type { OpRecord, PersonaExtra, PersonaPatch } from './store.ts';
 import { Distiller } from './distill.ts';
 import type { ProfileReviewItem } from './distill.ts';
@@ -268,11 +268,12 @@ export class Brain {
     // 个人画像（同名归并）优先，会话级画像次之；仅会话画像时维持「[画像]」标签
     // 私域段：非私域会话剥〔私〕句，私域会话保内容只去标记符
     const priv = this.store.isPrivateSession(sessionId);
+    const charScope = this.profileCharScope();
     const personProfile = (sp?.openid || sp?.nick)
-      ? this.store.mergedUserProfile({ openid: sp?.openid, nick: sp?.nick, includePrivate: priv })
+      ? charScope(this.store.mergedUserProfile({ openid: sp?.openid, nick: sp?.nick, includePrivate: priv }))
       : '';
     const sessRaw = this.store.profileOf(sessionId);
-    const sessProfile = priv ? stripPrivateMarks(sessRaw) : stripPrivateSegments(sessRaw);
+    const sessProfile = charScope(priv ? stripPrivateMarks(sessRaw) : stripPrivateSegments(sessRaw));
     if (sessProfile) memoryLines.unshift(`- ${personProfile ? '[会话画像]' : '[画像]'} ${sessProfile}`);
     if (personProfile) memoryLines.unshift(`- [画像] ${personProfile}`);
 
@@ -579,6 +580,35 @@ export class Brain {
   private trackKeyOf(note: MemoryNote): string | undefined {
     return (note.kind === 'attitude' || note.self === true)
       ? `char:${this.characterOf(notePersonaId(note))}` : undefined;
+  }
+
+  /**
+   * 画像角色域过滤器（迭代E6）：〔角·角色名〕标记句按激活 characterId 过滤。
+   * 标记名归属：人设 name 归一化后相等/互相包含（短边≥2字），或人设正文含该名；
+   * 本角色命中优先保留，他角色命中且无本角色命中→剥除，皆不命中→保留（未知不误删）。
+   */
+  private profileCharScope(): (text: string) => string {
+    const cid = this.characterOf(this.store.activePersonaId());
+    const personas = this.store.listPersonas().map((p) => ({
+      cid: this.characterOf(p.id),
+      name: p.name.replace(/[^\p{L}\p{N}]/gu, ''),
+      text: p.text,
+    }));
+    return (text) => scopeProfileChars(text, (marked) => {
+      const key = marked.replace(/[^\p{L}\p{N}]/gu, '');
+      if (key.length < 2) return false;
+      let foreign = false;
+      for (const p of personas) {
+        const nm = p.name;
+        const nameHit = !!nm && (nm === key
+          || (Math.min(nm.length, key.length) >= 2 && (nm.includes(key) || key.includes(nm))));
+        const textHit = p.text.includes(key);
+        if (!nameHit && !textHit) continue;
+        if (p.cid === cid) return false;
+        foreign = true;
+      }
+      return foreign;
+    });
   }
 
   /** 人设 id 众数（缺省回落活动人设）：批次/会话归属统一口径；计数并列取较晚出现者（更新上下文优先） */
