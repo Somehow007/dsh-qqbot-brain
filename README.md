@@ -162,12 +162,15 @@ QQ 消息 ──► dsh-qqbot ──► system-prompt/assemble
 - [x] 迭代A·人设三轨地基：角色→人设两级模型、自我轨按 characterId 隔离、蒸馏批次戳、存量迁移上线（路线图 A→G 见 `tasks/11-09-iteration-upgrade-plan/`）
 - [x] 迭代B·叶瞬光接入：第二角色人设上线（`personas/ye-shunguang/` 种子 28 条全落自我轨 + 自定义情绪词表），三轨隔离首次实战，merge 导入幂等
 - [x] 迭代C·主动召回：`Brain.search` 检索原语 + recall-intent 双门深挖注入段（零 LLM 成本），eval 深挖子集 100%/0% 噪声，已上线
-- [ ] 迭代D·前瞻记忆+出处：standing intents（event/time、确定性触发、`/api/intents`）+ `Turn.via`/`MemoryNote.source` 出处链，本地开发完成待部署授权
+- [x] 迭代D·前瞻记忆+出处：standing intents（event/time、确定性触发、`/api/intents`）+ `Turn.via`/`MemoryNote.source` 出处链，11-14 已上线
+- [x] 迭代E6·画像角色域标记：关系事实句带 `〔角·角色名〕` 按激活角色过滤注入，11-15 上线 + 存量画像回填（E1–E5 储备项首轮信号取证均未触发）
+- [x] 脑图 UI 重构 P1–P3：/brain 新皮肤壳层（nocturne/墨刊/鲸脑）+ D-admin 管理端七页真实 API，11-14 上线（`?ui=legacy` 兜底，P4 收尾待续）
+- [x] 实证验收登记处 `.trellis/acceptance.md`：部署≠验收，实证项带证据阈值跨走查存活（ACC-01~11 在册）
 - [ ] **webserver-shim 分支**：`:4099` 共享为 cordis `webServer` 服务，dsh-meme 斗图已本机全链路实测（send_meme → qqbot_send_file 真实投递），待合入上线
 
 下一步候选（迭代路线图 A→G 详见 `tasks/11-09-iteration-upgrade-plan/iteration-plan.md`）：
 
-1. **迭代D 部署**（本地已完成，等广播授权）→ 迭代E·记忆质量增强
+1. **迭代E·记忆质量深化**：E6 已闭环；E1–E5 按信号储备（entity boost/BFS-lite/双时态/dreaming/USER.md），等 companion 上线反馈或走查实证触发；companion 壳层（迭代F）另立任务待启动
 2. **webserver-shim 合入** → `brain:meme` 情绪桶注入（用脑情绪模型给斗图插件喂信号）→ /brain 页表情预览
 3. **管理面加固**：写回竞态 dataEpoch/CAS、时段删除预览同源、批量画像重生成
 4. **Reflection**——巩固时生成高层洞察（Generative Agents 缺的那块）
