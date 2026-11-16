@@ -30,8 +30,9 @@ Managed by Trellis. Edits outside this block are preserved; edits inside may be 
   - 两份都不复述实现细节（以源文件为准）。动手前用 MAP 定位，归档 task 前顺手核对两份文档。
 - **跨会话广播位**：多会话并行时靠 `.trellis/CHANGES.md` 互相同步——
   - *写*：定了优化方案/设计方向、完成一项改动或部署、定了后续发展方向、项目状态或结论性认知变化，四类事件**落地即在文件尾部追加一行**（`- 日期时间 | 事件 | → 指针`），不等会话结束、不写细节（细节仍在 task prd/journal）；
-  - *读*：凡「开工」先 `tail -30 .trellis/CHANGES.md`——新会话首个需求、**旧会话被恢复继续工作**、同会话隔了时段再开新任务都算开工；条目带时间戳，往回读到早于自己最后活跃时点为止即可增量补课（几天前的旧会话同样适用），陌生条目顺指针读归档再动手；拿不准就先扫，成本极低。并行会话同 checkout 文件即时可见，靠这一步保证鲜活性；
+  - *读*：凡「开工」先读 `.trellis/CHANGES.md`——**新会话/无法确定最后活跃时点 → 全文读**（~100 条上限，全读成本有界）；**旧会话恢复/隔时段续作 → 从最后活跃时点增量补课**，`tail -30` 只是起点、不够继续往前翻（2026-11-15 事故：新会话 tail 截断致早期迭代记录不可见，误判重做迭代 A）。陌生条目顺指针读归档再动手。**用途边界**：本文件是事件流；「现在进度如何/某功能做没做」类状态问题查状态源——计划文档进度段、acceptance 台账、任务目录、git log，事件流里没有 ≠ 没做过。并行会话同 checkout 文件即时可见，靠这一步保证鲜活性；
   - *界*：只留最近 ~100 条删旧；它不替代「问题存档」和 journal，只是广播位/目录。
+- **上下文权威序**：会话摘要类材料（parent_session_context、压缩 summary、journal 转述）是历史快照只作线索；与仓库证据冲突时按 git log/代码 → 任务档案/验收台账 → 计划文档 → CHANGES → 摘要 采信。「摘要说没做」≠「没做」。
 - **成本一线**：AI 服务按 token 计费，成本是设计约束不是事后指标。新增 LLM 调用 / 注入 section / 记忆或画像字段时先过成本评估：输入有界（截断/配额/攒批）、前缀缓存友好（稳定段在前、易变段贴尾）、可配置关闭、失败静默不阻塞回复；成本实测数字随评估刷新进 README「成本透明」，长期增长项要能建模说明不发散（范式见 `archive/2026-11/11-03-cost-growth-analysis`）。
 - **线上数据在哪**：生产数据全在腾讯云 `ubuntu@124.222.65.169`（SSH 直连，无别名），本仓库不含真实数据。
   - 插件目录 `~/dsh-qqbot-brain/`——部署 = 本地 `npm run build` 后 `rsync` `dist`（不带尾斜杠）+`package.json` 上去（不动远端 `cordis.patch.yml`），`sudo systemctl restart dsh-qqbot` 生效；服务器 dsh/node 在 `PATH=/opt/node-v24/bin`。
@@ -44,6 +45,7 @@ Managed by Trellis. Edits outside this block are preserved; edits inside may be 
 
 1. **任务档案**：`python3 ./.trellis/scripts/task.py archive <任务名>` 把任务目录移到 `.trellis/tasks/archive/<年-月>/`。归档前在 prd.md 补 `## Resolution（YYYY-MM-DD）` 段，按用户要求覆盖四块：**遇到了什么问题 / 怎么解决的 / 后续优化方向 / 什么时候干的**，外加 Key Decisions 与验证结论。若任务直接在 main 上做（无 PR），archive 需加 `--skip-branch-validation`。
    - **实证验收登记**：prd「验收标准」分代码验收（test/eval，提交即关）与实证验收（需生产数据证明）——后者归档前必须登记到 `.trellis/acceptance.md`（ID/验证方法/证据阈值/触发类型），**登记 ≠ 通过**，台账项跨任务存活直至达标；走查按台账逐项跑，单次只记情况不闭环。详见 `.trellis/acceptance.md`「走查协议」。
+   - **迭代进度同步**：迭代类任务归档时，同步更新 `tasks/11-09-iteration-upgrade-plan/iteration-plan.md`「当前进度」段（状态/日期/指针）。
 2. **会话日志**：`python3 ./.trellis/scripts/add_session.py --title "<标题>" --commit <hash或-> --summary "<摘要>"` 追加到 `.trellis/workspace/<dev>/journal-N.md`（摘要含问题→排查→方案→验证→后续的完整一段），并自动更新 index.md、auto-commit journal 文件。无提交产出时 `--commit -`。
 
 完成后向用户说明两层落点的区别（archive=任务级细节，journal=时间线索引）。

@@ -28,11 +28,14 @@
 ## 三、日常循环
 
 ```
-开工三步：tail -30 .trellis/CHANGES.md → 读相关 task prd → 读对应 spec
+开工：  CHANGES.md 按读法分级补课（新会话全文读 / 恢复会话增量）→ 状态问题先查状态源
+        （计划进度段 / acceptance 台账 / 任务目录 / git log）→ 读相关 task prd → 读对应 spec
 进行中：  task.py 追踪边界；遇到坑当场记，不攒到最后
 收工四步：本地验证（typecheck/test/build/eval）→ 云端走查（快照 diff / op 审计）
         → 归档（archive + journal）→ CHANGES.md 广播一行
 ```
+
+> **上下文权威序**：会话摘要类材料（parent_session_context、压缩 summary、journal 转述）是历史快照，只作线索；与仓库证据冲突时按 `git log/代码 → 任务档案/验收台账 → 计划文档 → CHANGES → 摘要` 采信。「摘要说没做」≠「没做」。实证：2026-11-15 新会话凭旧摘要 + CHANGES tail 截断误判迭代 A 未做，险些重做（`tasks/11-16-changes-read-protocol`）。
 
 ## 四、质量防线（对 AI 产出的不信任清单）
 

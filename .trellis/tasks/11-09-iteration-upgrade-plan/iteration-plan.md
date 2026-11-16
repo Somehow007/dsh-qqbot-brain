@@ -4,6 +4,20 @@
 >
 > 定位：**方案文档**，不是实现任务。每个迭代落地时另建/续用对应 task 走 Trellis 流程。
 
+## 当前进度
+
+> 状态锚点：回答「迭代到哪了」先看本表，CHANGES.md 只是事件流。**维护规则**：迭代归档时同步更新本表（归档本就强制 Resolution，顺手勾状态）。
+
+| 迭代 | 状态 | 完成 | 指针 |
+| --- | --- | --- | --- |
+| A 人设切换地基 | ✅ 完成 | 2026-11-09 | `archive/2026-11/11-09-iteration-a-three-track` |
+| B 叶瞬光接入 | ✅ 完成 | 2026-11-10 | `archive/2026-11/11-09-iteration-b-ye-shunguang` |
+| C 主动召回 brain_search | ✅ 完成 | 2026-11-12 | `archive/2026-11/11-12-iteration-c-proactive-recall` |
+| D prospective memory + provenance | ✅ 完成 | 2026-11-13 开发 / 11-14 部署 | `archive/2026-11/11-13-iteration-d-intents-provenance` |
+| E 记忆质量深化 | 储备·按信号取用 | E6 ✅ 2026-11-15（关系事实角色隔离）；E1–E5 触发信号均未触发 | `archive/2026-11/11-16-iteration-e6-profile-relations`、`archive/2026-11/11-15-iteration-e-backfill-signals` |
+| F companion 壳层 MVP | 另立任务 | — | `tasks/11-12-companion-mvp-design` |
+| G 体验层小项 | 穿插进行 | — | 各 task 档案 |
+
 ## 0. 总原则
 
 - **稳步 = 小步上线**：每迭代走「本地验证（typecheck/test/build/eval）→ 成对备份 → rsync+restart → 云端数据走查 → 用户自测 → 归档」闭环，不攒大版本。
