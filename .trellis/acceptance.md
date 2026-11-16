@@ -13,32 +13,31 @@
 
 | ID | 验收项 | 来源 | 验证方法 | 证据阈值 | 触发 | 状态 | 最近走查 |
 |---|---|---|---|---|---|---|---|
-| ACC-01 | F5 混合世界轨分批实战正确性：世界轨 ep 按源角色分批、产出 personaId=源角色、无跨角色 self 产出 | F5 巩固视角错配 | `/api/export` 拉快照，按 absorbedAt 找巩固批，核对批内源角色构成与产出归属 | 事件：≥1 个世界源含 ≥2 角色且各够 minNotes 的巩固批 | 事件 | 待触发 | —（11-14 首批仅单角色源，机制待实战） |
-| ACC-02 | 活人感·搜索回合指标：link%≈0、hedge%≤15、avgLen≤非搜 1.5×、voice% 不塌 | brain:style + 人设信息模式节 | `zstd -dc <session> \| python3 scripts/reply-style-audit.py --export <导出> --since 2026-11-14T16:15`（服务器 /tmp 已有脚本与导出） | 样本：部署后 ≥10 条搜索回合（跨人设更佳） | 样本 | 观察中 | 11-15：N=1/10（link/md/hedge 全 0）；周日流量低 |
-| ACC-03 | 活人感·非搜回合不退化：口径段不把日常回复变干 | 同上 | 同脚本非搜行对比上线前基线（prd 内有表） | 样本：同窗口非搜 ≥30 条；avgLen/voice% 不低于基线 ~20% | 样本 | 观察中 | 11-15：N=25/30，link/md/hedge 全 0；avgLen 偏长 voice 群53%私聊0%——待续 |
-| ACC-04 | 深挖召回实战：真实「还记得…」类提问触发 brain:deeprecall 注入 | 迭代C 主动召回 | brain.log / 宿主转录找 recall-intent 回合；eval 已 100%/0% | 事件：真实召回意图提问 ×1 | 事件 | 待触发 | 11-15：部署后窗口零召回意图提问 |
-| ACC-05 | provenance 标注正确性：新蒸馏条 source 字段正确；agent/system 轮次不产用户事实 | 迭代D D2 | export 查部署后新条 `source`；构造 via=agent/system ingest 观察蒸馏跳过 | 样本：≥20 条部署后新蒸馏条目 source 分类正确 | 样本 | 观察中 | 11-15：N=1/20（0b2c1776 src=user ✓）；流量低积累慢 |
-| ACC-07 | AI 身份条款实战：被问「你是 AI 吗」时如实承认（各人设口径一致） | F4 人设条款 | 宿主转录检索 AI 身份提问回合 | 事件：×1 即可（被动条款，低风险） | 事件 | 待触发 | 11-15：部署后窗口零提问 |
-| ACC-09 | 蒸馏归因护栏实战：部署后图片/第三方指代轮次不再产出「发言人：第三人事实」错配 | 蒸馏主体错配（11-14-distill-attribution） | 服务器 `grep '"op":"add"' ~/brain-data/brain.jsonl` 取部署时间（2026-11-14T20:10Z 前后）后的新条，对照宿主转录 `~/.dsh/sessions/**/session.v4.jsonl.zstd` 中带 `[附图]`/指代模式的 user/message，核对记忆主体归属 | 样本：≥3 个部署后含附件标记或「这人/这个人」指代的蒸馏轮；错配=0，或主体不明时产出事件式/不产出 | 样本 | 观察中 | 11-15：部署后(12:10Z起)窗口 9 回合零附件/指代轮；唯一命中是修复前 4h 的已知事故轮 |
-| ACC-10 | 私聊实质回答声口保持：长回复不退化成顾问说明文腔（语气词不系统性丢失） | 11-15-private-chat-persona-voice A+B | 服务器：先 `curl /api/export` 落盘新 export，再 `zstd -dc ~/.dsh/sessions/--opt-deepseek-harness-workspace--/dbf7162a-e07d-d5cf-e6df-bd2915f54ab3/session.v4.jsonl.zstd \| python3 /tmp/reply-style-audit.py --export <export> --since 2026-11-15T19:09 --min-len 120`（voice% 对比部署前同口径≈0%），辅以人工抽查长回复有无「首先/其次」式结构 | 样本：部署后私聊 ≥5 条 ≥120 字实质回答；voice% 显著回升（部署前长回复语气词≈系统性缺失）且无说明文腔 | 样本 | 待触发 | —（11-15 19:09 CST 部署） |
-| ACC-11 | 画像角色域标记实战：部署后新蒸馏画像出现 `〔角·角色名〕` 标记且角色名可解析；他角色会话注入不含外角色关系句 | 迭代E6 画像角色域标记〔角·〕 | 服务器 `curl /api/export` 落盘后 grep 画像文本 `〔角·`；标记名与人设名对应关系人工核对；抽一条非标记角色会话转录/注入段确认外角色关系句缺席（或对照 `/api/query` 调试口 assemble 结果）。**注意按「标记存活率」判定**：画像高频重写（u:5AD86503 日均~10次 profile op），单次未标不算失败、标记被重写覆盖也不算机制失效 | 样本：≥1 条部署后含〔角·〕标记的画像且标记角色归属正确；≥1 次他角色注入核对外角色关系句=0 | 样本 | 观察中 | 11-15：部署后首个画像改写（u:FEFE5282，19:43 CST）关系句未打标 N=1 未遵从；同日 23:42 CST 存量回填补 14 处标记（3 画像），机制侧待新蒸馏样本 |
-| ACC-12 | 此刻类问题答案不模板化：私聊「在干嘛/现在在做什么/在哪/吃了吗/今天干嘛了」类提问的回复不再逐字复用「屋顶+半个蛋糕卷」构图，且内容与【当前时刻】时段相容（白天答含「看灯一盏盏灭下去」类夜景描写=0） | 11-15-firefly-persona-now-moment（P0 此刻感条款+3 条情境示例 / P1 白天素材 / P2 no-dream 种子补白天） | 宿主转录 `dbf7162a`（私聊，firefly active）部署后（2026-11-16 ~00:30 CST）新回合中检索此刻类提问，人工判读答案构图是否与提问时刻匹配、是否与历史答案雷同；辅以 `/api/export` 抽查 firefly 自我轨新蒸馏条是否出现「此刻=屋顶」式事实 | 样本：≥3 个部署后此刻类提问回合；模板化=0（无跨回合逐字复用构图；白天回合夜景元素=0） | 样本 | 待触发 | —（2026-11-16 00:30 CST 部署，persona+no-dream note PATCH） |
+| ACC-01 | F5 混合世界轨分批实战正确性：世界轨 ep 按源角色分批、产出 personaId=源角色、无跨角色 self 产出 | F5 巩固视角错配 | `/api/export` 拉快照，按 absorbedAt 找巩固批，核对批内源角色构成与产出归属 | 事件：≥1 个世界源含 ≥2 角色且各够 minNotes 的巩固批 | 事件 | 待触发 | 11-16：部署后巩固批仍全 firefly 单角色（absorbedAt 批 11-14×10 / 11-15×4），无 ≥2 角色世界源批 |
+| ACC-02 | 活人感·搜索回合指标：link%≈0、hedge%≤15、avgLen≤非搜 1.5×、voice% 不塌 | brain:style + 人设信息模式节 | `zstd -dc <session> \| python3 scripts/reply-style-audit.py --export <导出> --since 2026-11-14T16:15`（服务器 /tmp 已有脚本与导出） | 样本：部署后 ≥10 条搜索回合（跨人设更佳） | 样本 | 观察中 | 11-16：N=1/10 不变；周一上午私聊活跃但零搜索回合 |
+| ACC-04 | 深挖召回实战：真实「还记得…」类提问触发 brain:deeprecall 注入 | 迭代C 主动召回 | brain.log / 宿主转录找 recall-intent 回合；eval 已 100%/0% | 事件：真实召回意图提问 ×1 | 事件 | 待触发 | 11-16：窗口（11-14 起 51 回合）零召回意图提问 |
+| ACC-05 | provenance 标注正确性：新蒸馏条 source 字段正确；agent/system 轮次不产用户事实 | 迭代D D2 | export 查部署后新条 `source`；构造 via=agent/system ingest 观察蒸馏跳过 | 样本：≥20 条部署后新蒸馏条目 source 分类正确 | 样本 | 观察中 | 11-16：N=12/20，src=user×12 全为用户事实归属正确；无 agent/system 轮次可验 |
+| ACC-07 | AI 身份条款实战：被问「你是 AI 吗」时如实承认（各人设口径一致） | F4 人设条款 | 宿主转录检索 AI 身份提问回合 | 事件：×1 即可（被动条款，低风险） | 事件 | 待触发 | 11-16：窗口零 AI 身份提问 |
+| ACC-09 | 蒸馏归因护栏实战：部署后图片/第三方指代轮次不再产出「发言人：第三人事实」错配 | 蒸馏主体错配（11-14-distill-attribution） | 服务器 `grep '"op":"add"' ~/brain-data/brain.jsonl` 取部署时间（2026-11-14T20:10Z 前后）后的新条，对照宿主转录 `~/.dsh/sessions/**/session.v4.jsonl.zstd` 中带 `[附图]`/指代模式的 user/message，核对记忆主体归属 | 样本：≥3 个部署后含附件标记或「这人/这个人」指代的蒸馏轮；错配=0，或主体不明时产出事件式/不产出 | 样本 | 观察中 | 11-16：仍零合格轮——51 回合无[附图]/指代模式 |
+| ACC-10 | 私聊实质回答声口保持：长回复不退化成顾问说明文腔（语气词不系统性丢失） | 11-15-private-chat-persona-voice A+B | 服务器：先 `curl /api/export` 落盘新 export，再 `zstd -dc ~/.dsh/sessions/--opt-deepseek-harness-workspace--/dbf7162a-e07d-d5cf-e6df-bd2915f54ab3/session.v4.jsonl.zstd \| python3 /tmp/reply-style-audit.py --export <export> --since 2026-11-15T19:09 --min-len 120`（voice% 对比部署前同口径≈0%），辅以人工抽查长回复有无「首先/其次」式结构 | 样本：部署后私聊 ≥5 条 ≥120 字实质回答；voice% 显著回升（部署前长回复语气词≈系统性缺失）且无说明文腔 | 样本 | 观察中 | 11-16：N=3/5（00:51-00:56 CST 三条 ≥120字：延迟悲伤/追忆/校园生活），抽查均流萤口吻、无「首先/其次」式结构；voice% 11 为粗正则口径——待样本 |
+| ACC-11 | 画像角色域标记实战：部署后新蒸馏画像出现 `〔角·角色名〕` 标记且角色名可解析；他角色会话注入不含外角色关系句 | 迭代E6 画像角色域标记〔角·〕 | 服务器 `curl /api/export` 落盘后 grep 画像文本 `〔角·`；标记名与人设名对应关系人工核对；抽一条非标记角色会话转录/注入段确认外角色关系句缺席（或对照 `/api/query` 调试口 assemble 结果）。**注意按「标记存活率」判定**：画像高频重写（u:5AD86503 日均~10次 profile op），单次未标不算失败、标记被重写覆盖也不算机制失效 | 样本：≥1 条部署后含〔角·〕标记的画像且标记角色归属正确；≥1 次他角色注入核对外角色关系句=0 | 样本 | 观察中 | 11-16：sess:dbf7162a 画像 11-15 16:58Z 部署后自然重写存活〔角·鲸鱼娘/叶瞬光〕标记、归属正确（首个正面样本）；他角色注入核对仍缺 |
+| ACC-12 | 此刻类问题答案不模板化：私聊「在干嘛/现在在做什么/在哪/吃了吗/今天干嘛了」类提问的回复不再逐字复用「屋顶+半个蛋糕卷」构图，且内容与【当前时刻】时段相容（白天答含「看灯一盏盏灭下去」类夜景描写=0） | 11-15-firefly-persona-now-moment（P0 此刻感条款+3 条情境示例 / P1 白天素材 / P2 no-dream 种子补白天） | 宿主转录 `dbf7162a`（私聊，firefly active）部署后（2026-11-16 ~00:30 CST）新回合中检索此刻类提问，人工判读答案构图是否与提问时刻匹配、是否与历史答案雷同；辅以 `/api/export` 抽查 firefly 自我轨新蒸馏条是否出现「此刻=屋顶」式事实 | 样本：≥3 个部署后此刻类提问回合；模板化=0（无跨回合逐字复用构图；白天回合夜景元素=0） | 样本 | 观察中 | 11-16：N=2/3（00:47 记账本/00:48 点心铺场景，与时段+记忆咬合、无模板复用；部署前 23:49 仍「屋顶+蛋糕卷」旧模板作对照） |
 
 ## 二、持续观察项（不闭环，每次走查顺手记）
 
 | 项 | 来源 | 观察点 | 最近记录 |
 |---|---|---|---|
-| 画像关系泛指残留 | F5b | `sess:`/`u:` 画像 grep「角色的/与角色」类关系句；关系陈述应带角色名 | 11-15：全量扫描零泛指残留；sess:dbf7162a 清零维持 |
-| firefly attitude 堆积→说教化 | E 储备观察 | firefly 自我轨 attitude 条数与【当前立场】注入体量；回复是否越来越说教 | 11-15：firefly attitude 27 条（attitude 恒自我轨不看 self 标志），量级可控继续观察 |
+| 画像关系泛指残留 | F5b | `sess:`/`u:` 画像 grep「角色的/与角色」类关系句；关系陈述应带角色名 | 11-16：8 画像全量零泛指残留；〔角·〕标记存活见 ACC-11 |
+| firefly attitude 堆积→说教化 | E 储备观察 | firefly 自我轨 attitude 条数与【当前立场】注入体量；回复是否越来越说教 | 11-16：firefly attitude 28 条（+1），量级可控继续观察 |
 | whale 系（legacy/whale-*）人设口径漂移 | F4 遗留决策 | legacy 仍含旧式「不自称 AI」条款，与新包「如实承认」冲突——激活 whale 系时「你是AI吗」应答不同 | 待用户决策是否对齐 |
-| 向量覆盖 | F3 常驻回填 | export 检查 missing embedding（重启/导入后短暂缺口属正常，回填应清盘） | 11-15：407/407 零缺口 |
-| brain.log 错误 | 全量 | `grep -iE 'error|fail' brain.log` 自上次部署以来 | 11-15：零错误零 intent 异常 |
+| 向量覆盖 | F3 常驻回填 | export 检查 missing embedding（重启/导入后短暂缺口属正常，回填应清盘） | 11-16：417/417 零缺口 |
+| brain.log 错误 | 全量 | `grep -iE 'error|fail' brain.log` 自上次部署以来 | 11-16：零错误；intent 仅 11-15 两条走查测试（已知） |
 
 ## 三、已通过项（档案索引，不逐条展开）
 
 - F1–F4（巩固轨道继承/分批/向量回填/AI 条款机制面）：`archive/2026-11/11-10-consolidate-track-gaps` prd 验收节
 - 迭代C 深挖代码面（Brain.search/eval 子集）：`archive/2026-11/11-12-iteration-c-proactive-recall`
-- F5a/F5b 机制面 + L1–L3 部署面：`archive/2026-11/11-13-consolidate-view-mismatch`、`11-13-search-reply-liveliness`（实证项见上表 ACC-01/02/03）
+- F5a/F5b 机制面 + L1–L3 部署面：`archive/2026-11/11-13-consolidate-view-mismatch`、`11-13-search-reply-liveliness`（实证项 ACC-01/02 仍在第一节跟踪；**ACC-03 已通过** 11-16——非搜窗口 N=47/30、link/md/hedge 全 0、voice 群 53-67%/私 22%、avgLen 正常；样本集中 firefly 单人设，口径段为人设无关注入）
 - 迭代D 代码面（220 测试）：`archive/2026-11/11-13-iteration-d-intents-provenance`（实证项 ACC-05 观察中；**ACC-06 已通过** 11-15——CRUD/校验/cancel/tick/手动+定时器双路径 fire/op 审计/清理全通，event 型真实命中待自然触发）
 - **ACC-08 eval 基线（11-15 豁免通过，留痕待议）**：lexical 路径 q08/q15/n01/n03 四 FAIL = char-ngram 固有盲区（语义无交集/单字 IDF 巧合过阈），非缺陷；生产 embedding（dashscope text-embedding-v3，embedMinCos=0.47）实测 **recall=100%/noiseFP=20%**，四例全修。emb 唯一 FP n02「微积分作业写不完了」系话题相邻注入（噪声带 0.46-0.56 与真目标 0.48-0.49 重叠，阈值不可分；companion 语境边际有用）。**遗留问题**：话题相似≠情景相关的分离信号 / embedding 模型选型——属后续迭代级工作量，复盘入口 `tasks/11-15-eval-baseline-fails/prd.md`。eval 使用注意：`npm run eval` 无 key 跑 lexical 回退路径（4 FAIL 为预期基线）；评估生产行为需 `BRAIN_EMBED_API_KEY/BASE_URL/MODEL` 三件套（值在服务器 `~/.dsh/brain.env`）
 
