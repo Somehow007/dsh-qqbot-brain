@@ -686,3 +686,23 @@ P0+P1（commit 1d3a763）已由并行会话随 20:10 部署批上线。执行数
 ### Status
 
 [OK] **Completed**
+
+
+## Session 126: CHANGES读法事故修复：读法分级+状态锚点+权威序+手册库新册
+<!-- trellis-session: v=2 fp=1ff5cd2aa8d6df54 -->
+
+**Date**: 2026-11-16
+**Task**: CHANGES读法事故修复：读法分级+状态锚点+权威序+手册库新册
+**Branch**: `main`
+
+### Summary
+
+排查11-15迭代A重做事故（trellis mem取证obsidian-porter会话）：新会话tail-30截断+旧parent summary误导致误判A/B/C未完成列10项重做todo，用户拦截零代码损失；根因=读法缺陷（tail当通用开工）+用途混淆（事件流当状态源）+权威序缺失（摘要快照当现状），compaction后纠正失忆二次犯错。修复四层：CHANGES/AGENTS/acceptance改读法分级（新会话全文读靠~100条上限兜底、恢复会话增量补）、iteration-plan新增当前进度锚点表+归档同步规则、AGENTS+AI-WORKFLOW立上下文权威序（git/档案/计划/CHANGES/摘要）、ai-workflow新册playbooks/session-resume.md+README同步；study-journey与mysite同病AGENTS+CHANGES头同步（mysite 56行tail不足半）。任务11-16-changes-read-protocol归档；纯文档改动。
+
+### Git Commits
+
+(No commits - planning session)
+
+### Status
+
+[OK] **Completed**

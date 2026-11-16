@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-2.md`
-- **Total Sessions**: 125
-- **Last Active**: 2026-11-15
+- **Total Sessions**: 126
+- **Last Active**: 2026-11-16
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-2.md` | ~688 | Active |
+| `journal-2.md` | ~708 | Active |
 | `journal-1.md` | ~1988 | Archived |
 <!-- @@@/auto:active-documents -->
 
@@ -30,6 +30,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 126 | 2026-11-16 | CHANGES读法事故修复：读法分级+状态锚点+权威序+手册库新册 | - | `main` |
 | 125 | 2026-11-15 | 迭代E：E6画像标记存量回填 + E1–E5信号评估 | - | `main` |
 | 124 | 2026-11-15 | 迭代E6 画像角色域标记〔角·〕实施+部署 | `37cbd1c` | `main` |
 | 123 | 2026-11-15 | 11-15走查+ACC-08豁免定性 | - | `main` |
