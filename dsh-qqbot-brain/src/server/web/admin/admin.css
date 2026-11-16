@@ -96,6 +96,7 @@
 .adm th[data-sk].on .sh{color:var(--accent);font-weight:700}
 .adm td.num,.adm th.num{text-align:right;font:12px var(--mono);white-space:nowrap}
 .adm .empty{padding:34px 0!important;text-align:center;color:var(--ink3);font-size:13px}
+.adm-tscroll{overflow-x:auto;scrollbar-width:thin}
 
 /* ── 徽标/标签 ── */
 .adm .sq{display:inline-block;width:9px;height:9px;margin-right:7px;vertical-align:-1px}
@@ -228,7 +229,7 @@
 .adm .pcard .ph b{font-size:14px}
 .adm .pcard .ph small{font:10px var(--mono);color:var(--ink3);margin-left:auto;text-align:right;line-height:1.5}
 .adm .pcard .pk{font:10px var(--mono);color:var(--ink3)}
-.adm .pcard .pt{flex:1;font-size:12px;line-height:1.65;color:var(--ink2);overflow:hidden;white-space:pre-wrap}
+.adm .pcard .pt{flex:1;font-size:12px;line-height:1.65;color:var(--ink2);overflow:hidden;white-space:pre-wrap;overflow-wrap:anywhere}
 .adm .pcard .pt mark{background:color-mix(in srgb,var(--accent) 25%,transparent);color:var(--ink);padding:0 1px}
 .adm .pcard .ps{display:flex;flex-wrap:wrap;gap:4px}
 .adm .pcard .ps span{font:9px var(--mono);border:1px solid var(--line);color:var(--ink3);padding:1px 5px;border-radius:2px}
@@ -280,8 +281,9 @@
 /* ── 待放行队列（记忆库顶部）── */
 .adm .relstrip{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;border:1px solid var(--accent);background:color-mix(in srgb,var(--accent) 7%,transparent);margin-bottom:10px;font-size:12px}
 .adm .relstrip b{color:var(--accent)}
-.adm .relstrip .rc{border:1px solid var(--line);background:var(--panel);padding:4px 9px;font-size:11px;max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.adm .relstrip .rc button{margin-left:6px}
+.adm .relstrip .rc{display:flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--panel);padding:4px 9px;font-size:11px;max-width:340px}
+.adm .relstrip .rc .rct{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.adm .relstrip .rc button{flex:none;margin-left:0}
 
 /* ── 备份页 ── */
 .adm .bgrid{display:grid;grid-template-columns:1fr 1fr;gap:0;border-top:1px solid var(--ink)}
@@ -307,17 +309,72 @@
 
 /* ── 页脚 ── */
 .adm .pfoot{margin-top:44px;border-top:6px solid var(--ink);padding-top:10px;display:flex;justify-content:space-between;font:10px var(--mono);color:var(--ink3)}
+/* ── 平板/小窗（≤1100px）：双栏栅格折叠为单列，侧栏导航保留 ── */
 @media(max-width:1100px){
-  .adm .bgrid,.adm .cols2,.adm .gwrap,.adm .pcards{grid-template-columns:1fr}
+  .adm .bgrid,.adm .cols2,.adm .gwrap,.adm .pcards,.adm .pgrid{grid-template-columns:1fr}
   .adm .gside{border-left:none;padding-left:0}
   .adm .pcard{border-right:0}
   .adm .nums{grid-template-columns:1fr 1fr}
   .adm .nums>div:nth-child(2){border-right:0}
-  .adm-nav{width:64px}
-  .adm .nbrand b,.adm .np .who div,.adm .nl a span,.adm .nfoot{display:none}
-  .adm .np .who{justify-content:center}
-  .adm .nl a{justify-content:center;padding:9px 0}
-  .adm .nl a i{width:auto}
+  .adm .plist{border-right:none;border-bottom:1px solid var(--line);min-height:0}
+  /* 单列后 grid item 需 min-width:0，否则 min-content（长记忆文本/会话名）撑破轨道 */
+  .adm .cols2>.mod,.adm .pgrid>.plist,.adm .pgrid>.pedit,.adm .gwrap>*,
+  .adm .bgrid>.bcell,.adm .pcards>.pcard,.adm .nums>div{min-width:0}
+}
+
+/* ── 移动端（≤900px）：左导航变顶栏、表单栅格单列、控件换行 ── */
+@media(max-width:900px){
+  .adm{flex-direction:column}
+  /* 导航 → 顶部横栏：人设块一行 + 七页链接横滚 */
+  .adm-nav{width:100%;height:auto;max-height:none;overflow:visible;border-right:none;border-bottom:1px solid var(--ink);flex-direction:row;align-items:stretch}
+  .adm .nbrand,.adm .nfoot{display:none}
+  .adm .np{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:none;border-right:1px solid var(--line);flex:none}
+  .adm .np .lb{display:none}
+  .adm .np .who{margin-bottom:0;gap:8px}
+  .adm .np .who div{display:none}
+  .adm .np select{flex:1;min-width:0;width:auto}
+  .adm .nl{display:flex;flex-direction:row;flex:1;min-width:0;padding:0;overflow-x:auto;scrollbar-width:none}
+  .adm .nl::-webkit-scrollbar{display:none}
+  .adm .nl a{border-left:none;border-bottom:3px solid transparent;padding:10px 12px 7px;white-space:nowrap}
+  .adm .nl a i{display:none}
+  .adm .nl a.on{border-bottom-color:var(--accent)}
+  .adm-main{height:auto;min-height:0}
+  /* 主区收窄 */
+  .adm-top{padding:8px 14px;gap:10px;flex-wrap:wrap}
+  .adm-scroll{padding:16px 14px 80px}
+  .adm .phead{flex-wrap:wrap;row-gap:6px}
+  .adm .phead h1{font-size:24px}
+  .adm .phead .sub{margin-left:0;text-align:left}
+  .adm .mod{margin-top:22px}
+  .adm .mh{flex-wrap:wrap}
+  .adm .nums>div{padding:12px 14px 10px}
+  /* 表单/危险区栅格单列 */
+  .adm .frow,.adm .drow{grid-template-columns:1fr}
+  .adm .traits .tr{grid-template-columns:86px 1fr 40px 24px;gap:8px}
+  .adm .traits .tr input[type=range]{width:100%}
+  .adm .pedit{padding:16px 4px 0}
+  .adm .bcell,.adm .dangerzone{padding-left:16px;padding-right:16px}
+  /* 工具栏：字段两列排布、搜索框全宽；iOS 输入聚焦防缩放 */
+  .adm .toolbar .fld,.adm .opsfilter .fld,.adm .gfilters .fld{flex:1 1 44%}
+  .adm .gfilters{flex-wrap:wrap}
+  .adm .toolbar input[type=search],.adm .toolbar input.q{width:100%}
+  .adm .toolbar select,.adm .opsfilter select,.adm .gfilters select{max-width:100%}
+  .adm input:not([type=checkbox]):not([type=range]):not([type=color]),.adm select,.adm textarea{font-size:16px}
+  /* 批量条/抽屉/杂项 */
+  .adm-batchbar{flex-wrap:wrap;padding:10px 14px}
+  .adm-drawer{width:100%;max-width:100%}
+  .adm .dhead,.adm .dbody,.adm .dfoot{padding-left:16px;padding-right:16px}
+  .adm .relstrip .rc{max-width:100%}
+  .adm .mergebanner,.adm .sessdom,.adm .radio{flex-wrap:wrap}
+  .adm .gside{position:static}
+}
+
+/* ── 小屏（≤640px）：再收一档 ── */
+@media(max-width:640px){
+  .adm .nums b{font-size:52px}
+  .adm .nums b small{font-size:20px}
+  .adm-top .brand span{display:none}
+  .adm .np .who{display:none}
 }
 
 /* 路由兜底错误（shell mount 失败时显示） */

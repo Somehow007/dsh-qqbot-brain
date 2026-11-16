@@ -242,7 +242,9 @@ export const opsPage = {
     const tbody = document.createElement('tbody');
     tbody.id = 'opsBody';
     table.appendChild(tbody);
-    root.appendChild(table);
+    const twrap = el('div', 'adm-tscroll');
+    twrap.appendChild(table);
+    root.appendChild(twrap);
 
     const count = el('div', '');
     count.id = 'opsCount';

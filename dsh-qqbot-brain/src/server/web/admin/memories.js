@@ -667,8 +667,9 @@ function buildRelStrip() {
   strip.appendChild(el('b', '', `域内待放行 ${REL.length} 条`));
   strip.appendChild(el('span', '', '良性事实排队人工放行（私密线索词命中的不入队）：'));
   for (const c of REL.slice(0, 6)) {
-    const chip = el('span', 'rc', `${c.content ?? ''}`);
+    const chip = el('span', 'rc');
     chip.title = c.content ?? '';
+    chip.appendChild(el('span', 'rct', `${c.content ?? ''}`));
     const btn = el('button', 'act rel', '放行');
     btn.onclick = async (e) => {
       e.stopPropagation();
@@ -754,7 +755,9 @@ export const memoriesPage = {
     const tbody = document.createElement('tbody');
     tbody.id = 'memBody';
     table.appendChild(tbody);
-    root.appendChild(table);
+    const twrap = el('div', 'adm-tscroll');
+    twrap.appendChild(table);
+    root.appendChild(twrap);
 
     const count = el('div', '', '');
     count.id = 'memCount';

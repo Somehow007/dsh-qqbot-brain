@@ -82,8 +82,9 @@ function buildNav(cur, ctx) {
   const nl = el('div', 'nl');
   for (const [id, cn] of ADMIN_PAGES) {
     const a = el('a', cur === id ? 'on' : '', '');
+    a.title = cn;
     const no = el('i', '', PAGE_NO[id]);
-    a.append(no, document.createTextNode(cn));
+    a.append(no, el('span', '', cn));
     a.onclick = (e) => {
       e.preventDefault();
       if (!runLeaveGuards()) return;
