@@ -706,3 +706,25 @@ P0+P1（commit 1d3a763）已由并行会话随 20:10 部署批上线。执行数
 ### Status
 
 [OK] **Completed**
+
+
+## Session 127: 私聊人设声口复诊②：表态公式根因与 E1+E2 部署
+<!-- trellis-session: v=2 fp=4e14d5d18e5fcd06 -->
+
+**Date**: 2026-11-17
+**Task**: 私聊人设声口复诊②：表态公式根因与 E1+E2 部署
+**Branch**: `main`
+
+### Summary
+
+用户复诉活人感仍不足，回复充斥「这句话我记下了」「这个问题我认」「这个xx我很喜欢」式万能表态，看不出是流萤。取证私聊 dbf7162a T84-T107（全部修复后样本）：T96 深情时刻冒「我记下来了」被用户当场指出生分没少女感，次日换皮复发（T106 挺喜欢/T107 收回半句话/T87 你赢了/T103 我懂），群聊同期零命中。根因 G1=人设倾向（persona.md L38-39 收好/记下来）被压成口头播报，G2=tender/感动时刻无情境脚本回退通用陪伴腔，G3=会话脉络把事故固化成条目，G4=场内纠正不泛化。判定 prompt 层可治不涉 N1 推理层。用户拍板 E1+E2：四人设说话风格加「心理活动不说出口」条（禁我记下/我很喜欢/我认/我懂式表态）+ye 人设自带「记下了」示范修正+firefly 情境参考补 3 条 tender 示例（心动话→欠着对账/深夜熬思绪/计划求看→具体反应）。部署：seed-export 重生成、tsc build、rsync --delete dist+restart active、四人设 PATCH 零漂移验证、firefly 镜像 md5 同步；并行会话未提交 WIP（README/distill.ts）构建期临时隔离已恢复。commit 856c096，待实证下次私聊 tender 时刻。E3 验收口径留作选项。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `856c096` | feat(persona): 人设补「心理活动不说出口」+流萤 tender 时刻示例——治表态公式 |
+
+### Status
+
+[OK] **Completed**
