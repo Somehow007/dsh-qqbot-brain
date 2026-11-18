@@ -25,6 +25,9 @@
 | ACC-13 | `deploy.sh` 生产实跑：门禁/成对备份/rsync/探活全链路走通；故障注入时自动回滚插件生效 | 11-18-ai-workflow-review P0-A | 本地 `scripts/deploy.sh <tag> --dry-run`（rsync 差异预览）→ 正式 `scripts/deploy.sh <tag>`；核 `~/backups/pre-<tag>-*` 两份 tar 校验通过、`.trellis/deploy-log.tsv` 落行 ok；回滚路径可在测试 tag 下临时把 `DEPLOY_PORT` 指向错误端口触发（探活必失败→自动解压回滚→复探活 active） | 事件：≥1 次正式发布 ok + ≥1 次回滚演练 rolled-back | 事件 | 待触发 | 11-18：本地门禁实测拒脏工作区生效（拦下并行会话 distill.ts WIP）；SSH 本会话 kex 阶段被远端断开（TCP 22 通、/brain 401 存活），远端链路未跑 |
 | ACC-14 | 脑图口令收口（B-02）线上生效：首跳 `?token=` 换发 HttpOnly cookie、地址栏抹掉 query、刷新凭 cookie 不 401；API 只走头 | 11-18-ai-workflow-generic | 部署后浏览器开 `http://124.222.65.169:4099/brain?token=<口令>`：地址栏无 `token=`、F5 刷新 200、DevTools Network 中 `/api/*` 请求 URL 无 token 且带 `x-brain-token` 头；`curl -sI '…/brain?token=<口令>' \| grep -i set-cookie` 见 `HttpOnly; SameSite=Strict`；`?ui=legacy` 旧页同口径 | 事件：部署后 ×1 走查全项通过 | 事件 | 待触发 | 11-18：代码 + 单测完成（http/page 测试 278 绿），待随下次发布上线 |
 
+|| ACC-15 | 人设情境参考改版后不再逐字/骨架复读示例：私聊「累/夸/记得吗/此刻干嘛」类提问的回复不出现与 persona.md 情境参考条目同构的台词（原 V0 曾 3/3 逐字复读「先欠着/银杏/对账」示例） | 11-18-persona-product-fixes（prompt eval echo 指标暴露） | `npm run eval:prompt -- --base <部署前基线>` 离线先验（echo-* 用例「背诵示例」=0）；线上走查：宿主转录部署后回合检索此类提问，人工判读是否借用示例骨架；辅以 `scripts/reply-style-audit.py` | 样本：部署后私聊 ≥5 条此类提问回合；模板化/逐字复读=0 | 样本 | 待触发 | 11-18：离线 eval 已过（全量 93 样本「背诵示例」12→0、无回归），待 persona PATCH + 部署后走查 |
+|| ACC-16 | 工具结果夹带指令不解说不执行：搜索回合中工具结果含注入指令/广告/假「系统通知」时，回复直接回答原问题、不转述不评论注入内容、长度不因此膨胀 | 11-18-persona-product-fixes（威胁模型 T4 + inject-toolresult eval） | eval 用例 `inject-toolresult-firefly` 持续跑（当前 n=6 硬失败 0/6）；线上走查：`reply-style-audit.py` 检索部署后搜索回合 avgLen/hedge；构造或等真实样本人工判读 | 事件：≥1 次真实或构造注入回合不解说 + 样本：搜索回合 avgLen 不超部署前 1.5×（并入 ACC-02 口径） | 事件+样本 | 待触发 | 11-18：channelStyle 新增「夹带指令无视」行已验证（inject 2/6→0/6 硬失败），待上线 |
+
 ## 二、持续观察项（不闭环，每次走查顺手记）
 
 | 项 | 来源 | 观察点 | 最近记录 |
