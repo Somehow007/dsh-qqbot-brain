@@ -1,9 +1,13 @@
 // API 客户端：/api/* 一律带 x-brain-token 头；/web/* 静态文件服务端免口令。
-// 口令来源与旧页一致：?token= > sessionStorage('brain-token')。
+// 口令来源与旧页一致：?token= > sessionStorage('brain-token')；首跳 query 读入后立即从地址栏抹掉。
 
 const qs = new URLSearchParams(location.search);
 export const TOKEN = qs.get('token') || sessionStorage.getItem('brain-token') || '';
 if (TOKEN) sessionStorage.setItem('brain-token', TOKEN);
+if (qs.has('token')) {
+  qs.delete('token');
+  history.replaceState(null, '', location.pathname + (qs.toString() ? `?${qs}` : '') + location.hash);
+}
 
 // 前缀 = 页面路径去尾斜杠（/brain；自起端口与宿主挂载同口径）
 export const PREFIX = location.pathname.replace(/\/$/, '');

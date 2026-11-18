@@ -7,7 +7,7 @@ set -euo pipefail
 ROOT=$(git rev-parse --show-toplevel)
 
 LEAK=$(git diff --cached -U0 --diff-filter=AM | grep -E '^\+' | grep -v '^+++' \
-  | grep -niE 'sk-[A-Za-z0-9]{20,}|(api[_-]?key|token|secret|password)["'"'"' ]*[:=] *["'"'"']?[A-Za-z0-9_\-]{16,}' || true)
+  | grep -niE 'sk-[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}|-----BEGIN [A-Z ]*PRIVATE KEY|(api[_-]?key|token|secret|password)["'"'"' ]*[:=] *["'"'"']?[A-Za-z0-9_\-]{16,}' || true)
 if [[ -n "$LEAK" ]]; then
   echo "✗ pre-commit：暂存内容疑似含密钥：" >&2
   echo "$LEAK" | cut -c1-160 >&2

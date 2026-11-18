@@ -30,7 +30,7 @@
 
 ```bash
 # 线上（token 见服务器 ~/.dsh/brain.env 的 BRAIN_HTTP_TOKEN）
-curl -s "http://<host>:4099/brain/api/export?token=<TOKEN>" -o backup.json
+curl -s -H "x-brain-token: <TOKEN>" "http://<host>:4099/brain/api/export" -o backup.json
 
 # 本机插件实例同理，host 换成 BRAIN_HTTP_HOST:PORT
 ```
@@ -114,7 +114,7 @@ sessionId 由宿主 session-manager 按 (bot, 群/人) 持久化，数据目录�
   会覆盖当前活跃人设文本（merge 模式下若备份带 personas 则以 personas 为准）
 - **备份不含会话原文**：想保留聊天原文需另行拷贝 `~/.dsh/sessions/<ws>/<sessionId>/`
 - **向量随包走**：`e` 字段是 Float32 base64，跨实例通用无需重算
-- **token 泄漏面**：`?token=` 会进 nginx/日志，敏感环境用 `Authorization: Bearer` 头
+- **token 泄漏面**：命令行/脚本一律用 `x-brain-token` 头；`?token=` 只用于浏览器首跳（服务端换发 HttpOnly cookie，前端随即抹掉 query），仍会进服务端访问日志——见 `docs/threat-model.md` T6
 
 ## 本机模拟数据约定
 

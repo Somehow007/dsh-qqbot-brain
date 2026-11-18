@@ -485,3 +485,46 @@ test('B2–B5 管理端 API：notes 分页查询/批量/ops 分页/dedup dry 预
     rmSync(dir, { recursive: true });
   }
 });
+
+test('口令收口（B-02）：首跳 ?token= 换 HttpOnly cookie，刷新与 API 凭 cookie 通过；错口令不发 cookie', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'brain-token-cookie-'));
+  const brain = new Brain({
+    store: new BrainStore(dir),
+    distiller: new Distiller({ enabled: false, baseUrl: '', apiKey: '', model: '', timeoutMs: 1000, maxNotes: 1 }),
+  });
+  const http = new BrainHttpServer(brain, {
+    enabled: true, port: 0, host: '127.0.0.1', prefix: '/brain', token: 'test-token',
+  }, () => {});
+  const server = createServer((req, res) => {
+    (http as unknown as { route: (req: typeof req, res: typeof res) => Promise<void> }).route(req, res).catch((err) => {
+      res.writeHead(500).end(String(err));
+    });
+  });
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  try {
+    const addr = server.address();
+    assert.ok(addr && typeof addr !== 'string');
+    const base = `http://127.0.0.1:${addr.port}/brain`;
+    const first = await fetch(`${base}?token=test-token`);
+    assert.equal(first.status, 200);
+    const cookie = first.headers.get('set-cookie') ?? '';
+    assert.match(cookie, /^brain_token=test-token;/);
+    assert.match(cookie, /HttpOnly/);
+    assert.match(cookie, /SameSite=Strict/);
+    assert.match(cookie, /Path=\/brain/);
+    const jar = { cookie: 'other=1; brain_token=test-token' };
+    assert.equal((await fetch(base, { headers: jar })).status, 200);
+    assert.equal((await fetch(`${base}/api/personas`, { headers: jar })).status, 200);
+    assert.equal((await fetch(`${base}/api/personas`, { headers: { cookie: 'brain_token=wrong' } })).status, 401);
+    assert.equal((await fetch(`${base}/api/personas`)).status, 401);
+    const bad = await fetch(`${base}?token=wrong`);
+    assert.equal(bad.status, 401);
+    assert.equal(bad.headers.get('set-cookie'), null);
+    const viaHeader = await fetch(`${base}/api/personas`, { headers: { 'x-brain-token': 'test-token' } });
+    assert.equal(viaHeader.status, 200);
+    assert.equal(viaHeader.headers.get('set-cookie'), null);
+  } finally {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    rmSync(dir, { recursive: true });
+  }
+});

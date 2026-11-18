@@ -44,10 +44,16 @@ test('页面脚本语法有效', () => {
   assert.doesNotThrow(() => new Script(script));
 });
 
-test('API 请求经 fapi 透传访问口令', () => {
+test('API 请求经 fapi 以 x-brain-token 头透传口令，不拼进 URL（B-02）', () => {
   assert.match(script, /sessionStorage\.getItem\('brain-token'\)/);
-  assert.match(script, /token='?\s*\+\s*encodeURIComponent\(TOKEN\)/);
+  assert.match(script, /'x-brain-token': TOKEN/);
+  assert.doesNotMatch(script, /'token=' ?\+/);
   assert.equal(script.match(/\bfetch\(/g)?.length, 1);
+});
+
+test('首跳 ?token= 读入后从地址栏抹掉（不留在历史/截图里）', () => {
+  assert.match(script, /history\.replaceState\(/);
+  assert.match(script, /\.delete\('token'\)/);
 });
 
 test('人设列表定时刷新时保留未保存的名称与全文草稿', () => {

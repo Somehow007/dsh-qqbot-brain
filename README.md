@@ -239,6 +239,7 @@ npm run eval:prompt # 人设/口径回归（需 DEEPSEEK_API_KEY，改 prompt �
 npm run build       # 产物在 dist/
 ```
 
+- 开发方式：AI 驱动开发，纪律尽量机器化——pre-commit（密钥扫描+测试）、CI、agent 护栏 hook、一键发布（备份/探活/回滚）、prompt 回归 eval；落点与实证见 [AI-WORKFLOW.md](AI-WORKFLOW.md)，安全面见 [docs/threat-model.md](docs/threat-model.md)
 - 文档分工：`README.md`（本文件）= what & why 门面 · `MAP.md` = where & how 导航 · `AGENTS.md` = 项目约定 · `.trellis/` = 过程档案
 - 全部数据与结论出自 `.trellis/tasks/` 的逐次评估留痕（D3 试运行复盘、token 审计、情绪桶走查、上云/清洗/公网处置等）
 - 开发时间线见 `.trellis/workspace/sunhao/journal-1.md`（93 个 session 全程记录）

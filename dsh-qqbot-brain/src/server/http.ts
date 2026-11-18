@@ -95,9 +95,16 @@ export class BrainHttpServer {
     if (webAsset) return this.serveWeb(res, p.slice(prefix.length + 1));
 
     // 可选口令保护
+    // 口令三来源：x-brain-token 头（API 正路）> HttpOnly cookie（刷新/导航）> ?token=（仅首跳，命中即换发 cookie，
+    // 前端随即从地址栏抹掉 query——口令不留在浏览器历史与截图里）
     if (this.cfg.token) {
-      const t = url.searchParams.get('token') ?? req.headers['x-brain-token'];
+      const fromQuery = url.searchParams.get('token');
+      const cookie = /(?:^|;\s*)brain_token=([^;]*)/.exec(req.headers.cookie ?? '')?.[1];
+      const t = req.headers['x-brain-token'] ?? (cookie !== undefined ? decodeURIComponent(cookie) : undefined) ?? fromQuery;
       if (t !== this.cfg.token) { res.writeHead(401).end('unauthorized'); return; }
+      if (fromQuery === this.cfg.token) {
+        res.setHeader('Set-Cookie', `brain_token=${encodeURIComponent(fromQuery)}; Path=${prefix || '/'}; HttpOnly; SameSite=Strict; Max-Age=2592000`);
+      }
     }
 
     if (p === `${prefix}/api/state`) {

@@ -56,7 +56,7 @@ npx @deepseek-ai/dsh plugin --profile qqbot add /opt/dsh-qqbot-brain
 - **SSH 隧道（推荐）**：保持默认 `host: 127.0.0.1`，安全组只放 22。
   本机 `ssh -L 4099:127.0.0.1:4099 user@server`，浏览器开 `http://127.0.0.1:4099/brain`。
 - **公网直连**：patch 改 `host: 0.0.0.0` 且 `token: '<随机口令>'`，安全组 4099 只放自己 IP。
-  浏览器开 `http://<服务器>:4099/brain?token=<口令>`（口令存入会话存储，后续刷新免带）。
+  浏览器首跳开 `http://<服务器>:4099/brain?token=<口令>`：服务端校验后换发 HttpOnly cookie（`brain_token`，Path=/brain，30 天），前端立即从地址栏抹掉 `token=`，之后刷新凭 cookie；API 一律走 `x-brain-token` 头。curl 也用头：`curl -H "x-brain-token: <口令>" …/brain/api/state`。
   也可用环境变量 `BRAIN_HTTP_HOST` / `BRAIN_HTTP_TOKEN`（写进 brain.env 这类
   EnvironmentFile）：口令不进 patch 文件，rsync 覆盖部署后公网直连配置仍保留。
 - webServer 挂载模式下 `http.host` 不生效，只能靠 token 或宿主侧控制。
@@ -128,5 +128,5 @@ WantedBy=multi-user.target
 - `蒸馏 off(无apiKey)`：设 `BRAIN_LLM_API_KEY` 或 `DEEPSEEK_API_KEY`
 - 记忆不涨：看 `brain.log`——有「蒸馏失败」查 key/网络；无蒸馏行确认事件含 user/message；`debug: true` 加详细日志
 - 数据写到别处：看启动日志的「数据目录 <绝对路径>」，env 相对路径按 cwd 解析
-- 页面 401：确认 URL 带 `?token=` 或宿主侧未拦截
+- 页面 401：首跳确认 URL 带 `?token=`（之后靠 cookie）；口令轮换后旧 cookie 失效需重新带一次；或宿主侧未拦截
 - 摘除插件即还原官方行为：`dsh plugin --profile qqbot remove qqbot-brain`
