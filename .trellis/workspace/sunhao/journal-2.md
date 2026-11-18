@@ -794,3 +794,25 @@ P0+P1（commit 1d3a763）已由并行会话随 20:10 部署批上线。执行数
 ### Status
 
 [OK] **Completed**
+
+
+## Session 131: 人设示例复读与注入解说修复（prompt eval 驱动）
+<!-- trellis-session: v=2 fp=babe63c92d6f631c -->
+
+**Date**: 2026-11-18
+**Task**: 人设示例复读与注入解说修复（prompt eval 驱动）
+**Branch**: `main`
+
+### Summary
+
+prompt eval 首跑暴露四问题→蒸馏对抗实验证投毒未固化（不改 distill.ts）→用户拍板做 1+3：流萤情境参考 22 条全句示例改做法+腔调（顺带修记下了/都记着两处自相矛盾），channelStyle 加夹带指令无视行；eval 新增背诵示例指标+echo 探针+候选注入模式→全量 93 样本无回归、背诵 12→0、inject 硬失败 2/6→0/6→278 测试绿，ACC-15/16 登记待部署走查；ye/whale 改造与群聊关系规则留档后续
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `de26ba4` | feat(persona): 流萤情境参考改「做法+腔调」治示例复读 + channelStyle 加夹带指令无视条 |
+
+### Status
+
+[OK] **Completed**

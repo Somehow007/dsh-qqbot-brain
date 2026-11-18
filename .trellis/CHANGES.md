@@ -121,3 +121,5 @@
 - 2026-11-18 | AI-WORKFLOW 范式专业评估（讨论，未落改）：强项=上下文分层/权威序/验收台账；主问题=纪律靠散文无机器强制、prompt 改动无离线回归、记账开销≈2/3 提交、backlog 一周零推进、agent 生产权限面未建模；建议 P0 hooks/CI/deploy 脚本+prompt 黄金集 eval，待拍板 | → `tasks/11-18-ai-workflow-review/prd.md`
 - 2026-11-18 21:00 | 范式评估 P0 落地：deploy.sh（拒脏工作区/成对备份/探活/自动回滚/deploy-log）+ pre-commit（密钥扫描+typecheck/test）+ CI + prompt 回归 eval（25 黄金用例 base vs head，全量 ~¥0.4）；eval 首跑暴露 3 个生产问题待拍板：情境示例被逐字背诵、E1 表态修复泛化未证、群聊记忆投毒当场接受；远端未实跑（SSH kex 被断）登记 ACC-13 | → `tasks/archive/2026-11/11-18-ai-workflow-review/prd.md` + `.trellis/acceptance.md` ACC-13
 - 2026-11-18 21:10 | 通用范式落地：原则迁出 ai-workflow（PRINCIPLES+kit+3 playbook），实例层重写，agent-guard/开工卡片 hook、workflow-health 体检、wrap-up 单提交收工；消费点审计/验收分级进 spec、威胁模型、token 收口 cookie（待部署 ACC-14） | → `tasks/archive/2026-11/11-18-ai-workflow-generic/prd.md`
+- 2026-11-18 21:46 | 生产 SSH kex 阶段被远端断开（TCP 通、服务存活、非认证问题）已存档待用户处理；阻塞 ACC-13/14、B-09 与人设修复上线 | → `tasks/11-18-ssh-kex-blocked/prd.md`
+- 2026-11-18 23:32 | 人设示例复读+注入解说已修并提交 de26ba4（eval 背诵 12→0、inject 硬失败→0）；蒸馏投毒实验证伪无需改；ye/whale 与群聊规则留档；SSH 任务 11-18-ssh-kex-blocked 保持开放 | → `tasks/archive/2026-11/11-18-persona-product-fixes/prd.md`
