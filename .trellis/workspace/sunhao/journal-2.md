@@ -750,3 +750,25 @@ P0+P1（commit 1d3a763）已由并行会话随 20:10 部署批上线。执行数
 ### Status
 
 [OK] **Completed**
+
+
+## Session 129: AI-WORKFLOW 范式评估 + 两项 P0 落地
+<!-- trellis-session: v=2 fp=7afd642ca8a0c465 -->
+
+**Date**: 2026-11-18
+**Task**: AI-WORKFLOW 范式评估 + 两项 P0 落地
+**Branch**: `main`
+
+### Summary
+
+问题：用户要求以行业前沿视角评估 AI-WORKFLOW.md。取证：93 commits 中 2/3 为记账、无 CI/hooks、prompt 改动无部署前回归、backlog 一周零推进。方案：用户拍板两 P0 同做——deploy.sh（拒脏工作区/成对备份/探活/自动回滚/deploy-log）+ pre-commit 密钥扫描与 typecheck/test + CI；npm run eval:prompt 25 条事故来源黄金用例 base vs head 采样+硬检查+盲评 rubric。验证：本地全绿、hook 实跑生效、dry-run 拦下并行 WIP；回放 856c096~1 离线复现「我记下了」；全量基线硬失败 3/75 约 ¥0.4。后续：SSH kex 被断远端未实跑→ACC-13；eval 暴露情境示例逐字背诵、E1 泛化未证、群聊记忆投毒当场接受三问题待拍板。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `3419058` | feat(workflow): 机器化门禁 + prompt 回归 eval——范式评估两项 P0 落地 |
+
+### Status
+
+[OK] **Completed**
