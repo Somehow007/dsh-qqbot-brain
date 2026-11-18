@@ -772,3 +772,25 @@ P0+P1（commit 1d3a763）已由并行会话随 20:10 部署批上线。执行数
 ### Status
 
 [OK] **Completed**
+
+
+## Session 130: 通用 AI 开发范式落地：拆层+护栏+度量+backlog 清偿
+<!-- trellis-session: v=2 fp=471967b3ba166c1d -->
+
+**Date**: 2026-11-18
+**Task**: 通用 AI 开发范式落地：拆层+护栏+度量+backlog 清偿
+**Branch**: `main`
+
+### Summary
+
+问题：评估遗留的通用范式问题——原则层绑在项目里、纪律靠散文、记账提交占比69%无度量、backlog 停滞、token 在 URL。方案：原则迁 ai-workflow/PRINCIPLES.md（七原则/度量/L0-L3 分级）+ kit 机制层（pre-commit/agent-guard/session-card/workflow-health/changes/wrap-up/deploy 模板）+ 3 新 playbook；本仓库 AI-WORKFLOW 改实例层；装 .devin hooks；消费点审计/验收分级进 spec；威胁模型 T1-T7；token 收口 header+HttpOnly cookie。验证：278 test 绿（先红后绿）、guard 27 用例、changes/health 修 2 个首版 bug。后续：SSH 恢复后 ACC-13/14，新会话验 hook，14 天看记账占比。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `33a58dc` | feat(workflow): 范式实例化 + agent 护栏 + 度量 + backlog 清偿 |
+
+### Status
+
+[OK] **Completed**
