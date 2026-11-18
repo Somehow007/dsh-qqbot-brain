@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-2.md`
-- **Total Sessions**: 127
-- **Last Active**: 2026-11-17
+- **Total Sessions**: 128
+- **Last Active**: 2026-11-18
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-2.md` | ~730 | Active |
+| `journal-2.md` | ~752 | Active |
 | `journal-1.md` | ~1988 | Archived |
 <!-- @@@/auto:active-documents -->
 
@@ -30,6 +30,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 128 | 2026-11-18 | README 半月刷新：迭代 A–E6/声口工程/验收实证入文 | `52e72b7` | `main` |
 | 127 | 2026-11-17 | 私聊人设声口复诊②：表态公式根因与 E1+E2 部署 | `856c096` | `main` |
 | 126 | 2026-11-16 | CHANGES读法事故修复：读法分级+状态锚点+权威序+手册库新册 | - | `main` |
 | 125 | 2026-11-15 | 迭代E：E6画像标记存量回填 + E1–E5信号评估 | - | `main` |

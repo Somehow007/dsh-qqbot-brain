@@ -728,3 +728,25 @@ P0+P1（commit 1d3a763）已由并行会话随 20:10 部署批上线。执行数
 ### Status
 
 [OK] **Completed**
+
+
+## Session 128: README 半月刷新：迭代 A–E6/声口工程/验收实证入文
+<!-- trellis-session: v=2 fp=8e2fce179de55eb7 -->
+
+**Date**: 2026-11-18
+**Task**: README 半月刷新：迭代 A–E6/声口工程/验收实证入文
+**Branch**: `main`
+
+### Summary
+
+问题：README 距上次刷新 15 天，迭代 A-E6、UI 重构、声口工程四轮、管理端移动端、验收登记处实证走查均未入文。排查：CHANGES.md 事件流 + acceptance.md 台账 + iteration-plan 进度锚点三源交叉核对；npm test 实测 276/276、commits 360、journal 93 session。方案：计数全面刷新、痛点表补 AI 腔行、checklist 补两条、验收登记处改 ACC-01~12（03/06 通过）、下一步候选加声口 N1 与 companion 立项。验证：grep 无旧数字残留、他人未提交改动未卷入。后续：里程碑时统一刷计数；companion 落地后需新增多宿主叙事。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `52e72b7` | docs: README 半月刷新——声口工程/移动端/验收实证入文 |
+
+### Status
+
+[OK] **Completed**
