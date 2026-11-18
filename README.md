@@ -8,7 +8,7 @@
 </p>
 
 ![阶段](https://img.shields.io/badge/阶段-首轮试运行已复盘-brightgreen)
-![单测](https://img.shields.io/badge/单测-167%2F167-brightgreen)
+![单测](https://img.shields.io/badge/单测-276%2F276-brightgreen)
 ![Node](https://img.shields.io/badge/node-20%2B-blue)
 ![性质](https://img.shields.io/badge/性质-私有实验项目-lightgrey)
 
@@ -39,6 +39,7 @@
 | --- | --- |
 | **失忆**：bot 只活在当前会话窗口 | 每轮对话结束由第二个 LLM 蒸馏记忆（事实/偏好/承诺/关系四类白名单），下一轮按相关性注入 topK 摘录 |
 | **人格漂移**：聊久了人设崩 | 人格内核全文每轮注入 system prompt（order 80 稳定段）；人格是常量、态度是慢变量 |
+| **AI 腔/说明文腔**：私聊长回复退化成顾问体、心理活动念成台词 | 声口工程：人设情境示例 + `channelStyle` 反腔条款 +「此刻感」「心理活动不说出口」条款，多轮实战迭代（见下） |
 | **群聊脸盲**：多人说话分不清谁是谁 | 解析 `[昵称 (openid)]` 做发言人归因；画像按人建模 `u:<openid>`；态度记忆绑定到人和话题 |
 | **时间感缺失**：只记得「几天前」 | `brain:clock` 每轮注入当前时刻；蒸馏/脉络对话行带 `[YYYY-MM-DD HH:mm]`；记忆按分钟/小时/天粒度标注 |
 | **记忆越攒越脏**：复读、流水账、马太锁死 | 遗忘曲线衰减 + 真相关命中才强化；向量判重 cos≥0.9（增量改强化、存量一键合并）；巩固定时器只啃未吸收的 episodic |
@@ -123,7 +124,7 @@ QQ 消息 ──► dsh-qqbot ──► system-prompt/assemble
 | + embedding 混合召回（text-embedding-v3 校准） | **100%** | **20%** |
 | 深挖召回子集（recall-intent 门控·lexical，迭代C） | 100%（3/4 lane-1 未中被深挖救回） | 0% |
 
-**单测**：`node --test` **199/199** 通过（brain 内核 / filelog / http / page 四个测试文件 + eval 评测集），typecheck + build 全绿（截至 2026-11-12）。
+**单测**：`node --test` **276/276** 通过（brain 内核 / filelog / http / page / web 壳层多个测试文件 + eval 评测集），typecheck + build 全绿（截至 2026-11-18）。
 
 **成本透明**：
 
@@ -137,7 +138,7 @@ QQ 消息 ──► dsh-qqbot ──► system-prompt/assemble
 
 - 同一人在不同上下文拿不同 openid → 画像碎片化；已有读侧归并 + 手动合并入口，根治未做
 - 人格漂移没有量化度量，靠体感 + reasoning 抽查
-- emb 噪声底（0.33~0.56）下半相关命中仍可能刷 hits，强化阈值已精修（0.5→0.62）继续观察
+- emb 噪声底（0.33~0.56）下半相关命中仍可能刷 hits，强化阈值已精修（0.5→0.62）；ACC-08 定性：话题相邻注入与真命中阈值不可分，属迭代级遗留
 - 管理面写回竞态：重置/删除与在途蒸馏无互斥（ops 不损坏、语义可能不干净，I1 待修）
 - 蒸馏输入里 9KB persona 占 ~60%，攒批/精简版开关已做、待 A/B
 
@@ -145,7 +146,7 @@ QQ 消息 ──► dsh-qqbot ──► system-prompt/assemble
 
 <p align="center"><img src="docs/img/trial-timeline.png" alt="首轮试运行六天时间线" width="880"></p>
 
-**v0.1.0 · 私有实验项目 · 首轮三天试运行复盘完成，持续迭代中**（2026-10-29 开工；首轮六天 ~135 commits，截至 2026-11-09 累计 ~237 commits / 90 个开发 session）
+**v0.1.0 · 私有实验项目 · 首轮试运行复盘完成，迭代 A–E6 + 管理端 UI 重构落地，多角色陪伴实战中**（2026-10-29 开工，截至 2026-11-18 累计 ~360 commits / 93 个开发 session）
 
 - [x] M0–M4：概念样机 → brain 内核 → 插件壳 → 脑图页接真实 API → 云上部署 runbook
 - [x] 记忆质量修复：蒸馏 v2 白名单、检索相关性门控、身份层、滚动摘要、embedding 混合召回
@@ -165,18 +166,21 @@ QQ 消息 ──► dsh-qqbot ──► system-prompt/assemble
 - [x] 迭代D·前瞻记忆+出处：standing intents（event/time、确定性触发、`/api/intents`）+ `Turn.via`/`MemoryNote.source` 出处链，11-14 已上线
 - [x] 迭代E6·画像角色域标记：关系事实句带 `〔角·角色名〕` 按激活角色过滤注入，11-15 上线 + 存量画像回填（E1–E5 储备项首轮信号取证均未触发）
 - [x] 脑图 UI 重构 P1–P3：/brain 新皮肤壳层（nocturne/墨刊/鲸脑）+ D-admin 管理端七页真实 API，11-14 上线（`?ui=legacy` 兜底，P4 收尾待续）
-- [x] 实证验收登记处 `.trellis/acceptance.md`：部署≠验收，实证项带证据阈值跨走查存活（ACC-01~11 在册）
+- [x] 管理端移动端适配：D-admin 七页 ≤900px 顶栏导航/表格横滚/栅格单列，CDP 走查 375/768/1440 零溢出，11-16 上线
+- [x] 私聊声口工程：顾问体排查 → 声口示例 + `channelStyle` 反腔条款 → 「此刻感」→「表态公式」四轮修复（11-15~17 上线），实证验收 ACC-10/12 观察中
+- [x] 实证验收登记处 `.trellis/acceptance.md`：部署≠验收，实证项带证据阈值跨走查存活（ACC-01~12 在册，ACC-03/06 已通过）
 - [ ] **webserver-shim 分支**：`:4099` 共享为 cordis `webServer` 服务，dsh-meme 斗图已本机全链路实测（send_meme → qqbot_send_file 真实投递），待合入上线
 
 下一步候选（迭代路线图 A→G 详见 `tasks/11-09-iteration-upgrade-plan/iteration-plan.md`）：
 
-1. **迭代E·记忆质量深化**：E6 已闭环；E1–E5 按信号储备（entity boost/BFS-lite/双时态/dreaming/USER.md），等 companion 上线反馈或走查实证触发；companion 壳层（迭代F）另立任务待启动
-2. **webserver-shim 合入** → `brain:meme` 情绪桶注入（用脑情绪模型给斗图插件喂信号）→ /brain 页表情预览
-3. **管理面加固**：写回竞态 dataEpoch/CAS、时段删除预览同源、批量画像重生成
-4. **Reflection**——巩固时生成高层洞察（Generative Agents 缺的那块）
-5. **蒸馏攒批 / personaDigest 线上 A/B**——成本与质量权衡实测
-6. **记忆关联 / 扩散激活**（图谱边已铺底）、**干扰式遗忘**
-7. **跳出 dsh**——演进路线已定：HostAdapter 显式化 + `/api/ingest`/`/api/assemble` 补齐 → 库导出（`@brain/core`，价值保留最高）→ HTTP sidecar → MCP 薄壳（降级形态放最后）；dsh 永远 first-class（`11-03-brain-roadmap-beyond-dsh`）
+1. **迭代E·记忆质量深化**：E6 + 存量回填已闭环；E1–E5 按信号储备（entity boost/BFS-lite/双时态/dreaming/USER.md），首轮信号取证均未触发继续观察；companion 壳层 MVP 设计已立项（`tasks/11-12-companion-mvp-design`，迭代F）
+2. **声口工程·N1 探讨**：推理层顾问模式（reasoningEffort=high 致规划腔）复诊暂缓待拍板——prompt 层四轮修复已上线，ACC-10/12 验收观察中
+3. **webserver-shim 合入** → `brain:meme` 情绪桶注入（用脑情绪模型给斗图插件喂信号）→ /brain 页表情预览
+4. **管理面加固**：写回竞态 dataEpoch/CAS、时段删除预览同源、批量画像重生成
+5. **Reflection**——巩固时生成高层洞察（Generative Agents 缺的那块）
+6. **蒸馏攒批 / personaDigest 线上 A/B**——成本与质量权衡实测
+7. **记忆关联 / 扩散激活**（图谱边已铺底）、**干扰式遗忘**
+8. **跳出 dsh**——演进路线已定：HostAdapter 显式化 + `/api/ingest`/`/api/assemble` 补齐 → 库导出（`@brain/core`，价值保留最高）→ HTTP sidecar → MCP 薄壳（降级形态放最后）；dsh 永远 first-class（`11-03-brain-roadmap-beyond-dsh`）
 
 ## 快速开始
 
@@ -234,6 +238,6 @@ npm run build       # 产物在 dist/
 
 - 文档分工：`README.md`（本文件）= what & why 门面 · `MAP.md` = where & how 导航 · `AGENTS.md` = 项目约定 · `.trellis/` = 过程档案
 - 全部数据与结论出自 `.trellis/tasks/` 的逐次评估留痕（D3 试运行复盘、token 审计、情绪桶走查、上云/清洗/公网处置等）
-- 开发时间线见 `.trellis/workspace/sunhao/journal-1.md`（90 个 session 全程记录）
+- 开发时间线见 `.trellis/workspace/sunhao/journal-1.md`（93 个 session 全程记录）
 
 License: UNLICENSED（私有项目）
