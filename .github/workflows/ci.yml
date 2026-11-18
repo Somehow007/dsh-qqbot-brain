@@ -1,0 +1,24 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dsh-qqbot-brain
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: dsh-qqbot-brain/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      # 检索 eval（lexical 路径，无 key、零成本）；prompt eval 需付费 key，不进 CI
+      - run: npm run eval

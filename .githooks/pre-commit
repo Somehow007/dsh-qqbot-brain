@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# 提交门禁（确定性检查，不靠 AI 自觉）：
+#   1. 暂存区新增行密钥扫描——命中即拒（API key / token 进 git 不可逆）
+#   2. 插件代码有改动 → typecheck + test（~1s；纯文档/记账提交跳过）
+# 安装：scripts/install-hooks.sh（软链进 .git/hooks，不改 git config）。紧急绕过：git commit --no-verify（需说明理由）
+set -euo pipefail
+ROOT=$(git rev-parse --show-toplevel)
+
+LEAK=$(git diff --cached -U0 --diff-filter=AM | grep -E '^\+' | grep -v '^+++' \
+  | grep -niE 'sk-[A-Za-z0-9]{20,}|(api[_-]?key|token|secret|password)["'"'"' ]*[:=] *["'"'"']?[A-Za-z0-9_\-]{16,}' || true)
+if [[ -n "$LEAK" ]]; then
+  echo "✗ pre-commit：暂存内容疑似含密钥：" >&2
+  echo "$LEAK" | cut -c1-160 >&2
+  exit 1
+fi
+
+if git diff --cached --name-only | grep -qE '^dsh-qqbot-brain/(src|test)/|^dsh-qqbot-brain/package(-lock)?\.json$'; then
+  cd "$ROOT/dsh-qqbot-brain"
+  npm run -s typecheck || { echo "✗ pre-commit：typecheck 失败" >&2; exit 1; }
+  npm test >/tmp/qqbot-brain-precommit.log 2>&1 || { tail -n 30 /tmp/qqbot-brain-precommit.log >&2; echo "✗ pre-commit：test 失败" >&2; exit 1; }
+  echo "✓ pre-commit：typecheck + $(grep -E '^ℹ pass' /tmp/qqbot-brain-precommit.log)"
+fi

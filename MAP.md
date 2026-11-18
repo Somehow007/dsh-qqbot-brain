@@ -29,8 +29,10 @@ dsh-qqbot-brain/            ▶ 代码层：插件本体（TypeScript ESM，零�
   src/server/                 /brain 前端：http.ts（API）+ web/（ES modules 新前端：三皮肤脑图 + 七页管理端）+ page.html（旧单文件页，?ui=legacy 兼容中）
   src/setup/                  persona.md 装载 + 内置人设 + 文件日志
   src/index.ts · config.ts    Cordis 插件装配入口 + 全部配置旋钮
-  test/                       node --test 四件套（brain/filelog/http/page）+ eval/ 检索评测集
+  test/                       node --test 四件套（brain/filelog/http/page）+ eval/ 检索评测集 + prompt-eval/ 人设·口径回归黄金集（付费 key，不进 npm test/CI）
   scripts/reply-style-audit.py 走查工具：宿主转录按「人设×是否联网」统计回复活人感指标（链接/免责/口吻/均长）
+  scripts/deploy.sh           一键部署：门禁（拒脏工作区）→ 远端成对备份 → rsync → restart → 探活 → 失败自动回滚插件；落 .trellis/deploy-log.tsv
+  scripts/install-hooks.sh    把 .githooks/ 软链进 .git/hooks（pre-commit：密钥扫描 + 代码改动跑 typecheck/test）
   README.md                   部署 runbook：rsync（dist 不带尾斜杠）· systemd · 公网直连 · 排障
 
 docs/                       README 配图（img/，含 src/ 手绘 SVG 源）· 备份恢复手册 · 生图提示词
@@ -42,6 +44,7 @@ personas/                     独立人设包群（第二人格资产：persona.
 参赛材料/                   比赛申报材料（gitignored，不进库）
 
 .trellis/                   ▶ 档案层：开发过程全留痕（见「四、学开发思路」）
+.githooks/ · .github/workflows/ci.yml   机器化门禁：pre-commit 与 CI（typecheck/test/build/eval）
 AGENTS.md                   项目约定：线上数据位置、部署要点、归档流程——动手前必读
 AI-WORKFLOW.md              个人 AI 驱动开发工作范式：六原则/质量防线/成本两条线/安全卫生/差距自检
 brain-data/                 线上记忆导出的本地备份（gitignored）
@@ -98,14 +101,15 @@ brain-data/                 线上记忆导出的本地备份（gitignored）
 npm run typecheck     # tsc --noEmit
 npm test              # node --test 单测
 npm run eval          # 检索评测（BRAIN_EMBED_API_KEY=… 时对比向量路径）
+npm run eval:prompt   # 人设/表达口径回归：工作区 vs HEAD（--base <ref> / --all / --case / --n），改 persona 或 channelStyle 后、部署前跑
 npm run build         # 产物在 dist/（dist 不入库）
 
 # 免 bot 预览脑图
 node --experimental-strip-types demo/serve-demo.ts   # → http://127.0.0.1:4099/brain
 
 # 部署（详见插件 README runbook）
-rsync -av dist cordis.patch.yml package.json server:~/dsh-qqbot-brain/   # dist 不带尾斜杠！
-ssh ubuntu@124.222.65.169 'sudo systemctl restart dsh-qqbot'
+scripts/deploy.sh <tag> [--dry-run]   # 门禁+成对备份+rsync+restart+探活+失败回滚（人设 PATCH 不含在内）
+scripts/install-hooks.sh              # 新 clone 后装一次 pre-commit
 
 # Trellis 档案
 tail -30 .trellis/CHANGES.md                                    # 开工先扫：别的会话最近干了啥

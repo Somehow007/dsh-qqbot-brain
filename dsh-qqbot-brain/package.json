@@ -8,7 +8,8 @@
     "build": "tsc -p tsconfig.json && node -e \"const fs=require('fs');fs.copyFileSync('src/server/page.html','dist/server/page.html');fs.cpSync('src/server/web','dist/server/web',{recursive:true});for(const f of fs.readdirSync('src/setup'))if(f.endsWith('.md'))fs.copyFileSync('src/setup/'+f,'dist/setup/'+f)\"",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "node --test test/*.test.ts",
-    "eval": "node test/eval/run.ts"
+    "eval": "node test/eval/run.ts",
+    "eval:prompt": "node test/prompt-eval/run.ts"
   },
   "engines": {
     "node": ">=20"

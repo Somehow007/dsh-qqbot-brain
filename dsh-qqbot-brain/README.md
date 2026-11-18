@@ -102,6 +102,10 @@ WantedBy=multi-user.target
 - `GET/POST /brain/api/intents`、`PATCH /brain/api/intents/<id>`、`POST /brain/api/intents/<id>/cancel`、`DELETE /brain/api/intents/<id>`、`POST /brain/api/intents/tick`——standing intents 全生命周期（tick=手动触发一轮 time/event 评估）
 - `POST /brain/api/reset` 记忆重置：清笔记/画像/情绪/摘要/intents，**保留人设与人设版本**；建议先 `export` 备份
 
+### 日常发布（一键脚本）
+
+首轮安装后，日常发布用 `scripts/deploy.sh <tag>`：拒绝 src/test 未提交改动 → typecheck/test/build → 远端 `~/backups/pre-<tag>-{plugin,data}-<UTC>.tgz` 成对备份并 `tar -t` 校验 → `rsync -az --delete dist package.json` → restart → `/brain` 探活（200/401）+ 5s 后复查 active + 远端 dist md5 比对 → 任一失败自动解压插件备份回滚（数据备份不自动恢复）。`--dry-run` 只跑门禁并 `rsync -acn` 预览差异。每次结果追加到 `.trellis/deploy-log.tsv`（变更失败率台账）。人设文本走 `/api/personas` PATCH，不在脚本内。
+
 ### 验证清单
 
 1. `tail ~/brain-data/brain.log` 启动行含「数据目录 <绝对路径>」「蒸馏 on」「脑图 127.0.0.1:4099/brain」

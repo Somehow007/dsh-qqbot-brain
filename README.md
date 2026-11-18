@@ -124,6 +124,8 @@ QQ 消息 ──► dsh-qqbot ──► system-prompt/assemble
 | + embedding 混合召回（text-embedding-v3 校准） | **100%** | **20%** |
 | 深挖召回子集（recall-intent 门控·lexical，迭代C） | 100%（3/4 lane-1 未中被深挖救回） | 0% |
 
+**人设/口径回归**（`npm run eval:prompt`：25 条黄金用例源自生产事故与验收台账，base vs head 双版本采样 + 确定性硬检查 + LLM 评委）：2026-11-18 全量基线硬失败 3/75、专项规则 96%，单次全量约 36 万输入 token（前缀缓存命中 74%）；回放 11-17「表态公式」修复前版本可离线复现「这句话我记下了」。
+
 **单测**：`node --test` **276/276** 通过（brain 内核 / filelog / http / page / web 壳层多个测试文件 + eval 评测集），typecheck + build 全绿（截至 2026-11-18）。
 
 **成本透明**：
@@ -233,6 +235,7 @@ AGENTS.md               项目约定：线上数据位置 · 部署要点 · 文
 npm run typecheck   # tsc --noEmit
 npm test            # node --test（Node 需支持原生 .ts 类型擦除）
 npm run eval        # 检索评测；BRAIN_EMBED_API_KEY=… 时对比向量路径
+npm run eval:prompt # 人设/口径回归（需 DEEPSEEK_API_KEY，改 prompt 后部署前跑）
 npm run build       # 产物在 dist/
 ```
 
