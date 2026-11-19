@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-2.md`
-- **Total Sessions**: 131
-- **Last Active**: 2026-11-18
+- **Total Sessions**: 132
+- **Last Active**: 2026-11-19
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-2.md` | ~818 | Active |
+| `journal-2.md` | ~840 | Active |
 | `journal-1.md` | ~1988 | Archived |
 <!-- @@@/auto:active-documents -->
 
@@ -30,6 +30,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 132 | 2026-11-19 | SSH 恢复 + 首次生产部署全链路（deploy.sh 实跑/回滚演练/人设 PATCH） | `5132b73` | `main` |
 | 131 | 2026-11-18 | 人设示例复读与注入解说修复（prompt eval 驱动） | `de26ba4` | `main` |
 | 130 | 2026-11-18 | 通用 AI 开发范式落地：拆层+护栏+度量+backlog 清偿 | `33a58dc` | `main` |
 | 129 | 2026-11-18 | AI-WORKFLOW 范式评估 + 两项 P0 落地 | `3419058` | `main` |

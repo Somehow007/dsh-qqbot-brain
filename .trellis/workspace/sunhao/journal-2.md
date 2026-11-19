@@ -816,3 +816,25 @@ prompt eval 首跑暴露四问题→蒸馏对抗实验证投毒未固化（不�
 ### Status
 
 [OK] **Completed**
+
+
+## Session 132: SSH 恢复 + 首次生产部署全链路（deploy.sh 实跑/回滚演练/人设 PATCH）
+<!-- trellis-session: v=2 fp=8e0f1034ac87f048 -->
+
+**Date**: 2026-11-19
+**Task**: SSH 恢复 + 首次生产部署全链路（deploy.sh 实跑/回滚演练/人设 PATCH）
+**Branch**: `main`
+
+### Summary
+
+SSH kex 故障由用户恢复；巡检全绿后建 B-09 只读账号 brain-ro@（ACL 方案实测写被拒）；deploy.sh 首跑修两 bug（全角括号变量解析/回滚复检端口）→正式发布 persona-v2 ok 11s+worktree 旧码回滚演练 rolled-back 42s（ACC-13 通过）、token cookie 走查全通（ACC-14 通过）、firefly persona PATCH 上线零漂移（ACC-15/16 转待真实样本）；distill.ts 并行 WIP stash 隔离未进提交
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `5132b73` | chore(trellis): ACC-13/14 通过入档 + deploy-log 台账纳入版本管理 + B-07 进度 |
+
+### Status
+
+[OK] **Completed**
