@@ -123,3 +123,4 @@
 - 2026-11-18 21:10 | 通用范式落地：原则迁出 ai-workflow（PRINCIPLES+kit+3 playbook），实例层重写，agent-guard/开工卡片 hook、workflow-health 体检、wrap-up 单提交收工；消费点审计/验收分级进 spec、威胁模型、token 收口 cookie（待部署 ACC-14） | → `tasks/archive/2026-11/11-18-ai-workflow-generic/prd.md`
 - 2026-11-18 21:46 | 生产 SSH kex 阶段被远端断开（TCP 通、服务存活、非认证问题）已存档待用户处理；阻塞 ACC-13/14、B-09 与人设修复上线 | → `tasks/11-18-ssh-kex-blocked/prd.md`
 - 2026-11-18 23:32 | 人设示例复读+注入解说已修并提交 de26ba4（eval 背诵 12→0、inject 硬失败→0）；蒸馏投毒实验证伪无需改；ye/whale 与群聊规则留档；SSH 任务 11-18-ssh-kex-blocked 保持开放 | → `tasks/archive/2026-11/11-18-persona-product-fixes/prd.md`
+- 2026-11-19 12:25 | SSH 已恢复+远端巡检全绿；B-09 只读账号 brain-ro@ 建成并实测（ACL 方案，写被拒无 sudo）；人设线上零漂移；deploy 仍卡并行会话 distill.ts WIP 待确认 | → tasks/11-18-ssh-kex-blocked/prd.md

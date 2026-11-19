@@ -34,10 +34,11 @@ Managed by Trellis. Edits outside this block are preserved; edits inside may be 
   - *界*：只留最近 ~100 条删旧；它不替代「问题存档」和 journal，只是广播位/目录。
 - **上下文权威序**：会话摘要类材料（parent_session_context、压缩 summary、journal 转述）是历史快照只作线索；与仓库证据冲突时按 git log/代码 → 任务档案/验收台账 → 计划文档 → CHANGES → 摘要 采信。「摘要说没做」≠「没做」。
 - **成本一线**：AI 服务按 token 计费，成本是设计约束不是事后指标。新增 LLM 调用 / 注入 section / 记忆或画像字段时先过成本评估：输入有界（截断/配额/攒批）、前缀缓存友好（稳定段在前、易变段贴尾）、可配置关闭、失败静默不阻塞回复；成本实测数字随评估刷新进 README「成本透明」，长期增长项要能建模说明不发散（范式见 `archive/2026-11/11-03-cost-growth-analysis`）。
-- **线上数据在哪**：生产数据全在腾讯云 `ubuntu@124.222.65.169`（SSH 直连，无别名），本仓库不含真实数据。
+- **线上数据在哪**：生产数据全在腾讯云 `124.222.65.169`（SSH 直连，无别名），本仓库不含真实数据。
+  - **两类账号**：`ubuntu@`（全权限，仅人用与 `deploy.sh`）；`brain-ro@`（只读走查账号，agent 走查一律用它——无 sudo、brain-data/sessions/dist 可读、写被拒；数据在 `/home/ubuntu/` 下，命令里写绝对路径，`~` 是它自己的家目录。口令在 `/home/ubuntu/.dsh/brain.env` 经 ACL 只读授权）。
   - 插件目录 `~/dsh-qqbot-brain/`——部署 = 本地 `npm run build` 后 `rsync` `dist`（不带尾斜杠）+`package.json` 上去（不动远端 `cordis.patch.yml`），`sudo systemctl restart dsh-qqbot` 生效；服务器 dsh/node 在 `PATH=/opt/node-v24/bin`。
   - 脑数据目录 `~/brain-data/`（BRAIN_DATA_DIR：persona.md、op 流水、brain.log）；宿主会话原文 `~/.dsh/sessions/**/session.v4.jsonl.zstd`，QQ key→sessionId 映射 `~/.dsh-qqbot/model-prefs.json`。
-  - 脑图公网直连 `http://124.222.65.169:4099/brain?token=<口令>`（仅浏览器首跳；curl/脚本用 `-H "x-brain-token: <口令>"`）；口令/密钥在服务器 `~/dsh-qqbot-brain/cordis.patch.yml` 与 `~/.dsh/brain.env`（600），不落 git。
+  - 脑图公网直连 `http://124.222.65.169:4099/brain?token=<口令>`（仅浏览器首跳；curl/脚本用 `-H "x-brain-token: <口令>"`）；口令/密钥在服务器 `~/dsh-qqbot-brain/cordis.patch.yml` 与 `~/.dsh/brain.env`（600；brain-ro 经 ACL 可读 `brain.env` 取口令）。
   - 备份：服务器 `~/backups/*.tgz`（部署前插件+数据成对备份）+ 每日 cron + 本地 `brain-data/*.json`（`/brain/api/export` 落盘，gitignored）。
   - 细节见 `dsh-qqbot-brain/README.md`「部署 runbook」与 `docs/brain-backup-restore.md`；历次线上操作存档搜 `.trellis/tasks/archive/` 里的 `124.222`。
 
