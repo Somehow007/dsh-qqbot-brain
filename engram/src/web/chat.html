@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>engram · 流萤</title>
+<style>
+  :root { --bg:#0e1116; --panel:#161b22; --line:#2a3140; --text:#e6e9ef; --dim:#8b93a3; --accent:#7fb4ff; --pro:#c9a7ff; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html,body { height:100%; }
+  body { background:var(--bg); color:var(--text); font:15px/1.6 -apple-system,"PingFang SC","Microsoft YaHei",sans-serif; display:flex; flex-direction:column; }
+  header { display:flex; align-items:center; gap:10px; padding:12px 16px; border-bottom:1px solid var(--line); background:var(--panel); }
+  header .dot { width:8px; height:8px; border-radius:50%; background:#6fd39a; box-shadow:0 0 8px #6fd39a88; }
+  header h1 { font-size:15px; font-weight:600; }
+  header .sub { color:var(--dim); font-size:12px; }
+  header a { margin-left:auto; color:var(--dim); font-size:12px; text-decoration:none; }
+  header a:hover { color:var(--accent); }
+  #msgs { flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:12px; }
+  .row { display:flex; gap:8px; align-items:flex-end; max-width:92%; }
+  .row.user { align-self:flex-end; flex-direction:row-reverse; }
+  .row.proactive { align-self:center; max-width:100%; }
+  .avatar { width:30px; height:30px; border-radius:50%; background:linear-gradient(135deg,#3a4a6b,#6b4a3a); display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0; }
+  .bubble { padding:10px 14px; border-radius:14px; background:var(--panel); border:1px solid var(--line); white-space:pre-wrap; word-break:break-word; }
+  .row.user .bubble { background:#1d2b45; border-color:#2c3f63; }
+  .row.proactive .bubble { background:transparent; border:1px dashed #4a3f63; color:var(--pro); font-size:14px; }
+  .row.proactive .who { font-size:11px; color:var(--pro); text-align:center; margin-bottom:2px; }
+  .meta { font-size:10px; color:var(--dim); margin-top:3px; }
+  .row.user .meta { text-align:right; }
+  #bar { display:flex; gap:8px; padding:12px 16px calc(12px + env(safe-area-inset-bottom)); border-top:1px solid var(--line); background:var(--panel); }
+  #input { flex:1; background:var(--bg); border:1px solid var(--line); border-radius:12px; color:var(--text); padding:10px 14px; font:inherit; resize:none; max-height:120px; outline:none; }
+  #input:focus { border-color:var(--accent); }
+  #send { background:var(--accent); color:#0b1220; border:none; border-radius:12px; padding:0 18px; font:inherit; font-weight:600; cursor:pointer; }
+  #send:disabled { opacity:.5; cursor:default; }
+  #auth { display:none; padding:24px; text-align:center; }
+  #auth input { width:220px; padding:10px; border-radius:10px; border:1px solid var(--line); background:var(--bg); color:var(--text); margin:8px; }
+  #auth button { padding:10px 20px; border-radius:10px; border:none; background:var(--accent); color:#0b1220; font-weight:600; cursor:pointer; }
+  .thinking { color:var(--dim); font-style:italic; }
+</style>
+</head>
+<body>
+<header>
+  <span class="dot"></span>
+  <div><h1>流萤 · engram</h1><div class="sub" id="sub">连接中…</div></div>
+  <a id="brainLink" href="/brain/" target="_blank" rel="noopener">脑图 ↗</a>
+</header>
+<div id="auth">
+  <p>这扇门需要口令。</p>
+  <input id="tok" type="password" placeholder="访问口令" autocomplete="off">
+  <button id="tokBtn">进入</button>
+</div>
+<div id="msgs"></div>
+<div id="bar">
+  <textarea id="input" rows="1" placeholder="说点什么…（Enter 发送，Shift+Enter 换行）"></textarea>
+  <button id="send">发送</button>
+</div>
+<script>
+const msgs = document.getElementById('msgs');
+const input = document.getElementById('input');
+const sendBtn = document.getElementById('send');
+const sub = document.getElementById('sub');
+let userNick = '你';
+let lastAt = 0;
+let es = null;
+
+function fmtTime(t) { return new Date(t).toLocaleTimeString('zh-CN', { hour:'2-digit', minute:'2-digit' }); }
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+function addEntry(e, prepend) {
+  if (e.at <= lastAt && prepend !== true) return;
+  lastAt = Math.max(lastAt, e.at);
+  const row = document.createElement('div');
+  if (e.role === 'proactive') {
+    row.className = 'row proactive';
+    row.innerHTML = `<div style="width:100%"><div class="who">✦ 流萤想起了什么</div><div class="bubble">${esc(e.text)}</div><div class="meta">${fmtTime(e.at)}</div></div>`;
+  } else if (e.role === 'user') {
+    row.className = 'row user';
+    row.innerHTML = `<div class="avatar">${esc((userNick||'你')[0]||'你')}</div><div><div class="bubble">${esc(e.text)}</div><div class="meta">${fmtTime(e.at)}</div></div>`;
+  } else {
+    row.className = 'row';
+    row.innerHTML = `<div class="avatar">萤</div><div><div class="bubble">${esc(e.text)}</div><div class="meta">${fmtTime(e.at)}${e.usage?.totalTokens ? ' · '+e.usage.totalTokens+' tok' : ''}</div></div>`;
+  }
+  msgs.appendChild(row);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+async function api(path, opts) {
+  const r = await fetch(path, opts);
+  if (r.status === 401) { showAuth(); throw new Error('unauthorized'); }
+  return r.json();
+}
+
+function showAuth() {
+  document.getElementById('auth').style.display = 'block';
+  document.getElementById('bar').style.display = 'none';
+}
+document.getElementById('tokBtn').onclick = () => {
+  const t = document.getElementById('tok').value.trim();
+  if (t) location.href = '/?token=' + encodeURIComponent(t);
+};
+document.getElementById('tok').addEventListener('keydown', (ev) => { if (ev.key === 'Enter') document.getElementById('tokBtn').click(); });
+
+async function loadHistory() {
+  const d = await api('/api/history');
+  for (const e of d.entries || []) addEntry(e);
+}
+
+function connectSSE() {
+  if (es) es.close();
+  es = new EventSource('/api/events');
+  es.onmessage = (ev) => {
+    try {
+      const d = JSON.parse(ev.data);
+      if (d.type === 'message' && d.entry) addEntry(d.entry);
+    } catch {}
+  };
+  es.onerror = () => { /* EventSource 自动重连 */ };
+}
+
+async function send() {
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  input.style.height = 'auto';
+  sendBtn.disabled = true;
+  const think = document.createElement('div');
+  think.className = 'row';
+  think.innerHTML = `<div class="avatar">萤</div><div class="bubble thinking">…</div>`;
+  msgs.appendChild(think);
+  msgs.scrollTop = msgs.scrollHeight;
+  try {
+    const d = await api('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    });
+    think.remove();
+    if (d.reply) {
+      addEntry({ id:'local-'+Date.now(), role:'user', text, at:Date.now() }, true);
+      addEntry({ id:'local-r-'+Date.now(), role:'assistant', text:d.reply, at:Date.now(), usage:d.usage }, true);
+    } else if (d.error) {
+      think.remove();
+      alert('出错了：' + d.error);
+    }
+  } catch (e) {
+    think.remove();
+    if (e.message !== 'unauthorized') alert('网络错误');
+  } finally {
+    sendBtn.disabled = false;
+    input.focus();
+  }
+}
+
+sendBtn.onclick = send;
+input.addEventListener('keydown', (ev) => {
+  if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); send(); }
+});
+input.addEventListener('input', () => {
+  input.style.height = 'auto';
+  input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+});
+
+(async () => {
+  try {
+    const cfg = await api('/api/config');
+    userNick = cfg.userNick || '你';
+    sub.textContent = cfg.proactive ? '在线 · 会主动开口' : '在线';
+    await loadHistory();
+    connectSSE();
+  } catch (e) {
+    if (e.message !== 'unauthorized') sub.textContent = '连接失败';
+  }
+})();
+</script>
+</body>
+</html>

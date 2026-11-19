@@ -1,0 +1,20 @@
+{
+  "name": "@local/engram",
+  "version": "0.1.0",
+  "description": "engram — 记忆可观测的陪伴 Agent：brain 内核第二 deployment（Web 1-on-1 壳层）",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "node --test test/*.test.ts",
+    "start": "node src/main.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.2",
+    "typescript": "^7.0.2"
+  },
+  "license": "UNLICENSED",
+  "private": true
+}
