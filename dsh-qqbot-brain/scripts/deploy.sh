@@ -4,8 +4,10 @@
 # 用法：scripts/deploy.sh <tag> [--dry-run]
 #   tag        备份名标签，如 e7 / mobile（产出 ~/backups/pre-<tag>-{plugin,data}-<UTC>.tgz）
 #   --dry-run  只跑门禁 + rsync -acn 预览差异，不动远端
-# 环境变量：DEPLOY_HOST / DEPLOY_HOME / DEPLOY_SERVICE / DEPLOY_PORT 覆盖默认；
+# 环境变量：DEPLOY_HOST / DEPLOY_HOME / DEPLOY_SERVICE / DEPLOY_PORT / DEPLOY_REAL_PORT 覆盖默认；
 #           ALLOW_DIRTY=1 允许 src/ 有未提交改动（默认拒绝：并行会话 WIP 会被一起构建上线）。
+# 演练回滚：DEPLOY_PORT=<假端口> scripts/deploy.sh <tag>——部署探活打假端口必失败→自动回滚，
+#           回滚后复检打 REAL_PORT（真实服务口）验证回滚结果。
 # 边界：只发布插件代码（dist + package.json），不动远端 cordis.patch.yml；
 #       人设文本 PATCH（/api/personas）不在本脚本内；数据备份只做不自动恢复（数据回滚需人工确认）。
 set -euo pipefail
@@ -16,6 +18,7 @@ HOST=${DEPLOY_HOST:-ubuntu@124.222.65.169}
 RHOME=${DEPLOY_HOME:-/home/ubuntu}
 SERVICE=${DEPLOY_SERVICE:-dsh-qqbot}
 PORT=${DEPLOY_PORT:-4099}
+REAL_PORT=${DEPLOY_REAL_PORT:-4099}
 PLUGIN=dsh-qqbot-brain
 DATA=brain-data
 
@@ -57,11 +60,13 @@ NR_BEFORE=$(remote "systemctl show -p NRestarts --value $SERVICE")
 step "rsync dist + package.json（dist 不带尾斜杠）"
 rsync -az --delete dist package.json "$HOST:$RHOME/$PLUGIN/"
 
+# health [port]：部署探活传 $PORT；回滚复检传 $REAL_PORT（真实服务口）。
 health() {
+  local port=${1:-$PORT}
   remote "set -e
     sudo systemctl restart $SERVICE
     for i in \$(seq 1 30); do
-      code=\$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:$PORT/brain || true)
+      code=\$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:$port/brain || true)
       [[ \$code == 200 || \$code == 401 ]] && break; sleep 1
     done
     [[ \$(systemctl is-active $SERVICE) == active ]] || { echo '✗ 服务未 active'; exit 1; }
@@ -74,16 +79,16 @@ health() {
 
 step "restart + 健康检查"
 LOCAL_MD5=$(md5 -q dist/index.js 2>/dev/null || md5sum dist/index.js | cut -d' ' -f1)
-if health && [[ "$(remote "md5sum $RHOME/$PLUGIN/dist/index.js | cut -d' ' -f1")" == "$LOCAL_MD5" ]]; then
+if health "$PORT" && [[ "$(remote "md5sum $RHOME/$PLUGIN/dist/index.js | cut -d' ' -f1")" == "$LOCAL_MD5" ]]; then
   NR_AFTER=$(remote "systemctl show -p NRestarts --value $SERVICE")
   [[ "$NR_AFTER" == "$NR_BEFORE" ]] || echo "⚠ NRestarts $NR_BEFORE→$NR_AFTER（systemctl restart 本身不计数；若增长说明进程崩溃自拉起，去看日志）"
   ledger ok
-  step "✓ 部署完成 $COMMIT（备份 $BK_PLUGIN）"
+  step "✓ 部署完成 ${COMMIT}（备份 ${BK_PLUGIN}）"
   exit 0
 fi
 
-step "✗ 健康检查失败 → 自动回滚插件到 $BK_PLUGIN（数据不动）"
+step "✗ 健康检查失败 → 自动回滚插件到 ${BK_PLUGIN}（数据不动）"
 remote "set -e; rm -rf $RHOME/$PLUGIN/dist; tar xzf $BK_PLUGIN -C $RHOME"
-if health; then ledger rolled-back; else ledger rollback-failed; fi
-echo "已回滚插件代码；数据备份 $BK_DATA 未自动恢复（需人工确认）" >&2
+if health "$REAL_PORT"; then ledger rolled-back; else ledger rollback-failed; fi
+echo "已回滚插件代码；数据备份 ${BK_DATA} 未自动恢复（需人工确认）" >&2
 exit 1
