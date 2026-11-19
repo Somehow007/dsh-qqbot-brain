@@ -53,7 +53,7 @@
 | B-04 | 验收证据分级沉淀 | 台账跑满 ≥4 次走查后写成 spec 指南 | 2026-11-18 | 已完成（11-18，`spec/guides/verification-tiers.md`） |
 | B-05 | 人设「此刻感」条款沉淀 | ACC-12 通过后推广 ye/whale 并写 spec | 2026-12-02 | 进行中 |
 | B-06 | 记账瘦身见效 | 改用 `wrap-up.sh` 后近 14 天记账占比 ≤ 40% | 2026-12-02 | 进行中 |
-| B-07 | 机器化门禁与 prompt 回归沉淀 spec | 3 次真实发布走 deploy.sh、2 次 prompt 改动跑过 eval:prompt | 2026-12-09 | 待办（卡 SSH，见 ACC-13） |
+| B-07 | 机器化门禁与 prompt 回归沉淀 spec | 3 次真实发布走 deploy.sh、2 次 prompt 改动跑过 eval:prompt | 2026-12-09 | 进行中（11-19：deploy ok+rolled-back 各 1、eval:prompt 已跑 4 轮；ACC-13 已通过） |
 | B-08 | 跨视角评审节奏 | 下个迭代上线前按 `playbooks/fresh-eyes-review.md` 跑一次并存档 | 2026-12-09 | 待办 |
 | B-09 | agent 生产只读账号 | 走查改用只读 SSH 用户；写操作只剩 deploy.sh | 2026-12-09 | 已完成（11-19，`brain-ro@` 已建并实测只读；走查约定进 AGENTS.md） |
 | B-10 | 开发侧 token 成本粗账 | 连续 5 个会话记录用量，按任务类型给出量级 | 2026-12-09 | 待办 |
