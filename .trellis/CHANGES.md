@@ -124,3 +124,4 @@
 - 2026-11-18 21:46 | 生产 SSH kex 阶段被远端断开（TCP 通、服务存活、非认证问题）已存档待用户处理；阻塞 ACC-13/14、B-09 与人设修复上线 | → `tasks/11-18-ssh-kex-blocked/prd.md`
 - 2026-11-18 23:32 | 人设示例复读+注入解说已修并提交 de26ba4（eval 背诵 12→0、inject 硬失败→0）；蒸馏投毒实验证伪无需改；ye/whale 与群聊规则留档；SSH 任务 11-18-ssh-kex-blocked 保持开放 | → `tasks/archive/2026-11/11-18-persona-product-fixes/prd.md`
 - 2026-11-19 12:25 | SSH 已恢复+远端巡检全绿；B-09 只读账号 brain-ro@ 建成并实测（ACL 方案，写被拒无 sudo）；人设线上零漂移；deploy 仍卡并行会话 distill.ts WIP 待确认 | → tasks/11-18-ssh-kex-blocked/prd.md
+- 2026-11-19 14:57 | 走查：ACC-05/09/10/11/12/14 六项实证通过入档（source戳34/34、归因护栏3轮零错配、私聊声口N=5/5、〔角·〕注入过滤实证、此刻类N=3/3、token cookie链路全通）；ACC-02搜索N=5/10、ACC-15/16代码已上线待人设PATCH；deploy.sh 已由并行会话跑通正式发布（persona-v2 ok+备份对在），回滚演练仍待 | → .trellis/acceptance.md
