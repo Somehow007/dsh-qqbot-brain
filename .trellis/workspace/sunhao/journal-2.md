@@ -838,3 +838,25 @@ SSH kex 故障由用户恢复；巡检全绿后建 B-09 只读账号 brain-ro@�
 ### Status
 
 [OK] **Completed**
+
+
+## Session 133: engram 壳层骨架+治理初始化
+<!-- trellis-session: v=2 fp=1c1bd3d89461a356 -->
+
+**Date**: 2026-11-19
+**Task**: engram 壳层骨架+治理初始化
+**Branch**: `main`
+
+### Summary
+
+问题：companion 壳层如何立项为长期项目？brain 引用方式？→ 方案：engram/ 平级新项目，Node type stripping 直引 brain .ts 源码（经 src/brain.ts shim），trellis init 全量治理+spec/backend 七篇契约+acceptance/dev-plan/deploy 三件套 → 验证：typecheck 净、21 tests 绿、本地冒烟（种子+28/双服务/鉴权/反代/停机）通过 → 后续：persona.md 私聊适配+种子刷新、生产部署（docs/deploy.md）、ACC-E01~E05 实证验收待触发。未部署生产。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `28fb05e` | engram: 陪伴 Agent 壳层 MVP 骨架 + Trellis 治理初始化 |
+
+### Status
+
+[OK] **Completed**

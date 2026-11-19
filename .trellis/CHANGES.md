@@ -127,3 +127,4 @@
 - 2026-11-19 14:57 | 走查：ACC-05/09/10/11/12/14 六项实证通过入档（source戳34/34、归因护栏3轮零错配、私聊声口N=5/5、〔角·〕注入过滤实证、此刻类N=3/3、token cookie链路全通）；ACC-02搜索N=5/10、ACC-15/16代码已上线待人设PATCH；deploy.sh 已由并行会话跑通正式发布（persona-v2 ok+备份对在），回滚演练仍待 | → .trellis/acceptance.md
 - 2026-11-19 15:02 | SSH 恢复+首部署完成：deploy.sh ok+rolled-back 双档（633a405 修回滚两 bug）、ACC-13/14 通过、brain-ro 只读账号建成、firefly persona PATCH 上线；ACC-15/16 等真实流量 | → `tasks/archive/2026-11/11-18-ssh-kex-blocked/prd.md`
 - 2026-11-19 16:22 | qqbot-brain main 已推送 GitHub（161 commits，origin 改 git@ SSH——https 凭据不可用；CI 首跑暴露 lockfile 陈旧 npm ci 失败，9e853cf 重生成后 CI 绿）；ai-workflow 库无 remote 仍纯本地 | → git log 9e853cf
+- 2026-11-19 16:56 | engram/ 新项目立项：brain 第二 deployment 壳层骨架+Trellis 治理（spec 七篇+acceptance+dev-plan+deploy），21 tests 绿未部署 → .trellis/tasks/11-19-engram-bootstrap | → `tasks/archive/2026-11/11-19-engram-bootstrap/prd.md`

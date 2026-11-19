@@ -1,7 +1,8 @@
 {
   "name": "11-19-engram-bootstrap",
   "title": "engram 陪伴 Agent 壳层 MVP 骨架 + 项目治理初始化",
-  "status": "done",
+  "status": "completed",
   "created": "2026-11-19",
-  "commit": "28fb05e"
+  "commit": "28fb05e",
+  "completedAt": "2026-11-19"
 }
