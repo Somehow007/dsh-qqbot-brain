@@ -11,7 +11,7 @@
 | `GET /api/history` | 同上 | 最近 80 条 history |
 | `POST /api/chat` | 同上 | `{text}` → `{reply, usage, hits, degraded}` |
 | `GET /api/events` | 同上 | SSE：proactive/system 消息推送，25s 心跳 |
-| `/brain/*` | 反代注入 `x-brain-token` | → `127.0.0.1:4101` BrainHttpServer（三皮肤+D-admin 整套复用） |
+| `/brain/*` | 须过 engram 鉴权（与 `/api/*` 同闸）后反代注入 `x-brain-token` | → `127.0.0.1:4101` BrainHttpServer（三皮肤+D-admin 整套复用）；**反代必须在 authed 之后**——proxyBrain 无条件注入口令，无凭证直通=公网裸奔管理端 |
 
 ## 鉴权模式（沿用 brain 口令制）
 
@@ -33,4 +33,4 @@
 ## 已知接受风险
 
 - 无 TLS（与现有 `:4099` 同级暴露面，口令强度兜底）——后续可加 Caddy/安全组，不在 MVP。
-- `/brain/*` 反代不过滤路径——brain server 自带鉴权是边界，反代只负责注入 header。
+- `/brain/*` 与 `/api/*` 共用 engram 鉴权闸门（cookie/`x-engram-token`），通过后反代注入 `x-brain-token` 透传 brain server。**顺序不可换**：proxyBrain 无条件注入口令头，若放在 authed 之前则公网无凭证可达全部管理 API。

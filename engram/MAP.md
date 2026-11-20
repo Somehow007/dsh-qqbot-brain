@@ -22,7 +22,7 @@ config.ts ──→ main.ts ──→ { chat/* , web/* }
 | `src/main.ts` | 装配+timers+停机 | 镜像插件 apply()；endOfTurn 不 await | deployment |
 | `chat/llm.ts` | OpenAI 兼容 client | 失败返 undefined 不抛；usage 透出 | cost-config |
 | `chat/history.ts` | jsonl 持久化+有界视图 | 截头保尾；坏行跳过 | chat-loop |
-| `chat/prompt.ts` | 七段 prompt | 稳定段在前；空段不产出 | chat-loop |
+| `chat/prompt.ts` | 九段 prompt | 稳定段在前；空段不产出 | chat-loop |
 | `chat/loop.ts` | 单轮管线 | 串行化；失败不写 Turn；via:'user' | chat-loop |
 | `chat/proactive.ts` | 主动开口 | 四道闸；via:'agent'+userText:'' | proactive |
 | `chat/tools.ts` | brain_search | topK≤5；默认关 | chat-loop |

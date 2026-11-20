@@ -46,9 +46,10 @@ ssh ubuntu@124.222.65.169 'sudo systemctl daemon-reload && sudo systemctl enable
 ENGRAM_DATA_DIR=/home/ubuntu/engram-data
 ENGRAM_SEED_DIR=/home/ubuntu/engram-workspace/personas/firefly
 ENGRAM_HTTP_TOKEN=<强口令>
-ENGRAM_BRAIN_TOKEN=<强口令，建议与 HTTP 不同>
+BRAIN_HTTP_TOKEN=<强口令，brain 管理端专用，建议与 HTTP 不同>
 USER_NICK=开拓者
-DEEPSEEK_API_KEY=<key>          # chat+蒸馏+embedding 共用；要分档就拆 CHAT_LLM_*/BRAIN_LLM_*/EMBED_*
+DEEPSEEK_API_KEY=<key>          # chat+蒸馏共用（CHAT_LLM_API_KEY/BRAIN_LLM_API_KEY 回落到此）
+# BRAIN_EMBED_API_KEY=<key>    # embedding 独立配（如 siliconflow bge-m3）；不设则向量关闭、检索退化纯 lexical
 # PROACTIVE_ENABLED=0           # slice2 再开
 # TOOLS_BRAIN_SEARCH=0
 ```
@@ -78,7 +79,10 @@ WantedBy=multi-user.target
 ```bash
 # 本地 typecheck+test 先过
 cd engram && npm run typecheck && npm test
-# rsync 同首次部署第 3 步（src 变了才需要；brain 侧变了也要重发 dsh-qqbot-brain/src）
+# persona 包有改动必须先重跑生成器（persona.md 是源、seed-export.json 是生成物）
+python3 personas/firefly/generate_seed.py   # 改了 personas/firefly/persona.md 时
+# rsync 同首次部署第 3 步（src 变了才需要；brain 侧变了也要重发 dsh-qqbot-brain/src；
+#   personas/firefly 变了也要重发对应目录）
 ssh ubuntu@124.222.65.169 'sudo systemctl restart engram'
 ```
 
@@ -92,7 +96,9 @@ curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:4100/api/config       
 curl -s -H "x-engram-token: <tok>" http://127.0.0.1:4100/api/config                 # {"ok":true,...}
 curl -s -H "x-engram-token: <tok>" http://127.0.0.1:4100/api/history                # {"entries":[...]}
 # 浏览器: http://124.222.65.169:4100/?token=<tok>  → cookie 后直连 /
-# 脑图:   http://124.222.65.169:4100/brain/  → 三皮肤页（反代注入 token）
+# 鉴权边界：无凭证访问 /brain/ 必须 401（反代在 authed 之后，proxyBrain 注入口令）
+curl -s -o /dev/null -w '%{http_code}\n' http://124.222.65.169:4100/brain/        # 期望 401
+# 脑图:   http://124.222.65.169:4100/brain/  → 三皮肤页（engram cookie 已过鉴权后反代注入 token）
 ```
 
 ## 备份
@@ -106,5 +112,5 @@ curl -s -H "x-engram-token: <tok>" http://127.0.0.1:4100/api/history            
 |---|---|
 | 起不来 | `journalctl -u engram -n 50`；多半是 env 缺 key 或兄弟布局断 |
 | chat 500 | `~/engram-data/engram.log`；LLM 超时降级不该 500 |
-| 脑图 502 | `127.0.0.1:4101` 是否活；`ENGRAM_BRAIN_TOKEN` 与 brain 侧口令一致性 |
+| 脑图 502 | `127.0.0.1:4101` 是否活；`BRAIN_HTTP_TOKEN`（engram.env 里 brain 管理端口令）与 brain 侧校验一致性 |
 | 记忆没更新 | `ingest` 失败会 log；`endOfTurn` 后台蒸馏需 `BRAIN_LLM_*`/`DEEPSEEK_API_KEY` |

@@ -128,3 +128,5 @@
 - 2026-11-19 15:02 | SSH 恢复+首部署完成：deploy.sh ok+rolled-back 双档（633a405 修回滚两 bug）、ACC-13/14 通过、brain-ro 只读账号建成、firefly persona PATCH 上线；ACC-15/16 等真实流量 | → `tasks/archive/2026-11/11-18-ssh-kex-blocked/prd.md`
 - 2026-11-19 16:22 | qqbot-brain main 已推送 GitHub（161 commits，origin 改 git@ SSH——https 凭据不可用；CI 首跑暴露 lockfile 陈旧 npm ci 失败，9e853cf 重生成后 CI 绿）；ai-workflow 库无 remote 仍纯本地 | → git log 9e853cf
 - 2026-11-19 16:56 | engram/ 新项目立项：brain 第二 deployment 壳层骨架+Trellis 治理（spec 七篇+acceptance+dev-plan+deploy），21 tests 绿未部署 → .trellis/tasks/11-19-engram-bootstrap | → `tasks/archive/2026-11/11-19-engram-bootstrap/prd.md`
+- 2026-11-20 | engram MVP 走查：修复 /brain/* 反代鉴权顺序漏洞（未部署拦截）+quietHours/temperature 边界；acceptance.md 定制 E01-E08 验收集+Slice 门槛；slice1 剩 persona 改写/部署/dogfood | → `engram/.trellis/tasks/11-20-mvp-review-acceptance` + `engram/.trellis/acceptance.md`
+- 2026-11-20 15:02 | engram slice1 上线：persona 私聊改写+生产部署完成，E01/E04/E06/E07 实证过，dogfooding 进行中（公网 4100 待 SG 放行） | → engram/.trellis/tasks/11-20-slice1-mvp-execution

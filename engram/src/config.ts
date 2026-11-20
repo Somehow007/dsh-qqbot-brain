@@ -231,7 +231,8 @@ export function loadConfig(e: NodeJS.ProcessEnv = process.env): EngramConfig {
   c.chat.model = env(e, 'CHAT_LLM_MODEL') ?? c.chat.model;
   c.chat.timeoutMs = envNum(e, 'CHAT_LLM_TIMEOUT_MS', c.chat.timeoutMs);
   c.chat.maxTokens = envNum(e, 'CHAT_LLM_MAX_TOKENS', c.chat.maxTokens);
-  c.chat.temperature = Number(env(e, 'CHAT_LLM_TEMPERATURE') ?? c.chat.temperature) || c.chat.temperature;
+  const chatTemp = Number(env(e, 'CHAT_LLM_TEMPERATURE'));
+  if (Number.isFinite(chatTemp)) c.chat.temperature = chatTemp;
 
   // chat HTTP
   c.http.port = envNum(e, 'ENGRAM_HTTP_PORT', c.http.port);

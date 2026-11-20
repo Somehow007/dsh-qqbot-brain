@@ -12,7 +12,7 @@
 | `SESSION_ID` | `main` | brain 会话 id |
 | `CHAT_LLM_*` | — | chat 模型 endpoint/key/model（`CHAT_LLM_API_KEY` 缺省回落 `DEEPSEEK_API_KEY`） |
 | `BRAIN_LLM_*` | — | 蒸馏/画像模型（同回落） |
-| `EMBED_*` | — | embedding（`EMBED_API_KEY` 回落 `DEEPSEEK_API_KEY`） |
+| `BRAIN_EMBED_*` | — | embedding（`BRAIN_EMBED_API_KEY`，**无 DEEPSEEK 回落**——DeepSeek 无 embedding API；缺 key 时 embedder 关闭、检索退化纯 lexical，部署时勿漏配） |
 | `ENGRAM_HTTP_TOKEN` | 空=无鉴权 | chat API 鉴权口令（生产必设） |
 | `ENGRAM_BRAIN_TOKEN` | 回落 http.token | brain admin 口令 |
 | `PROACTIVE_*` | enabled=false, maxPerDay=4, quiet 23:00-08:00, minInterval=120m | 主动开口预算 |

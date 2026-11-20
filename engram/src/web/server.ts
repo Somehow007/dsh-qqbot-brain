@@ -120,12 +120,6 @@ export class EngramServer {
       return;
     }
 
-    // ── /brain/* 反代（brain server 自带鉴权，注入 header）──
-    if (path === '/brain' || path.startsWith('/brain/')) {
-      this.proxyBrain(req, res);
-      return;
-    }
-
     // ── 静态页（公开 shell；API 全部要鉴权，页内 JS 会处理 401）──
     if (path === '/' || path === '/index.html') {
       if (!this.chatHtml) {
@@ -140,6 +134,13 @@ export class EngramServer {
     // ── API 鉴权 ──
     if (!this.authed(req)) {
       json(res, { error: 'unauthorized' }, 401);
+      return;
+    }
+
+    // ── /brain/* 反代（engram 鉴权已过才注入 x-brain-token；放在 authed 之前
+    //    等于公网裸奔 brain 管理端——proxyBrain 无条件注入口令头）──
+    if (path === '/brain' || path.startsWith('/brain/')) {
+      this.proxyBrain(req, res);
       return;
     }
 
