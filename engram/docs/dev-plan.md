@@ -15,7 +15,7 @@ brain 内核第二 deployment：Web 1-on-1 自用陪伴，单 persona（流萤�
 | persona.md 群聊→私聊适配 | ✅ 完成 | personas/firefly/ 双语境改写（群聊语境清除）+ seed 重出；pack README 已注明勿回灌群聊实例 |
 | 本地真实对话验证 | ✅ 完成 | 2026-11-20：temp dataDir + DeepSeek 冒烟 6 轮——声口/此刻感/情境参考/记忆命中（hits 1-6）/蒸馏（情绪+画像）全过，usage ~4.1-4.6k/轮 |
 | 生产部署 | ✅ 完成 | 2026-11-20：engram.service active，:4100 chat + :4101 brain；种子+28/persona.md 自举/向量 on/蒸馏 on；公网访问待安全组放行 4100（当前走 SSH tunnel dogfood） |
-| 验收 ACC-E01~E04 + E06~E08 | 🔄 进行中 | E01/E04/E06/E07 已通过（2026-11-20 生产实证）；E02/E08 观察中（dogfooding ≥1 周 + ≥20 样本）；E03 待触发 |
+| 验收 ACC-E01~E04 + E06~E08 | 🔄 进行中 | E01/E04/E06/E07 已通过；E03 失败轮半项通过（proactive 半项随 slice2）；E02/E08 观察中（dogfooding ≥1 周 + ≥20 样本） |
 
 ## Slice 2 — Proactive + brain_search
 

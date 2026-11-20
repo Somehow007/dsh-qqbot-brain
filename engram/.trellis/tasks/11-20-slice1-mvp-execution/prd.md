@@ -14,7 +14,7 @@
 - [x] 本地真实对话验证：temp `ENGRAM_DATA_DIR` + `DEEPSEEK_API_KEY` 跑几轮，核声口/记忆命中/usage（embedding 本地无 key 时 lexical 回退可接受）
 - [x] 生产部署：rsync 三目录平级布局 + `~/.engram/engram.env` + `engram.service` + 冒烟（deploy.md runbook）
 - [ ] 验收走查：E01 部署自举+鉴权边界、E04 重启持久化、E06 数据隔离、E07 persona 双侧生效当日可实证；E02 声口/记忆命中、E08 成本基线随 dogfooding 累计
-- [ ] dev-plan.md 状态同步 + CHANGES 广播（engram+根）
+- [x] dev-plan.md 状态同步 + CHANGES 广播（engram+根）
 
 ## 已知风险/边界
 
@@ -27,7 +27,7 @@
 - [x] persona.md 私聊版落地 + seed 重出 + 测试绿
 - [x] 本地真实对话跑通（声口像流萤、usage 在 6-9k 档）
 - [x] 生产部署完成 + E01/E04/E06/E07 实证记录进 acceptance.md
-- [ ] dev-plan Slice1 状态更新 + CHANGES 广播
+- [x] dev-plan Slice1 状态更新 + CHANGES 广播
 
 ## Out of Scope
 
