@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-2.md`
-- **Total Sessions**: 133
-- **Last Active**: 2026-11-19
+- **Total Sessions**: 134
+- **Last Active**: 2026-11-20
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-2.md` | ~862 | Active |
+| `journal-2.md` | ~884 | Active |
 | `journal-1.md` | ~1988 | Archived |
 <!-- @@@/auto:active-documents -->
 
@@ -30,6 +30,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 134 | 2026-11-20 | 建立 GROWTH.md 个人成长手册 | `aff5fab` | `main` |
 | 133 | 2026-11-19 | engram 壳层骨架+治理初始化 | `28fb05e` | `main` |
 | 132 | 2026-11-19 | SSH 恢复 + 首次生产部署全链路（deploy.sh 实跑/回滚演练/人设 PATCH） | `5132b73` | `main` |
 | 131 | 2026-11-18 | 人设示例复读与注入解说修复（prompt eval 驱动） | `de26ba4` | `main` |

@@ -860,3 +860,25 @@ SSH kex 故障由用户恢复；巡检全绿后建 B-09 只读账号 brain-ro@�
 ### Status
 
 [OK] **Completed**
+
+
+## Session 134: 建立 GROWTH.md 个人成长手册
+<!-- trellis-session: v=2 fp=b3fdc706c5942386 -->
+
+**Date**: 2026-11-20
+**Task**: 建立 GROWTH.md 个人成长手册
+**Branch**: `main`
+
+### Summary
+
+用户要一份长期维护的个人文件，面向面试/学习业务/设计提升/Agent 深度理解四合一。通读全部项目文档后新建根目录 GROWTH.md（337 行）：四用途分区+论题池+维护约定，首版内容全部来自已有文档（companion 三连评估、跳出 dsh 路线、记忆/人格调研、求职材料等）。定位为认知沉淀层，与求职材料（外部成品）/CHANGES（事件流）/MAP（导览）分离。AGENTS.md 项目约定加维护触发条目，MAP.md 导航、README.md 文档分工同步。任务档案 11-20-growth-handbook 已归档。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `aff5fab` | docs: 新增 GROWTH.md 个人成长手册并立维护约束 |
+
+### Status
+
+[OK] **Completed**

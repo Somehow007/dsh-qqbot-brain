@@ -30,7 +30,6 @@
 
 <!-- 种子条目：从 journal #83-#92 与未提交任务目录回填，日期精度到天 -->
 
-- 2026-11-05 | 私聊记忆白纸修复上线：C2C 发言人绑定 | → journal #75
 - 2026-11-07 | 私密域隔离完成设计→实现→部署→验收 | → `tasks/archive/2026-11/11-07-private-domain-isolation` + journal #83
 - 2026-11-07 | 15s 自动刷新编辑保护（方案A）落地 | → `tasks/archive/2026-11/11-07-brain-refresh-guard` + journal #81
 - 2026-11-08 | MAP.md 项目地图建立（where&how 导航） | → `tasks/archive/2026-11/11-08-project-map` + journal #89
@@ -130,3 +129,4 @@
 - 2026-11-19 16:56 | engram/ 新项目立项：brain 第二 deployment 壳层骨架+Trellis 治理（spec 七篇+acceptance+dev-plan+deploy），21 tests 绿未部署 → .trellis/tasks/11-19-engram-bootstrap | → `tasks/archive/2026-11/11-19-engram-bootstrap/prd.md`
 - 2026-11-20 | engram MVP 走查：修复 /brain/* 反代鉴权顺序漏洞（未部署拦截）+quietHours/temperature 边界；acceptance.md 定制 E01-E08 验收集+Slice 门槛；slice1 剩 persona 改写/部署/dogfood | → `engram/.trellis/tasks/11-20-mvp-review-acceptance` + `engram/.trellis/acceptance.md`
 - 2026-11-20 15:02 | engram slice1 上线：persona 私聊改写+生产部署完成，E01/E04/E06/E07 实证过，dogfooding 进行中（公网 4100 待 SG 放行） | → engram/.trellis/tasks/11-20-slice1-mvp-execution
+- 2026-11-20 15:09 | GROWTH.md 个人成长手册建立：面试/学习业务/设计提升/Agent 深度理解四合一认知沉淀文件+论题池，维护约束入 AGENTS.md | → `tasks/archive/2026-11/11-20-growth-handbook/prd.md`
