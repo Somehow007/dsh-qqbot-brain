@@ -20,6 +20,7 @@
 | 部署 / 运维 / 排障 | `dsh-qqbot-brain/README.md` 部署 runbook + `AGENTS.md`「线上数据在哪」 | `docs/brain-backup-restore.md` |
 | 不带 bot 只玩脑图 | `demo/serve-demo.ts`（`node --experimental-strip-types`，即起即抛） | `demo/README.md` 演示数据解读表 |
 | 对外讲这个项目 | `求职材料/README.md`（简历条目 + 面试聊点 + 数字速查） | `参赛材料/`（gitignored）、`demo/` |
+| 想系统提升自己 / 面试准备 / 回顾设计思想 | `GROWTH.md`（个人成长手册：面试弹药 + 领域地图 + 设计思想 + 待深入论题池） | `求职材料/`、`.trellis/tasks/` 指针 |
 
 ## 二、仓库结构（代码层 vs 档案层）
 
@@ -51,6 +52,7 @@ personas/                     独立人设包群（第二人格资产：persona.
 scripts/                    范式工具（拷自 ai-workflow/kit）：workflow-health.py 体检 · changes.py 事件流记账 · wrap-up.sh 一条命令收工
 AGENTS.md                   项目约定：线上数据位置、部署要点、归档流程——动手前必读
 AI-WORKFLOW.md              工作范式实例层：原则落点表 / 本项目实证 / backlog（通用原则在 ai-workflow/PRINCIPLES.md）
+GROWTH.md                    个人成长手册（用户向）：面试弹药 · 领域地图 · 设计思想 · 待深入论题池——认知沉淀，非开发文档
 brain-data/                 线上记忆导出的本地备份（gitignored）
 .dsh/ · .agents/ · .devin/  Trellis 在各 AI 平台的适配（DSH.md 讲 dsh 侧；skills/workflows 自动生成，一般不用手改）
 ```
